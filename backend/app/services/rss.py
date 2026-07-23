@@ -22,35 +22,70 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 }
 
+# Common feed URL migrations and aliases
+KNOWN_FEED_ALIASES = {
+    "https://www.rts.ch/rss/info.xml": "https://www.rts.ch/info/toute-info/?format=rss/news",
+    "http://www.rts.ch/rss/info.xml": "https://www.rts.ch/info/toute-info/?format=rss/news",
+    "https://www.rts.ch/info/rss": "https://www.rts.ch/info/toute-info/?format=rss/news",
+    "https://www.rts.ch/info": "https://www.rts.ch/info/toute-info/?format=rss/news",
+    "https://www.rts.ch/info/": "https://www.rts.ch/info/toute-info/?format=rss/news",
+    "https://www.letemps.ch/rss": "https://www.letemps.ch/feed",
+    "https://www.letemps.ch/rss/": "https://www.letemps.ch/feed"
+}
+
 def robust_parse_feed(url: str):
     """
-    Robustly fetches and parses an RSS feed using httpx with browser User-Agent
-    and fallback to feedparser direct HTTP retrieval and URL alias resolution (/feed, /rss).
+    Robustly fetches and parses an RSS feed using httpx with browser User-Agent,
+    known URL migrations, HTML RSS link autodiscovery, and fallback URL alias resolution.
     """
     if not HAS_FEEDPARSER:
         raise RuntimeError("Le paquet 'feedparser' n'est pas encore installé.")
 
+    clean_url = url.strip()
+    if clean_url in KNOWN_FEED_ALIASES:
+        clean_url = KNOWN_FEED_ALIASES[clean_url]
+
     # 1. Primary fetch with httpx + browser headers
     try:
-        r = httpx.get(url, follow_redirects=True, headers=BROWSER_HEADERS, timeout=12.0)
+        r = httpx.get(clean_url, follow_redirects=True, headers=BROWSER_HEADERS, timeout=12.0)
         if r.status_code == 200:
             parsed = feedparser.parse(r.content)
             if parsed.entries:
-                return parsed, url
+                return parsed, clean_url
+
+            # HTML Autodiscovery for RSS link tags inside HTML page
+            if "text/html" in r.headers.get("content-type", "") or "<html" in r.text.lower()[:300]:
+                rss_links = re.findall(r'href=["\']([^"\']+(?:format=rss|\.xml|/rss|/feed)[^"\']*)["\']', r.text, re.IGNORECASE)
+                for found_link in set(rss_links):
+                    if not found_link.startswith("http"):
+                        found_link = "https://www.rts.ch" + found_link if found_link.startswith("/") else clean_url.rstrip("/") + "/" + found_link
+                    try:
+                        r_alt = httpx.get(found_link, follow_redirects=True, headers=BROWSER_HEADERS, timeout=10.0)
+                        if r_alt.status_code == 200:
+                            p_alt = feedparser.parse(r_alt.content)
+                            if p_alt.entries:
+                                return p_alt, found_link
+                    except Exception:
+                        pass
     except Exception as e:
-        print(f"[rss.py fetch note for {url}]: {e}")
+        print(f"[rss.py fetch note for {clean_url}]: {e}")
 
     # 2. Fallback to feedparser built-in HTTP fetcher
     try:
-        parsed = feedparser.parse(url, agent=BROWSER_HEADERS["User-Agent"])
+        parsed = feedparser.parse(clean_url, agent=BROWSER_HEADERS["User-Agent"])
         if parsed.entries:
-            return parsed, url
+            return parsed, clean_url
     except Exception as e:
-        print(f"[feedparser fallback note for {url}]: {e}")
+        print(f"[feedparser fallback note for {clean_url}]: {e}")
 
-    # 3. Fallback to alternate RSS URL paths (/feed or /rss)
-    if not (url.endswith('/feed') or url.endswith('/rss') or url.endswith('.xml')):
-        for alt in [url.rstrip('/') + '/feed', url.rstrip('/') + '/rss', url.rstrip('/') + '/rss.xml']:
+    # 3. Fallback to alternate RSS URL paths (/feed, /rss, ?format=rss/news)
+    if not (clean_url.endswith('/feed') or clean_url.endswith('/rss') or clean_url.endswith('.xml') or 'format=rss' in clean_url):
+        for alt in [
+            clean_url.rstrip('/') + '/toute-info/?format=rss/news',
+            clean_url.rstrip('/') + '/feed',
+            clean_url.rstrip('/') + '/rss',
+            clean_url.rstrip('/') + '/rss.xml'
+        ]:
             try:
                 r = httpx.get(alt, follow_redirects=True, headers=BROWSER_HEADERS, timeout=10.0)
                 if r.status_code == 200:
@@ -61,8 +96,8 @@ def robust_parse_feed(url: str):
                 pass
 
     # Final attempt
-    parsed = feedparser.parse(url)
-    return parsed, url
+    parsed = feedparser.parse(clean_url)
+    return parsed, clean_url
 
 def extract_main_image_url(entry, content: str) -> str:
     if "media_content" in entry and len(entry.media_content) > 0:
@@ -357,7 +392,6 @@ async def refresh_all_feeds_and_vectorize(api_key: str = None):
             vec_res = await vectorize_all_pending(key, force_revectorize=False)
             vectorized_count = vec_res.get("processed_count", 0)
 
-            # Trigger background pre-computation of clusters and French AI syntheses!
             await precompute_and_cache_clusters(key)
         except Exception as e:
             print(f"Erreur auto-vectorisation & pre-clustering: {e}")

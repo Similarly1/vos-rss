@@ -11,8 +11,8 @@
   // Curated list with distinction between NATIVE full-text and WEB-SCRAPED full-text
   const AWESOME_FEEDS = [
     // 🇨🇭 SUISSE
-    { title: "RTS Info (Radio Télévision Suisse)", category: "Suisse", lang: "fr", flag: "🇨🇭", fullTextMode: "scraped", url: "https://www.rts.ch/rss/info.xml", description: "Actualité suisse et internationale (Texte intégral extrait par notre scraper web)." },
-    { title: "Le Temps (Suisse)", category: "Suisse", lang: "fr", flag: "🇨🇭", fullTextMode: "scraped", url: "https://www.letemps.ch/rss", description: "Journal quotidien suisse de référence." },
+    { title: "RTS Info (Radio Télévision Suisse)", category: "Suisse", lang: "fr", flag: "🇨🇭", fullTextMode: "scraped", url: "https://www.rts.ch/info/toute-info/?format=rss/news", description: "Actualité suisse et internationale (Flux officiel RTS Info)." },
+    { title: "Le Temps (Suisse)", category: "Suisse", lang: "fr", flag: "🇨🇭", fullTextMode: "scraped", url: "https://www.letemps.ch/feed", description: "Journal quotidien suisse de référence." },
     
     // 🇪🇺 EUROPE
     { title: "Le Monde (À la une)", category: "Europe", lang: "fr", flag: "🇫🇷", fullTextMode: "scraped", url: "https://www.lemonde.fr/rss/une.xml", description: "À la une du journal Le Monde." },
@@ -66,11 +66,10 @@
       const res = await fetch('/api/feeds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: feed.url,
+        body: JSON.stringify({ 
+          url: feed.url, 
           category: feed.category,
-          language: feed.lang,
-          is_full_text: true
+          language: feed.lang
         })
       });
 
@@ -83,11 +82,9 @@
         await fetchArticles();
       } else {
         errorMap[feed.url] = result.detail || "Erreur lors de l'abonnement.";
-        errorMap = { ...errorMap };
       }
     } catch (err) {
       errorMap[feed.url] = "Erreur de connexion.";
-      errorMap = { ...errorMap };
     } finally {
       subscribingMap[feed.url] = false;
       subscribingMap = { ...subscribingMap };
@@ -96,124 +93,123 @@
 </script>
 
 <div class="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-dark-bg p-6 md:p-10 space-y-8">
-  <div class="max-w-5xl mx-auto space-y-8">
+  <div class="max-w-6xl mx-auto space-y-8">
     
-    <!-- Header Title -->
-    <div class="space-y-2">
-      <div class="flex items-center gap-2">
-        <span class="text-xs bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-          Catalogue Multilingue
-        </span>
-        <span class="text-xs bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-          📄 Articles Complets (Natif ou Web Scraper)
-        </span>
+    <!-- Top Header -->
+    <div class="space-y-3">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-primary-50 dark:bg-primary-950/50 text-primary-500 rounded-full text-xs font-bold border border-primary-200 dark:border-primary-800">
+        <span>✨ Explorer les Flux RSS</span>
       </div>
-      <h1 class="text-3xl font-extrabold">Découvrir des Sources Internationales</h1>
-      <p class="text-sm text-gray-500">
-        Parcourez les sources d'actualités classées par zone géographique (<strong>Suisse</strong>, <strong>Europe</strong>, <strong>Monde</strong>) ou thématique (<strong>Technologie</strong>, <strong>Science</strong>).
+      <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Découvrir de nouveaux médias</h1>
+      <p class="text-sm text-gray-500 dark:text-dark-muted max-w-2xl">
+        Sélection de flux RSS généraux et spécialisés. Cliquez sur <strong>S'abonner</strong> pour ajouter directement le média à votre lecteur.
       </p>
     </div>
 
-    <!-- Search & Filter Controls -->
-    <div class="space-y-4">
+    <!-- Search and Filters Bar -->
+    <div class="bg-white dark:bg-dark-card p-4 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-4 md:space-y-0 md:flex md:items-center md:justify-between gap-4">
+      
       <!-- Search Input -->
-      <div class="relative">
+      <div class="relative flex-1">
+        <svg class="w-5 h-5 absolute left-4 top-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
         <input 
           type="text" 
+          placeholder="Rechercher un média ou un sujet..." 
           bind:value={searchQuery}
-          placeholder="Rechercher par média, langue ou sujet (ex: Suisse, Le Temps, Spiegel, Tech)..." 
-          class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 rounded-2xl py-3.5 pl-12 pr-4 shadow-sm focus:ring-2 focus:ring-primary-500 text-sm"
+          class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all"
         />
-        <svg class="w-5 h-5 absolute left-4 top-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
       </div>
 
-      <!-- Filter Row: Languages & Categories -->
-      <div class="flex flex-wrap items-center gap-2">
-        <!-- Language Filter Pills -->
-        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 border-r border-gray-200 dark:border-gray-800 pr-3">
-          {#each languages as lang}
-            <button 
-              on:click={() => selectedLanguageFilter = lang.code}
-              class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all {selectedLanguageFilter === lang.code ? 'bg-primary-500 text-white shadow-sm' : 'bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
-            >
-              {lang.label}
-            </button>
-          {/each}
-        </div>
-
-        <!-- Categories Pills -->
-        <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+      <!-- Filters Group -->
+      <div class="flex items-center gap-3 shrink-0">
+        <!-- Category Filter -->
+        <select 
+          bind:value={selectedCategory}
+          class="bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 text-xs font-semibold focus:ring-2 focus:ring-primary-500 focus:outline-none"
+        >
           {#each categories as cat}
-            <button 
-              on:click={() => selectedCategory = cat}
-              class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all {selectedCategory === cat ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900 shadow-sm' : 'bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}"
-            >
-              {cat}
-            </button>
+            <option value={cat}>{cat === 'Tous' ? 'Toutes catégories' : cat}</option>
           {/each}
-        </div>
+        </select>
+
+        <!-- Language Filter -->
+        <select 
+          bind:value={selectedLanguageFilter}
+          class="bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 text-xs font-semibold focus:ring-2 focus:ring-primary-500 focus:outline-none"
+        >
+          {#each languages as lang}
+            <option value={lang.code}>{lang.label}</option>
+          {/each}
+        </select>
       </div>
+
     </div>
 
-    <!-- FEEDS GRID -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <!-- Feeds Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {#each filteredFeeds as feed}
-        <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+        {@const isAlreadySubscribed = alreadySubscribedUrls.includes(feed.url.toLowerCase()) || subscribedSuccessMap[feed.url]}
+
+        <div class="bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-5">
           
-          <div class="space-y-2">
+          <div class="space-y-3">
             <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="text-2xl">{feed.flag}</span>
+              <span class="text-xl">{feed.flag}</span>
+
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                  {feed.category}
+                </span>
+
                 {#if feed.fullTextMode === 'native'}
-                  <span class="text-[10px] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-bold px-2 py-0.5 rounded-md border border-emerald-200/50 dark:border-emerald-800/50">
-                    ✨ RSS 100% Natif
+                  <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800" title="Flux natif 100% complet">
+                    100% Natif
                   </span>
                 {:else}
-                  <span class="text-[10px] bg-cyan-50 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 font-bold px-2 py-0.5 rounded-md border border-cyan-200/50 dark:border-cyan-800/50">
-                    🌐 Extrait par Web Scraper
+                  <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800" title="Web Scraping automatique">
+                    Web Scrapé
                   </span>
                 {/if}
               </div>
-              <span class="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-500 font-semibold px-2.5 py-0.5 rounded-full">
-                {feed.category}
-              </span>
             </div>
 
-            <h3 class="font-bold text-base text-gray-900 dark:text-gray-100 leading-snug">{feed.title}</h3>
-            <p class="text-xs text-gray-500 leading-relaxed">{feed.description}</p>
+            <h3 class="font-extrabold text-base text-gray-900 dark:text-white leading-snug">
+              {feed.title}
+            </h3>
+
+            <p class="text-xs text-gray-500 dark:text-dark-muted leading-relaxed line-clamp-3">
+              {feed.description}
+            </p>
           </div>
 
-          <div class="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
-            <span class="text-[11px] text-gray-400 font-mono truncate max-w-[140px]">{feed.url}</span>
-
-            {#if alreadySubscribedUrls.includes(feed.url.toLowerCase()) || subscribedSuccessMap[feed.url]}
-              <span class="px-3 py-1.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 text-xs font-bold rounded-xl flex items-center gap-1 shrink-0">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          <!-- Footer & Action -->
+          <div class="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-2">
+            {#if isAlreadySubscribed}
+              <div class="w-full py-2.5 px-4 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5 border border-emerald-200 dark:border-emerald-800">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                 <span>Abonné</span>
-              </span>
+              </div>
             {:else}
               <button 
                 on:click={() => subscribeToFeed(feed)}
                 disabled={subscribingMap[feed.url]}
-                class="px-4 py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-xs rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+                class="w-full py-2.5 px-4 bg-primary-500 hover:bg-primary-600 text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 {#if subscribingMap[feed.url]}
-                  <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                  </svg>
-                  <span>Ajout...</span>
+                  <svg class="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                  <span>Abonnement...</span>
                 {:else}
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                  <span>S'abonner</span>
+                  <span>+ S'abonner</span>
                 {/if}
               </button>
             {/if}
-          </div>
 
-          {#if errorMap[feed.url]}
-            <p class="text-[11px] text-rose-500 font-medium">{errorMap[feed.url]}</p>
-          {/if}
+            {#if errorMap[feed.url]}
+              <p class="text-[11px] text-rose-500 text-center font-medium">{errorMap[feed.url]}</p>
+            {/if}
+          </div>
 
         </div>
       {/each}

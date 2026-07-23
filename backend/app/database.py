@@ -126,6 +126,14 @@ def init_db():
     )
     ''')
 
+    # 6. App Settings Table (for persistent token storage, etc.)
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )
+    ''')
+
     # Auto-migration for podcasts image_url column
     try:
         cursor.execute("PRAGMA table_info(podcasts)")

@@ -6,6 +6,7 @@ from typing import Optional
 from pathlib import Path
 
 from app.services.audio import generate_podcast_audio, fetch_mistral_voices, AUDIO_DIR
+from app.services.podcast import get_or_create_podcast_feed_token
 from app.config import settings
 
 router = APIRouter(prefix="/api/audio", tags=["Audio"])
@@ -29,7 +30,9 @@ async def create_audio(payload: AudioGenerateRequest, request: Request):
         
         # Build base URL dynamically from request headers or settings for VPS compatibility
         base_url = str(request.base_url).rstrip("/")
-        audio_url = f"{base_url}/api/audio/stream/{filename}"
+        token = get_or_create_podcast_feed_token()
+        token_param = f"?token={token}" if token else ""
+        audio_url = f"{base_url}/api/audio/stream/{filename}{token_param}"
         
         return {
             "status": "success",
@@ -42,7 +45,11 @@ async def create_audio(payload: AudioGenerateRequest, request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/stream/{filename}")
-def stream_audio(filename: str):
+def stream_audio(filename: str, token: Optional[str] = Query(None)):
+    expected_token = get_or_create_podcast_feed_token()
+    if expected_token and token != expected_token:
+        raise HTTPException(status_code=401, detail="Token d'accès audio invalide ou manquant")
+
     filepath = AUDIO_DIR / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Fichier audio introuvable")

@@ -1,6 +1,7 @@
 import json
 import httpx
 import re
+import secrets
 from pathlib import Path
 from datetime import datetime, timedelta
 from xml.sax.saxutils import escape as xml_escape
@@ -10,6 +11,37 @@ from app.services.clustering import compute_article_clusters
 from app.services.audio import generate_podcast_audio, generate_audio_bytes_for_voice, combine_audio_chunks, AUDIO_DIR
 
 DEFAULT_PODCAST_COVER = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80"
+
+def get_app_setting(key: str, default: str = "") -> str:
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM app_settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        conn.close()
+        return row["value"] if row else default
+    except Exception:
+        return default
+
+def set_app_setting(key: str, value: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+    conn.close()
+
+def get_or_create_podcast_feed_token(force_regenerate: bool = False) -> str:
+    if settings.podcast_feed_token and not force_regenerate:
+        return settings.podcast_feed_token.strip()
+    
+    if not force_regenerate:
+        stored_token = get_app_setting("podcast_feed_token")
+        if stored_token:
+            return stored_token
+    
+    new_token = secrets.token_hex(16)
+    set_app_setting("podcast_feed_token", new_token)
+    return new_token
 
 def extract_cover_image(selected_topics: list) -> str:
     """
@@ -246,7 +278,9 @@ async def generate_podcast_show(
         full_script = script_data.get("script", "")
         audio_filename = await generate_podcast_audio(full_script, voice_key=voice_key, api_key=key)
 
-    audio_url = f"{b_url}/api/audio/stream/{audio_filename}"
+    feed_token = get_or_create_podcast_feed_token()
+    token_param = f"?token={feed_token}" if feed_token else ""
+    audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
 
     # 4. Save into SQLite database
     conn = get_db_connection()
@@ -275,12 +309,15 @@ async def generate_podcast_show(
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-def generate_podcast_rss_feed(base_url: str = None) -> str:
+def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
     """
     Generates a 100% valid RSS 2.0 XML podcast feed with iTunes / AntennaPod / Spotify / Apple Podcasts metadata.
     Includes episode image, HTML description with clickable sources, and audio enclosure length.
     """
     b_url = (base_url or settings.base_url).rstrip("/")
+    feed_token = token or get_or_create_podcast_feed_token()
+    token_param = f"?token={feed_token}" if feed_token else ""
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -292,7 +329,7 @@ def generate_podcast_rss_feed(base_url: str = None) -> str:
     rows = cursor.fetchall()
     conn.close()
 
-    feed_url = f"{b_url}/api/podcast/feed.xml"
+    feed_url = f"{b_url}/api/podcast/feed.xml{token_param}"
 
     items_xml = []
     for r in rows:
@@ -304,7 +341,7 @@ def generate_podcast_rss_feed(base_url: str = None) -> str:
         
         # Dynamically adapt audio_url if host changed or VPS URL is specified
         audio_filename = r["audio_filename"]
-        audio_url = f"{b_url}/api/audio/stream/{audio_filename}"
+        audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
 
         filepath = AUDIO_DIR / audio_filename
         file_size = filepath.stat().st_size if filepath.exists() else 2000000

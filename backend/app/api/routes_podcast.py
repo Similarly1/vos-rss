@@ -1,9 +1,14 @@
 import traceback
-from fastapi import APIRouter, HTTPException, Response, Request
+from fastapi import APIRouter, HTTPException, Response, Request, Query
 from pydantic import BaseModel
 from typing import Optional
 
-from app.services.podcast import generate_podcast_show, get_podcast_history, generate_podcast_rss_feed
+from app.services.podcast import (
+    generate_podcast_show,
+    get_podcast_history,
+    generate_podcast_rss_feed,
+    get_or_create_podcast_feed_token
+)
 from app.services.scheduler import load_schedule_config, save_schedule_config
 from app.database import get_db_connection
 from app.config import settings
@@ -30,14 +35,29 @@ class ScheduleConfigRequest(BaseModel):
     voice: Optional[str] = "Marie - Dynamic"
     theme: Optional[str] = ""
 
+@router.get("/feed-token")
+def get_feed_token():
+    token = get_or_create_podcast_feed_token()
+    return {"token": token}
+
+@router.post("/feed-token/regenerate")
+def regenerate_feed_token():
+    token = get_or_create_podcast_feed_token(force_regenerate=True)
+    return {"token": token}
+
 @router.get("/feed.xml")
-def get_podcast_feed_xml(request: Request):
+def get_podcast_feed_xml(request: Request, token: Optional[str] = Query(None)):
     """
     Returns a 100% valid RSS 2.0 Podcast XML feed for AntennaPod, Apple Podcasts, Spotify, Pocket Casts.
+    Validates feed token if token protection is active.
     """
+    expected_token = get_or_create_podcast_feed_token()
+    if expected_token and token != expected_token:
+        raise HTTPException(status_code=401, detail="Token de flux RSS invalide ou manquant.")
+
     try:
         base_url = str(request.base_url).rstrip("/")
-        xml_content = generate_podcast_rss_feed(base_url=base_url)
+        xml_content = generate_podcast_rss_feed(base_url=base_url, token=token)
         return Response(content=xml_content, media_type="application/xml; charset=utf-8")
     except Exception as e:
         print("[Podcast Feed XML Error]:")

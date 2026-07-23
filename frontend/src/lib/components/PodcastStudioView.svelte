@@ -26,8 +26,35 @@
   let scheduleSaving = false;
   let scheduleSuccessMsg = "";
   let feedCopied = false;
+  let feedToken = "";
 
-  const FEED_URL = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/podcast/feed.xml`;
+  $: feedUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/podcast/feed.xml${feedToken ? `?token=${feedToken}` : ''}`;
+
+  async function fetchFeedToken() {
+    try {
+      const res = await fetch('/api/podcast/feed-token');
+      if (res.ok) {
+        const data = await res.json();
+        feedToken = data.token || "";
+      }
+    } catch (err) {
+      console.error("Erreur récupération token RSS:", err);
+    }
+  }
+
+  async function regenerateToken() {
+    if (!confirm("Voulez-vous vraiment régénérer la clé secrète du flux RSS ? L'ancienne URL configurée dans AntennaPod ne fonctionnera plus.")) return;
+    try {
+      const res = await fetch('/api/podcast/feed-token/regenerate', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        feedToken = data.token || "";
+        alert("Clé secrète régénérée avec succès ! Pensez à mettre à jour l'URL dans votre application AntennaPod.");
+      }
+    } catch (err) {
+      alert("Erreur lors de la régénération du token RSS.");
+    }
+  }
 
   async function fetchHistory() {
     try {
@@ -95,7 +122,7 @@
   }
 
   function copyFeedUrl() {
-    navigator.clipboard.writeText(FEED_URL);
+    navigator.clipboard.writeText(feedUrl);
     feedCopied = true;
     setTimeout(() => feedCopied = false, 2500);
   }
@@ -173,6 +200,7 @@
   onMount(() => {
     fetchHistory();
     fetchSchedule();
+    fetchFeedToken();
   });
 </script>
 
@@ -186,7 +214,7 @@
           🎙️ Studio Radio Multi-Émotions
         </span>
         <span class="text-xs bg-emerald-950/80 text-emerald-400 font-extrabold px-3 py-1 rounded-full border border-emerald-800/60 uppercase tracking-wider">
-          Flux AntennaPod XML
+          Flux AntennaPod XML (Sécurisé)
         </span>
       </div>
       <h1 class="text-3xl md:text-4xl font-black text-white tracking-tight">Revue de Presse Audio</h1>
@@ -200,26 +228,36 @@
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="space-y-1 min-w-0">
           <h2 class="text-base font-bold text-white flex items-center gap-2">
-            <span>📡 Flux Podcast AntennaPod / Apple Podcasts / Spotify</span>
+            <span>📡 Flux Podcast AntennaPod (Clé Sécurisée)</span>
           </h2>
-          <p class="text-xs text-gray-400">Copiez cette URL dans AntennaPod pour télécharger vos émissions automatiquement sur votre smartphone.</p>
+          <p class="text-xs text-gray-400">Copiez cette URL avec clé privée dans AntennaPod pour écouter vos émissions sur votre smartphone.</p>
         </div>
 
-        <button 
-          on:click={copyFeedUrl}
-          class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0"
-        >
-          {#if feedCopied}
-            <span>✓ URL Copiée !</span>
-          {:else}
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-            <span>Copier l'URL du Flux AntennaPod</span>
-          {/if}
-        </button>
+        <div class="flex items-center gap-2">
+          <button 
+            on:click={regenerateToken}
+            class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-xs rounded-xl border border-gray-700 transition-all flex items-center gap-1 shrink-0"
+            title="Régénérer la clé secrète"
+          >
+            <span>🔄 Clé Secrète</span>
+          </button>
+
+          <button 
+            on:click={copyFeedUrl}
+            class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0"
+          >
+            {#if feedCopied}
+              <span>✓ URL Copiée !</span>
+            {:else}
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+              <span>Copier l'URL du Flux AntennaPod</span>
+            {/if}
+          </button>
+        </div>
       </div>
 
       <div class="p-3 bg-gray-950/90 rounded-2xl border border-gray-800 flex items-center justify-between gap-3 text-xs font-mono text-emerald-400">
-        <span class="truncate">{FEED_URL}</span>
+        <span class="truncate">{feedUrl}</span>
         <span class="text-[10px] bg-emerald-950 text-emerald-300 font-sans px-2.5 py-1 rounded-full border border-emerald-800 uppercase font-bold shrink-0">
           RSS 2.0 / iTunes
         </span>

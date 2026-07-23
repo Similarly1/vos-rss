@@ -49,13 +49,17 @@
     if (syntheses[cId] && syntheses[cId].synthesis_title) {
       return syntheses[cId].synthesis_title;
     }
+    if (cluster.precomputed_synthesis && cluster.precomputed_synthesis.synthesis_title) {
+      return cluster.precomputed_synthesis.synthesis_title;
+    }
     return cluster.topic_title;
   }
 
   function getTeaserSentence(cluster) {
     const cId = cluster.cluster_id;
-    if (syntheses[cId] && syntheses[cId].summary) {
-      const parts = syntheses[cId].summary.split('. ');
+    const synth = syntheses[cId] || cluster.precomputed_synthesis;
+    if (synth && synth.summary) {
+      const parts = synth.summary.split('. ');
       return parts.slice(0, 2).join('. ') + (parts.length > 2 ? '.' : '');
     }
     const raw = cluster.articles[0]?.content || cluster.articles[0]?.title || '';
@@ -79,6 +83,16 @@
       if (res.ok) {
         const data = await res.json();
         clusters = data.clusters || [];
+
+        // Load precomputed syntheses immediately!
+        clusters.forEach(c => {
+          if (c.precomputed_synthesis) {
+            syntheses[c.cluster_id] = c.precomputed_synthesis;
+          }
+        });
+        syntheses = { ...syntheses };
+
+        // Only synthesize remaining clusters in background if missing
         autoSynthesizeClusters(clusters);
       }
     } catch (err) {
@@ -91,8 +105,6 @@
   function setMode(newMode) {
     if (perplexityMode === newMode) return;
     perplexityMode = newMode;
-    syntheses = {};
-    synthLoading = {};
     fetchPerplexityClusters();
   }
 
@@ -101,7 +113,7 @@
 
     for (const cluster of clustersList.slice(0, 8)) {
       const cId = cluster.cluster_id;
-      if (syntheses[cId] || synthLoading[cId]) continue;
+      if (syntheses[cId] || cluster.precomputed_synthesis || synthLoading[cId]) continue;
 
       synthLoading[cId] = true;
       synthLoading = { ...synthLoading };
@@ -265,7 +277,7 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
         </svg>
-        <p class="text-xs text-gray-400">Croisement sémantique et génération des résumés IA...</p>
+        <p class="text-xs text-gray-400">Chargement instantané des tuiles Perplexity...</p>
       </div>
     {:else if filteredClusters.length === 0}
       <div class="bg-gray-900/40 border border-gray-800 rounded-3xl p-8 text-center text-gray-400 space-y-2">
@@ -357,7 +369,7 @@
   {@const activeTitle = getClusterTitle(activeCluster)}
   {@const activeFeedsCount = getDistinctFeedCount(activeCluster)}
   {@const activeIsVerified = activeFeedsCount >= 3}
-  {@const activeSynth = syntheses[activeCluster.cluster_id]}
+  {@const activeSynth = syntheses[activeCluster.cluster_id] || activeCluster.precomputed_synthesis}
 
   <div class="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
     

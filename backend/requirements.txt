@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+sqlite-vec
+pydantic
+pydantic-settings
+httpx
+feedparser
+gTTS

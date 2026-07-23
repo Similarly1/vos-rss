@@ -1,0 +1,27 @@
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+.dist/
+*.log
+
+# Python & Backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+backend/__pycache__/
+backend/app/__pycache__/
+backend/app/services/__pycache__/
+backend/app/api/__pycache__/
+
+# Environment & Database
+.env
+backend/.env
+*.db
+backend/*.db
+vos.db
+
+# Antigravity & IDE
+.antigravity/
+.vscode/
+.idea/

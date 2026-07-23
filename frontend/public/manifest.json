@@ -1,0 +1,16 @@
+{
+  "name": "Vos - Actualités & Podcasts IA",
+  "short_name": "Vos",
+  "description": "Agrégateur RSS et lecteur de podcasts générés par IA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { mistralApiKey, selectedMistralModel, showSettingsModal } from '../stores/appState.js';
+  import { mistralApiKey, selectedMistralModel } from '../stores/appState.js';
   import { playTrack, selectedVoice, sanitizeTextForSpeech } from '../stores/audioStore.js';
 
   // Mode: 'events' (Strict same event) vs 'themes' (Broad thematic digest)

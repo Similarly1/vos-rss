@@ -5,7 +5,7 @@
     geminiApiKey, selectedGeminiModel,
     synthesisProvider, vectorizationProvider, fallbackEnabled,
     refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, 
-    saveSettings, runArticlesCleanup, fetchVpsApiKeys 
+    saveSettings, runArticlesCleanup, fetchVpsSettings 
   } from '../stores/appState.js';
   import { selectedVoice, saveVoiceSetting } from '../stores/audioStore.js';
 

@@ -1,5 +1,5 @@
 <script>
-  import { selectedItemId, articlesList, mistralApiKey, selectedMistralModel, showSettingsModal } from '../stores/appState.js';
+  import { selectedItemId, articlesList, mistralApiKey, selectedMistralModel } from '../stores/appState.js';
   import { playTrack, selectedVoice, sanitizeTextForSpeech } from '../stores/audioStore.js';
 
   $: selectedArticle = $articlesList.find(a => a.id === $selectedItemId);

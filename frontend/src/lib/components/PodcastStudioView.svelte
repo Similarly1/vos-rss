@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { mistralApiKey, showSettingsModal } from '../stores/appState.js';
+  import { mistralApiKey } from '../stores/appState.js';
   import { playTrack, selectedVoice } from '../stores/audioStore.js';
 
   // Recipe configuration options (for immediate generation)

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { mistralApiKey, selectedMistralModel, showSettingsModal } from '../stores/appState.js';
+  import { mistralApiKey, selectedMistralModel } from '../stores/appState.js';
   import { playTrack, selectedVoice } from '../stores/audioStore.js';
 
   let status = { total_articles: 0, vectorized_articles: 0, pending_articles: 0, sqlite_vec_enabled: true };

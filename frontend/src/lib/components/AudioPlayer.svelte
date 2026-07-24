@@ -80,9 +80,15 @@
       loadedAudioUrl = $currentTrack.audioUrl;
       
       let targetUrl = $currentTrack.audioUrl;
-      // Upgrade to HTTPS to ensure YunoHost SSO Secure cookies are sent
+      // Upgrade to HTTPS to prevent mixed content blocks
       if (targetUrl.startsWith('http://') && window.location.protocol === 'https:') {
         targetUrl = targetUrl.replace('http://', 'https://');
+      }
+
+      // Convert same-domain absolute URLs to relative paths to guarantee YunoHost SSO cookie transmission
+      if (targetUrl.includes('/api/audio/stream/')) {
+        const parts = targetUrl.split('/api/audio/stream/');
+        targetUrl = '/api/audio/stream/' + parts[1];
       }
 
       audioElement.src = targetUrl;

@@ -49,8 +49,30 @@ def stream_audio(filename: str, token: Optional[str] = Query(None)):
     if expected_token and token and token.strip() != expected_token.strip():
         raise HTTPException(status_code=401, detail="Token d'accès audio invalide")
 
-    filepath = AUDIO_DIR / filename
-    if not filepath.exists():
+    # Search candidate paths for backward compatibility with previously generated files
+    candidate_paths = [
+        AUDIO_DIR / filename,
+        Path("./audio_cache") / filename,
+        Path("../audio_cache") / filename,
+        Path(__file__).resolve().parent.parent.parent / "audio_cache" / filename,
+    ]
+
+    target_filepath = None
+    for p in candidate_paths:
+        if p.exists():
+            target_filepath = p
+            break
+
+    if not target_filepath:
         raise HTTPException(status_code=404, detail="Fichier audio introuvable")
 
-    return FileResponse(filepath, media_type="audio/mpeg", filename=filename)
+    return FileResponse(
+        target_filepath,
+        media_type="audio/mpeg",
+        filename=filename,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=31536000"
+        }
+    )

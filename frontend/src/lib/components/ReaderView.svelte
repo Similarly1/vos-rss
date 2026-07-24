@@ -1,5 +1,5 @@
 <script>
-  import { selectedItemId, articlesList, mistralApiKey, selectedMistralModel } from '../stores/appState.js';
+  import { selectedItemId, articlesList, mistralApiKey, selectedMistralModel, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice, sanitizeTextForSpeech } from '../stores/audioStore.js';
 
   $: selectedArticle = $articlesList.find(a => a.id === $selectedItemId);
@@ -235,7 +235,7 @@
             <p class="text-xs text-rose-500 dark:text-rose-400 font-medium mt-3">
               {errorState[selectedArticle.id]}
               {#if errorState[selectedArticle.id].includes("Clé API")}
-                <button on:click={() => $showSettingsModal = true} class="underline font-bold ml-1">Ouvrir les Réglages</button>
+                <button on:click={() => $currentView = 'settings'} class="underline font-bold ml-1">Ouvrir les Réglages</button>
               {/if}
             </p>
           {/if}

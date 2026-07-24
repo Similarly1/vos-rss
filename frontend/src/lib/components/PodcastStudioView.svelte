@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { mistralApiKey } from '../stores/appState.js';
+  import { mistralApiKey, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice } from '../stores/audioStore.js';
 
   // Recipe configuration options (for immediate generation)
@@ -223,7 +223,7 @@
   async function handleGeneratePodcast() {
     if (!$mistralApiKey) {
       alert("Veuillez d'abord renseigner votre clé API Mistral dans les Paramètres (icône ⚙️).");
-      $showSettingsModal = true;
+      $currentView = 'settings';
       return;
     }
 

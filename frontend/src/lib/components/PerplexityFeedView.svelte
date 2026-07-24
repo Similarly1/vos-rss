@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { mistralApiKey, selectedMistralModel } from '../stores/appState.js';
+  import { mistralApiKey, selectedMistralModel, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice, sanitizeTextForSpeech } from '../stores/audioStore.js';
 
   // Mode: 'events' (Strict same event) vs 'themes' (Broad thematic digest)
@@ -168,7 +168,7 @@
       } else {
         alert(result.detail || "Échec de la génération de la voix Mistral.");
         if (result.detail && result.detail.includes("Clé API")) {
-          $showSettingsModal = true;
+          $currentView = 'settings';
         }
       }
     } catch (err) {

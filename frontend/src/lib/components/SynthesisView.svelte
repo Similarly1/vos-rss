@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { mistralApiKey, selectedMistralModel } from '../stores/appState.js';
+  import { mistralApiKey, selectedMistralModel, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice } from '../stores/audioStore.js';
 
   let status = { total_articles: 0, vectorized_articles: 0, pending_articles: 0, sqlite_vec_enabled: true };
@@ -272,7 +272,7 @@
         <div class="p-3 bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 rounded-xl text-xs font-medium flex justify-between items-center">
           <span>{error}</span>
           {#if error.includes("Paramètres")}
-            <button on:click={() => $showSettingsModal = true} class="underline font-bold">Paramètres</button>
+            <button on:click={() => $currentView = 'settings'} class="underline font-bold">Paramètres</button>
           {/if}
         </div>
       {/if}

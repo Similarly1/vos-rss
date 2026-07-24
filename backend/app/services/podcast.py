@@ -249,14 +249,14 @@ async def generate_podcast_show(
                 "script": "Bonjour, suite à une erreur technique de l'intelligence artificielle, l'émission n'a pas pu être générée."
             }
 
-        show_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
-        if "(Revue de presse)" not in show_title and "Revue de presse" not in show_title:
-            show_title = f"{show_title} (Revue de presse)"
+    show_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
+    if "(Revue de presse)" not in show_title and "Revue de presse" not in show_title:
+        show_title = f"{show_title} (Revue de presse)"
 
-        full_script = script_data.get("script", "")
-        
-        # Audio generation is still dependent on voxtral TTS API, we assume it's working with any text.
-        audio_filename = await generate_podcast_audio(full_script, voice_key=voice_key, api_key=m_key) # Audio is unrelated to Gemini API for now, we just pass m_key just in case
+    full_script = script_data.get("script", "")
+    
+    # Audio generation is still dependent on voxtral TTS API, we assume it's working with any text.
+    audio_filename = await generate_podcast_audio(full_script, voice_key=voice_key, api_key=m_key)
 
     audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
 

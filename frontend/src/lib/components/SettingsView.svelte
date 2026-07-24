@@ -354,9 +354,13 @@
           <div class="space-y-3">
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Voix du Studio Podcast</label>
             <select bind:value={voiceInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500">
+              <option value="Marie - Dynamic">Auto (Changement d'intonation automatique)</option>
               <option value="Marie - Neutral">Marie - Neutral</option>
               <option value="Marie - Excited">Marie - Excited</option>
               <option value="Marie - Happy">Marie - Happy</option>
+              <option value="Marie - Sad">Marie - Sad</option>
+              <option value="Marie - Curious">Marie - Curious</option>
+              <option value="Marie - Angry">Marie - Angry</option>
             </select>
           </div>
         </div>

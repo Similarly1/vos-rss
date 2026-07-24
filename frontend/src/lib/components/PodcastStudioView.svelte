@@ -8,7 +8,7 @@
   let maxDays = 7;
   let onlyVerified = false;
   let tone = "journal_matinal";
-  let voiceKey = $selectedVoice || "Marie - Neutral";
+  let voiceKey = $selectedVoice || "Marie - Dynamic";
   let themeInput = "";
 
   let isGenerating = false;
@@ -30,7 +30,7 @@
   let formTime = "07:00";
   let formFrequency = "daily";
   let formTone = "journal_matinal";
-  let formVoice = "Marie - Neutral";
+  let formVoice = "Marie - Dynamic";
   let formTheme = "";
   let formTopicsCount = 5;
   let formMaxDays = 7;
@@ -558,6 +558,7 @@
             bind:value={voiceKey}
             class="w-full bg-gray-950 border border-purple-600 rounded-2xl py-3 px-4 text-xs font-bold text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
           >
+            <option value="Marie - Dynamic">🎭 Auto (Changement d'intonation automatique)</option>
             <option value="Marie - Neutral">🧘 Marie - Neutral (Calme & Posée)</option>
             <option value="Marie - Excited">⚡ Marie - Excited (Enthousiaste)</option>
             <option value="Marie - Happy">😊 Marie - Happy (Joyeuse)</option>
@@ -791,6 +792,7 @@
               bind:value={formVoice}
               class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-3 text-xs text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
             >
+              <option value="Marie - Dynamic">🎭 Auto (Intonation automatique)</option>
               <option value="Marie - Neutral">🧘 Marie - Neutral</option>
               <option value="Marie - Excited">⚡ Marie - Excited</option>
               <option value="Marie - Happy">😊 Marie - Happy</option>

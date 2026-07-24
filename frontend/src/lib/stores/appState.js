@@ -200,5 +200,6 @@ export function setupAutoRefresh() {
 }
 
 // Auto setup timer and sync VPS keys on load
-fetchVpsApiKeys();
+fetchVpsSettings();
 setupAutoRefresh();
+

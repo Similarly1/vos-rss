@@ -21,6 +21,7 @@ export const isRefreshingFeeds = writable(false);
 export const mistralApiKey = writable(localStorage.getItem('vos_mistral_api_key') || '');
 export const selectedMistralModel = writable(localStorage.getItem('vos_mistral_model') || 'mistral-small-latest');
 export const refreshIntervalMinutes = writable(parseInt(localStorage.getItem('vos_refresh_interval') || '30', 10));
+export const articleRetentionDays = writable(parseInt(localStorage.getItem('vos_retention_days') || '14', 10));
 
 // Reader Language & Full Text filter preferences
 export const articleLanguageFilter = writable(localStorage.getItem('vos_article_lang') || 'fr');
@@ -30,21 +31,41 @@ export const fullTextOnlyFilter = writable(localStorage.getItem('vos_full_text_o
 export const articlesList = writable([]);
 export const feedsList = writable([]);
 
-export function saveSettings(apiKey, model, refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false) {
+export function saveSettings(apiKey, model, refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14) {
   mistralApiKey.set(apiKey);
   selectedMistralModel.set(model);
   refreshIntervalMinutes.set(refreshMinutes);
   articleLanguageFilter.set(langFilter);
   fullTextOnlyFilter.set(fullTextOnly);
+  articleRetentionDays.set(retentionDays);
 
   localStorage.setItem('vos_mistral_api_key', apiKey);
   localStorage.setItem('vos_mistral_model', model);
   localStorage.setItem('vos_refresh_interval', refreshMinutes.toString());
   localStorage.setItem('vos_article_lang', langFilter);
   localStorage.setItem('vos_full_text_only', fullTextOnly ? 'true' : 'false');
+  localStorage.setItem('vos_retention_days', retentionDays.toString());
 
+  runArticlesCleanup(retentionDays);
   setupAutoRefresh();
   fetchArticles();
+}
+
+export async function runArticlesCleanup(days) {
+  try {
+    const res = await fetch('/api/feeds/cleanup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ retention_days: days })
+    });
+    if (res.ok) {
+      await fetchArticles();
+      return await res.json();
+    }
+  } catch (err) {
+    console.error("Erreur nettoyage des articles:", err);
+  }
+  return null;
 }
 
 export async function fetchArticles() {

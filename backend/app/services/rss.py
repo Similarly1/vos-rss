@@ -1,7 +1,7 @@
 import json
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import httpx
 import re
@@ -22,7 +22,6 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 }
 
-# Common feed URL migrations and aliases
 KNOWN_FEED_ALIASES = {
     "https://www.rts.ch/rss/info.xml": "https://www.rts.ch/info/toute-info/?format=rss/news",
     "http://www.rts.ch/rss/info.xml": "https://www.rts.ch/info/toute-info/?format=rss/news",
@@ -153,6 +152,44 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> str
         print(f"[Scraper Fallback Note] Could not fetch full page for {article_url}: {e}")
 
     return fallback_content
+
+def clean_old_articles(retention_days: int = 14) -> dict:
+    """
+    Deletes articles older than retention_days along with their vector embeddings and clears cluster cache.
+    If retention_days <= 0, cleaning is disabled.
+    """
+    if retention_days is None or retention_days <= 0:
+        return {"deleted_articles": 0, "status": "disabled"}
+
+    cutoff_date = (datetime.now() - timedelta(days=retention_days)).strftime('%Y-%m-%d %H:%M:%S')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Delete embeddings of articles older than cutoff_date
+        cursor.execute("""
+            DELETE FROM article_embeddings 
+            WHERE article_id IN (SELECT id FROM articles WHERE published_date < ?)
+        """, (cutoff_date,))
+
+        # Delete articles older than cutoff_date
+        cursor.execute("DELETE FROM articles WHERE published_date < ?", (cutoff_date,))
+        deleted_count = cursor.rowcount
+
+        if deleted_count > 0:
+            cursor.execute("DELETE FROM cluster_cache")
+
+        conn.commit()
+        conn.close()
+        return {
+            "deleted_articles": deleted_count,
+            "retention_days": retention_days,
+            "cutoff_date": cutoff_date
+        }
+    except Exception as e:
+        conn.close()
+        print(f"[clean_old_articles error]: {e}")
+        return {"deleted_articles": 0, "error": str(e)}
 
 def parse_and_save_feed(url: str, category: str = "Général", language: str = None, is_full_text: bool = None):
     feed_data, working_url = robust_parse_feed(url)
@@ -373,6 +410,10 @@ def import_feeds_from_content(raw_content: str) -> dict:
     }
 
 async def refresh_all_feeds_and_vectorize(api_key: str = None):
+    # 1. Clean old expired articles based on retention settings
+    clean_res = clean_old_articles()
+
+    # 2. Fetch fresh articles from all RSS feeds
     feeds = get_all_feeds()
     results = []
     for f in feeds:
@@ -399,5 +440,6 @@ async def refresh_all_feeds_and_vectorize(api_key: str = None):
     return {
         "feeds_processed": len(results),
         "vectorized_count": vectorized_count,
+        "cleaned_articles": clean_res.get("deleted_articles", 0),
         "details": results
     }

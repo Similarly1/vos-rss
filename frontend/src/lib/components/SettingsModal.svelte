@@ -1,5 +1,5 @@
 <script>
-  import { showSettingsModal, mistralApiKey, selectedMistralModel, refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, saveSettings } from '../stores/appState.js';
+  import { showSettingsModal, mistralApiKey, selectedMistralModel, refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, saveSettings, runArticlesCleanup } from '../stores/appState.js';
   import { selectedVoice, saveVoiceSetting } from '../stores/audioStore.js';
 
   let apiKeyInput = $mistralApiKey;
@@ -8,22 +8,37 @@
   let refreshInput = $refreshIntervalMinutes;
   let langInput = $articleLanguageFilter;
   let fullTextInput = $fullTextOnlyFilter;
+  let retentionInput = $articleRetentionDays;
 
   let showPassword = false;
   let saveStatus = '';
   let envSaveStatus = '';
+  let cleanupStatus = '';
   let isTesting = false;
   let isSavingEnv = false;
+  let isCleaning = false;
   let testResult = null;
 
   function handleSave() {
-    saveSettings(apiKeyInput, modelInput, refreshInput, langInput, fullTextInput);
+    saveSettings(apiKeyInput, modelInput, refreshInput, langInput, fullTextInput, retentionInput);
     saveVoiceSetting(voiceInput);
     saveStatus = 'Paramètres enregistrés avec succès !';
     setTimeout(() => {
       saveStatus = '';
       $showSettingsModal = false;
     }, 1200);
+  }
+
+  async function triggerCleanupNow() {
+    isCleaning = true;
+    cleanupStatus = '';
+    const res = await runArticlesCleanup(retentionInput);
+    isCleaning = false;
+    if (res && res.data) {
+      cleanupStatus = `✓ Nettoyage effectué ! ${res.data.deleted_articles || 0} anciens articles supprimés.`;
+    } else {
+      cleanupStatus = '✓ Aucun ancien article à supprimer.';
+    }
   }
 
   async function saveKeyToVpsEnv() {
@@ -43,7 +58,7 @@
       const data = await res.json();
       if (res.ok) {
         envSaveStatus = '✓ Clé enregistrée dans le fichier .env du serveur VPS !';
-        saveSettings(apiKeyInput, modelInput, refreshInput, langInput, fullTextInput);
+        saveSettings(apiKeyInput, modelInput, refreshInput, langInput, fullTextInput, retentionInput);
       } else {
         alert(data.detail || "Erreur lors de l'enregistrement sur le serveur.");
       }
@@ -102,7 +117,7 @@
           </div>
           <div>
             <h3 class="text-xl font-bold">Paramètres Globaux</h3>
-            <p class="text-xs text-gray-500">API Mistral, Langues, Émotions & Voix</p>
+            <p class="text-xs text-gray-500">API Mistral, Langues, Rétention & Voix</p>
           </div>
         </div>
 
@@ -147,6 +162,41 @@
             bind:checked={fullTextInput} 
             class="w-5 h-5 accent-primary-500 rounded cursor-pointer"
           />
+        </div>
+
+        <!-- ARTICLE RETENTION & PURGE OPTION -->
+        <div class="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+          <div class="flex items-center justify-between">
+            <label for="article-retention" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+              🗑️ Rétention des articles (Nettoyage auto)
+            </label>
+
+            <button 
+              type="button" 
+              on:click={triggerCleanupNow}
+              disabled={isCleaning}
+              class="text-[11px] text-rose-500 hover:text-rose-600 font-bold hover:underline"
+              title="Supprime immédiatement tous les articles plus anciens que la durée choisie"
+            >
+              {isCleaning ? 'Nettoyage...' : '🧹 Nettoyer maintenant'}
+            </button>
+          </div>
+
+          <select 
+            id="article-retention"
+            bind:value={retentionInput}
+            class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+          >
+            <option value={7}>7 jours (Recommandé - Requis pour légèreté DB)</option>
+            <option value={14}>14 jours (2 semaines - Par défaut)</option>
+            <option value={30}>30 jours (1 mois)</option>
+            <option value={90}>90 jours (3 mois)</option>
+            <option value={0}>Conserver indéfiniment (Jamais supprimer)</option>
+          </select>
+
+          {#if cleanupStatus}
+            <p class="text-xs text-emerald-500 font-bold">{cleanupStatus}</p>
+          {/if}
         </div>
 
         <!-- AUTO REFRESH FREQUENCY -->

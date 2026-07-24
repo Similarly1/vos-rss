@@ -3,8 +3,9 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Response, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
-from app.services.rss import parse_and_save_feed, get_all_feeds, update_feed, delete_feed, refresh_all_feeds_and_vectorize, generate_opml_export, import_feeds_from_content
+from app.services.rss import parse_and_save_feed, get_all_feeds, update_feed, delete_feed, refresh_all_feeds_and_vectorize, generate_opml_export, import_feeds_from_content, clean_old_articles
 from app.services.feed_analyzer import analyze_feed_completeness
+from app.services.podcast import set_app_setting
 from app.config import settings
 
 router = APIRouter(prefix="/api/feeds", tags=["Feeds"])
@@ -23,6 +24,9 @@ class FeedUpdateInput(BaseModel):
 
 class RefreshRequest(BaseModel):
     api_key: Optional[str] = None
+
+class CleanupRequest(BaseModel):
+    retention_days: int
 
 class AnalyzeRequest(BaseModel):
     url: str
@@ -133,11 +137,19 @@ def remove_feed(feed_id: int):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.post("/cleanup")
+def cleanup_articles(payload: CleanupRequest):
+    try:
+        set_app_setting("article_retention_days", str(payload.retention_days))
+        res = clean_old_articles(payload.retention_days)
+        return {"status": "success", "data": res}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.post("/refresh")
 async def trigger_refresh_all(background_tasks: BackgroundTasks, payload: Optional[RefreshRequest] = None):
     try:
         api_key = (payload.api_key if payload else None) or settings.mistral_api_key
-        # Execute refresh and vectorization asynchronously in BackgroundTasks
         background_tasks.add_task(refresh_all_feeds_and_vectorize, api_key)
         return {
             "status": "success",

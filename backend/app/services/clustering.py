@@ -17,6 +17,14 @@ def cosine_similarity(v1: list[float], v2: list[float]) -> float:
         return 0.0
     return dot_product / (norm_v1 * norm_v2)
 
+def parse_article_date(date_str: str) -> datetime:
+    if not date_str:
+        return datetime.now()
+    try:
+        return datetime.strptime(date_str[:19], '%Y-%m-%d %H:%M:%S')
+    except Exception:
+        return datetime.now()
+
 def get_cached_clusters(threshold_key: str) -> list:
     """
     Retrieves pre-computed clusters from SQLite cluster_cache.
@@ -48,11 +56,15 @@ def save_clusters_to_cache(threshold_key: str, clusters: list):
     conn.commit()
     conn.close()
 
-def compute_article_clusters(similarity_threshold: float = 0.91):
+def compute_article_clusters(similarity_threshold: float = 0.91, max_time_diff_hours: float = None):
     """
     Reads all embeddings from DB, computes pairwise cosine similarities across all languages (FR, EN, DE, ES),
-    and groups articles into clusters of related news.
-    Always prioritizes a French article title as topic_title when available.
+    and groups articles into clusters of related news with strict temporal proximity enforcement.
+    
+    Time Proximity Rules:
+    - Strict Event Mode (similarity_threshold >= 0.86): max time gap = 48h (2 days).
+    - Thematic Mode (similarity_threshold < 0.86): max time gap = 72h (3 days).
+    - Applies a temporal decay factor so closer articles match with higher confidence.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -74,6 +86,7 @@ def compute_article_clusters(similarity_threshold: float = 0.91):
     for row in rows:
         try:
             vector = json.loads(row["embedding_json"])
+            pub_dt = parse_article_date(row["published_date"])
             articles.append({
                 "id": row["article_id"],
                 "title": row["title"],
@@ -82,6 +95,7 @@ def compute_article_clusters(similarity_threshold: float = 0.91):
                 "feed_title": row["feed_title"],
                 "category": row["category"],
                 "published_date": row["published_date"],
+                "published_dt": pub_dt,
                 "image_url": row["image_url"],
                 "language": row["language"] or "fr",
                 "is_full_text": bool(row["is_full_text"]),
@@ -93,6 +107,12 @@ def compute_article_clusters(similarity_threshold: float = 0.91):
     clusters = []
     visited = set()
     is_strict_mode = similarity_threshold >= 0.86
+
+    # Determine maximum time gap between articles in the same cluster
+    if max_time_diff_hours is None:
+        max_allowed_hours = 48.0 if is_strict_mode else 72.0
+    else:
+        max_allowed_hours = float(max_time_diff_hours)
 
     for i in range(len(articles)):
         art_i = articles[i]
@@ -107,12 +127,23 @@ def compute_article_clusters(similarity_threshold: float = 0.91):
             if art_j["id"] in visited:
                 continue
 
-            sims = [cosine_similarity(art_j["vector"], item["vector"]) for item in cluster_items]
+            # Check temporal gap between art_j and art_i
+            time_diff_hours = abs((art_i["published_dt"] - art_j["published_dt"]).total_seconds()) / 3600.0
+            if time_diff_hours > max_allowed_hours:
+                continue
+
+            # Temporal decay penalty (mild reduction for articles further apart within window)
+            decay_factor = max(0.85, 1.0 - (time_diff_hours / max_allowed_hours) * 0.15)
+
+            adjusted_sims = [
+                cosine_similarity(art_j["vector"], item["vector"]) * decay_factor 
+                for item in cluster_items
+            ]
 
             if is_strict_mode:
-                is_match = min(sims) >= similarity_threshold
+                is_match = min(adjusted_sims) >= similarity_threshold
             else:
-                is_match = (sum(sims) / len(sims)) >= similarity_threshold
+                is_match = (sum(adjusted_sims) / len(adjusted_sims)) >= similarity_threshold
 
             if is_match:
                 cluster_items.append(art_j)
@@ -127,6 +158,8 @@ def compute_article_clusters(similarity_threshold: float = 0.91):
         else:
             main_topic = cluster_items[0]["title"]
 
+        most_recent_date = max(a["published_date"] for a in cluster_items)
+
         clusters.append({
             "cluster_id": f"cluster_{art_i['id']}",
             "topic_title": main_topic,
@@ -134,6 +167,7 @@ def compute_article_clusters(similarity_threshold: float = 0.91):
             "article_count": len(cluster_items),
             "distinct_feed_count": len(distinct_feeds),
             "distinct_feeds": distinct_feeds,
+            "latest_published_date": most_recent_date,
             "articles": [{
                 "id": a["id"],
                 "title": a["title"],
@@ -147,8 +181,8 @@ def compute_article_clusters(similarity_threshold: float = 0.91):
             } for a in cluster_items]
         })
 
-    # Sort clusters: prioritize clusters with higher distinct feed count
-    clusters.sort(key=lambda c: (c["distinct_feed_count"] > 1, c["distinct_feed_count"], c["article_count"]), reverse=True)
+    # Sort clusters: multi-source events first, then by latest publication date
+    clusters.sort(key=lambda c: (c["distinct_feed_count"] > 1, c["latest_published_date"], c["distinct_feed_count"], c["article_count"]), reverse=True)
     return clusters
 
 async def synthesize_cluster(cluster_articles: list[dict], api_key: str, model: str = "mistral-small-latest"):
@@ -178,16 +212,19 @@ async def synthesize_cluster(cluster_articles: list[dict], api_key: str, model: 
 
     Rédige une synthèse croisée précise au format JSON suivant :
     {{
-      "synthesis_title": "Titre d'actualité captivant et précis rédigé EN FRANÇAIS",
-      "summary": "Résumé croisé fluide en 2 à 3 paragraphes rédigé EN FRANÇAIS combinant les faits de toutes les sources.",
-      "key_takeaways": ["Point fort 1 en français", "Point fort 2 en français", "Point fort 3 en français"],
-      "sources_count": {len(cluster_articles)}
+      "synthesis_title": "Titre synthétique, captivant et 100% en français résumant l'événement",
+      "summary": "Résumé journalistique structuré et captivant de l'événement en français...",
+      "key_takeaways": [
+        "Point clé 1...",
+        "Point clé 2...",
+        "Point clé 3..."
+      ]
     }}
     Réponds uniquement au format JSON valide.
     """
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(
+        res = await client.post(
             "https://api.mistral.ai/v1/chat/completions",
             headers={
                 "Authorization": f"Bearer {key}",
@@ -201,41 +238,48 @@ async def synthesize_cluster(cluster_articles: list[dict], api_key: str, model: 
                 ],
                 "response_format": {"type": "json_object"}
             },
-            timeout=35.0
+            timeout=30.0
         )
 
-        if response.status_code != 200:
-            raise ValueError(f"Erreur API Mistral: {response.text}")
+        if res.status_code != 200:
+            raise ValueError(f"Erreur de génération Mistral: {res.text}")
 
-        res_data = response.json()
-        ai_content = res_data["choices"][0]["message"]["content"]
-        return json.loads(ai_content)
+        data = res.json()["choices"][0]["message"]["content"]
+        try:
+            return json.loads(data)
+        except Exception:
+            return {
+                "synthesis_title": cluster_articles[0].get("title"),
+                "summary": data,
+                "key_takeaways": []
+            }
 
-async def precompute_and_cache_clusters(api_key: str = None):
+async def precompute_and_cache_clusters(api_key: str):
     """
-    Background worker function that pre-calculates clusters for both modes ('events' 0.91 & 'themes' 0.78),
-    pre-generates French Mistral AI syntheses, and writes results to SQLite cluster_cache.
-    This guarantees 0ms instant loading when the user opens Discover / Fil Perplexity!
+    Background job to pre-compute clusters for strict event mode (0.91) and thematic mode (0.78),
+    and pre-synthesize top event clusters with Mistral AI so they load instantly (0ms) in Perplexity feed.
     """
     key = api_key or settings.mistral_api_key
-    results = {}
 
-    for mode_key, thresh in [("events", 0.91), ("themes", 0.78)]:
-        clusters = compute_article_clusters(similarity_threshold=thresh)
+    # 1. Event Mode (0.91)
+    event_clusters = compute_article_clusters(similarity_threshold=0.91, max_time_diff_hours=48.0)
 
-        # Pre-synthesize top clusters with Mistral AI if key is available
-        if key and clusters:
-            for cluster in clusters[:6]:
-                try:
-                    synth = await synthesize_cluster(cluster["articles"], api_key=key)
-                    if synth and "synthesis_title" in synth:
-                        cluster["precomputed_synthesis"] = synth
-                        cluster["topic_title"] = synth["synthesis_title"]
-                except Exception as e:
-                    print(f"[Pre-synthesis note for cluster {cluster['cluster_id']}]: {e}")
+    # Pre-synthesize top 8 event clusters if API key available
+    if key and event_clusters:
+        for c in event_clusters[:8]:
+            try:
+                synth = await synthesize_cluster(c["articles"], api_key=key)
+                c["precomputed_synthesis"] = synth
+            except Exception as e:
+                print(f"[Pre-synthesis note for {c['cluster_id']}]: {e}")
 
-        save_clusters_to_cache(f"threshold_{mode_key}", clusters)
-        save_clusters_to_cache(f"threshold_{thresh}", clusters)
-        results[mode_key] = len(clusters)
+    save_clusters_to_cache("event_0.91", event_clusters)
 
-    return results
+    # 2. Digest Mode (0.78)
+    digest_clusters = compute_article_clusters(similarity_threshold=0.78, max_time_diff_hours=72.0)
+    save_clusters_to_cache("digest_0.78", digest_clusters)
+
+    return {
+        "event_clusters_count": len(event_clusters),
+        "digest_clusters_count": len(digest_clusters)
+    }

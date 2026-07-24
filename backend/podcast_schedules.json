@@ -1,0 +1,16 @@
+[
+  {
+    "id": "prog_matinale_07",
+    "name": "Matinale Quotidienne 07:00",
+    "enabled": true,
+    "frequency": "daily",
+    "time": "07:00",
+    "topics_count": 5,
+    "max_days": 7,
+    "only_verified": true,
+    "tone": "journal_matinal",
+    "voice": "Marie - Neutral",
+    "theme": "",
+    "last_run": null
+  }
+]

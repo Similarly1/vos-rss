@@ -10,7 +10,6 @@ export const isMobile = writable(false);
 export const selectedItemId = writable(null);
 
 // Modals
-export const showSettingsModal = writable(false);
 export const showAddFeedModal = writable(false);
 export const showFeedManagerModal = writable(false);
 
@@ -18,50 +17,91 @@ export const showFeedManagerModal = writable(false);
 export const isRefreshingFeeds = writable(false);
 
 // Settings state
-export const mistralApiKey = writable(localStorage.getItem('vos_mistral_api_key') || '');
-export const selectedMistralModel = writable(localStorage.getItem('vos_mistral_model') || 'mistral-small-latest');
-export const refreshIntervalMinutes = writable(parseInt(localStorage.getItem('vos_refresh_interval') || '30', 10));
-export const articleRetentionDays = writable(parseInt(localStorage.getItem('vos_retention_days') || '14', 10));
+export const mistralApiKey = writable('');
+export const selectedMistralModel = writable('mistral-small-latest');
+export const geminiApiKey = writable('');
+export const selectedGeminiModel = writable('gemini-1.5-flash');
+
+export const synthesisProvider = writable('mistral');
+export const vectorizationProvider = writable('mistral');
+export const fallbackEnabled = writable(true);
+
+export const refreshIntervalMinutes = writable(30);
+export const articleRetentionDays = writable(14);
 
 // Reader Language & Full Text filter preferences
-export const articleLanguageFilter = writable(localStorage.getItem('vos_article_lang') || 'fr');
-export const fullTextOnlyFilter = writable(localStorage.getItem('vos_full_text_only') === 'true');
+export const articleLanguageFilter = writable('fr');
+export const fullTextOnlyFilter = writable(false);
 
 // Articles & Feeds stores
 export const articlesList = writable([]);
 export const feedsList = writable([]);
 
-export async function fetchVpsApiKey() {
+export async function fetchVpsSettings() {
   try {
-    const res = await fetch('/api/feeds/env-key');
+    const res = await fetch('/api/feeds/settings');
     if (res.ok) {
-      const data = await res.json();
-      if (data.has_key && data.key) {
-        mistralApiKey.set(data.key);
-        localStorage.setItem('vos_mistral_api_key', data.key);
-        return data.key;
-      }
+      const result = await res.json();
+      const data = result.data;
+      
+      if (data.mistral_key) mistralApiKey.set(data.mistral_key);
+      if (data.gemini_key) geminiApiKey.set(data.gemini_key);
+      if (data.synthesis_provider) synthesisProvider.set(data.synthesis_provider);
+      if (data.vectorization_provider) vectorizationProvider.set(data.vectorization_provider);
+      if (data.mistral_model) selectedMistralModel.set(data.mistral_model);
+      if (data.gemini_model) selectedGeminiModel.set(data.gemini_model);
+      if (data.fallback_enabled !== undefined) fallbackEnabled.set(data.fallback_enabled);
+      if (data.refresh_interval_minutes) refreshIntervalMinutes.set(data.refresh_interval_minutes);
+      if (data.article_retention_days) articleRetentionDays.set(data.article_retention_days);
+      if (data.article_language) articleLanguageFilter.set(data.article_language);
+      if (data.full_text_only !== undefined) fullTextOnlyFilter.set(data.full_text_only);
+      
+      return data;
     }
   } catch (err) {
-    console.error("Erreur synchro clé API VPS:", err);
+    console.error("Erreur synchro paramètres VPS:", err);
   }
   return null;
 }
 
-export function saveSettings(apiKey, model, refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14) {
-  mistralApiKey.set(apiKey);
-  selectedMistralModel.set(model);
+export async function saveSettings(mistralKey, mistralModel, geminiKey, geminiModel, synthProv, vectProv, fallback, refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14) {
+  mistralApiKey.set(mistralKey);
+  selectedMistralModel.set(mistralModel);
+  geminiApiKey.set(geminiKey);
+  selectedGeminiModel.set(geminiModel);
+  synthesisProvider.set(synthProv);
+  vectorizationProvider.set(vectProv);
+  fallbackEnabled.set(fallback);
+
   refreshIntervalMinutes.set(refreshMinutes);
   articleLanguageFilter.set(langFilter);
   fullTextOnlyFilter.set(fullTextOnly);
   articleRetentionDays.set(retentionDays);
 
-  localStorage.setItem('vos_mistral_api_key', apiKey);
-  localStorage.setItem('vos_mistral_model', model);
-  localStorage.setItem('vos_refresh_interval', refreshMinutes.toString());
-  localStorage.setItem('vos_article_lang', langFilter);
-  localStorage.setItem('vos_full_text_only', fullTextOnly ? 'true' : 'false');
-  localStorage.setItem('vos_retention_days', retentionDays.toString());
+  try {
+    const res = await fetch('/api/feeds/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mistral_key: mistralKey,
+        gemini_key: geminiKey,
+        synthesis_provider: synthProv,
+        vectorization_provider: vectProv,
+        mistral_model: mistralModel,
+        gemini_model: geminiModel,
+        fallback_enabled: fallback,
+        refresh_interval_minutes: refreshMinutes,
+        article_retention_days: retentionDays,
+        article_language: langFilter,
+        full_text_only: fullTextOnly
+      })
+    });
+    if (!res.ok) {
+      console.error("Erreur d'enregistrement sur le serveur.");
+    }
+  } catch (err) {
+    console.error("Erreur réseau:", err);
+  }
 
   runArticlesCleanup(retentionDays);
   setupAutoRefresh();
@@ -159,6 +199,6 @@ export function setupAutoRefresh() {
   }
 }
 
-// Auto setup timer and sync VPS key on load
-fetchVpsApiKey();
+// Auto setup timer and sync VPS keys on load
+fetchVpsApiKeys();
 setupAutoRefresh();

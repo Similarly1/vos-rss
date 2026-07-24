@@ -188,16 +188,10 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
     clusters.sort(key=lambda c: (c["distinct_feed_count"] > 1, c["latest_published_date"], c["distinct_feed_count"], c["article_count"]), reverse=True)
     return clusters
 
-async def synthesize_cluster(cluster_articles: list[dict], api_key: str, model: str = "mistral-small-latest"):
+async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True, mistral_model: str = "mistral-small-latest", gemini_model: str = "gemini-1.5-flash"):
     """
-    Uses Mistral AI to create a unified cross-referenced news summary from multiple articles in different languages.
-    Always generates both the title and summary strictly in French.
+    Uses Mistral AI or Gemini to create a unified cross-referenced news summary from multiple articles in different languages.
     """
-    from app.api.routes_feeds import get_vps_api_key
-    key = get_vps_api_key(api_key)
-    if not key:
-        raise ValueError("Clé API Mistral requise.")
-
     articles_text = "\n\n".join([
         f"--- Source : {a.get('feed_title', 'RSS')} (Langue d'origine: {a.get('language', 'fr').upper()}) ---\nTitre d'origine: {a.get('title')}\nContenu complet: {(a.get('content') or '')[:2500]}"
         for a in cluster_articles
@@ -227,53 +221,100 @@ async def synthesize_cluster(cluster_articles: list[dict], api_key: str, model: 
     Réponds uniquement au format JSON valide.
     """
 
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://api.mistral.ai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "response_format": {"type": "json_object"}
-            },
-            timeout=30.0
-        )
-
-        if res.status_code != 200:
-            raise ValueError(f"Erreur de génération Mistral: {res.text}")
-
-        data = res.json()["choices"][0]["message"]["content"]
-        try:
+    async def call_mistral():
+        if not mistral_key:
+            raise ValueError("Clé API Mistral manquante.")
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                "https://api.mistral.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {mistral_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": mistral_model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "response_format": {"type": "json_object"}
+                },
+                timeout=30.0
+            )
+            if res.status_code != 200:
+                raise ValueError(f"Erreur Mistral: {res.text}")
+            data = res.json()["choices"][0]["message"]["content"]
             return json.loads(data)
-        except Exception:
-            return {
-                "synthesis_title": cluster_articles[0].get("title"),
-                "summary": data,
-                "key_takeaways": []
-            }
 
-async def precompute_and_cache_clusters(api_key: str = None):
+    async def call_gemini():
+        if not gemini_key:
+            raise ValueError("Clé API Gemini manquante.")
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={gemini_key}",
+                headers={"Content-Type": "application/json"},
+                json={
+                    "system_instruction": {
+                        "parts": [{"text": system_prompt}]
+                    },
+                    "contents": [{
+                        "parts": [{"text": user_prompt}]
+                    }],
+                    "generationConfig": {
+                        "responseMimeType": "application/json"
+                    }
+                },
+                timeout=30.0
+            )
+            if res.status_code != 200:
+                raise ValueError(f"Erreur Gemini: {res.text}")
+            data = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(data)
+
+    async def try_provider(p_name: str):
+        if p_name == "mistral":
+            return await call_mistral()
+        elif p_name == "gemini":
+            return await call_gemini()
+        else:
+            raise ValueError("Fournisseur inconnu.")
+
+    try:
+        return await try_provider(provider)
+    except Exception as e:
+        print(f"Erreur synthèse avec {provider} : {e}")
+        if fallback_enabled:
+            fallback_provider = "gemini" if provider == "mistral" else "mistral"
+            print(f"Fallback activé : tentative avec {fallback_provider}...")
+            try:
+                return await try_provider(fallback_provider)
+            except Exception as e2:
+                print(f"Erreur Fallback {fallback_provider} : {e2}")
+                pass
+        
+        return {
+            "synthesis_title": cluster_articles[0].get("title"),
+            "summary": f"Erreur de génération du résumé ({provider}).",
+            "key_takeaways": []
+        }
+
+async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True):
     """
     Background job to pre-compute clusters for strict event mode (0.86) and thematic mode (0.78),
-    and pre-synthesize top event clusters with Mistral AI so they load instantly (0ms) in Perplexity feed.
+    and pre-synthesize top event clusters.
     """
-    from app.api.routes_feeds import get_vps_api_key
-    key = get_vps_api_key(api_key)
+    from app.config import settings
+    m_key = mistral_key or settings.mistral_api_key
+    g_key = gemini_key or settings.gemini_api_key
 
     # 1. Event Mode (0.86 with Centroid Matching & 48h Window)
     event_clusters = compute_article_clusters(similarity_threshold=0.86, max_time_diff_hours=48.0)
 
-    # Pre-synthesize top 8 event clusters if API key available
-    if key and event_clusters:
+    # Pre-synthesize top 8 event clusters if API keys available
+    if (m_key or g_key) and event_clusters:
         for c in event_clusters[:8]:
             try:
-                synth = await synthesize_cluster(c["articles"], api_key=key)
+                synth = await synthesize_cluster(c["articles"], mistral_key=m_key, gemini_key=g_key, provider=provider, fallback_enabled=fallback_enabled)
                 c["precomputed_synthesis"] = synth
             except Exception as e:
                 print(f"[Pre-synthesis note for {c['cluster_id']}]: {e}")

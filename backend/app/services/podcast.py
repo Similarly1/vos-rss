@@ -67,18 +67,24 @@ async def generate_podcast_show(
     tone: str = "journal_matinal",
     voice_key: str = "Marie - Dynamic",
     theme: str = None,
-    api_key: str = None,
+    api_key: str = None, # kept for retrocompatibility
+    mistral_key: str = "",
+    gemini_key: str = "",
+    provider: str = "mistral",
+    fallback_enabled: bool = True,
     base_url: str = None
 ) -> dict:
     """
     1. Selects top news topics from SQLite
-    2. Writes a script with Mistral AI
+    2. Writes a script with Mistral AI or Gemini
     3. Synthesizes full multi-voice audio with Voxtral TTS
     4. Saves into podcasts SQLite database table
     """
-    key = api_key or settings.mistral_api_key
-    if not key:
-        raise ValueError("Clé API Mistral requise pour générer l'émission de podcast.")
+    m_key = mistral_key or api_key or settings.mistral_api_key
+    g_key = gemini_key or settings.gemini_api_key
+    
+    if not m_key and not g_key:
+        raise ValueError("Clé API Mistral ou Gemini requise pour générer l'émission de podcast.")
 
     b_url = (base_url or settings.base_url).rstrip("/")
     feed_token = get_or_create_podcast_feed_token()
@@ -166,34 +172,81 @@ async def generate_podcast_show(
     Réponds uniquement au format JSON valide.
     """
 
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://api.mistral.ai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "mistral-small-latest",
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "response_format": {"type": "json_object"}
-            },
-            timeout=45.0
-        )
+    async def call_mistral():
+        if not m_key:
+            raise ValueError("Clé API Mistral manquante.")
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                "https://api.mistral.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {m_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "mistral-small-latest",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "response_format": {"type": "json_object"}
+                },
+                timeout=45.0
+            )
+            if res.status_code != 200:
+                raise ValueError(f"Erreur génération script Mistral: {res.text}")
+            return json.loads(res.json()["choices"][0]["message"]["content"])
 
-        if res.status_code != 200:
-            raise ValueError(f"Erreur génération script Mistral: {res.text}")
+    async def call_gemini():
+        if not g_key:
+            raise ValueError("Clé API Gemini manquante.")
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={g_key}",
+                headers={"Content-Type": "application/json"},
+                json={
+                    "system_instruction": {
+                        "parts": [{"text": system_prompt}]
+                    },
+                    "contents": [{
+                        "parts": [{"text": user_prompt}]
+                    }],
+                    "generationConfig": {
+                        "responseMimeType": "application/json"
+                    }
+                },
+                timeout=45.0
+            )
+            if res.status_code != 200:
+                raise ValueError(f"Erreur génération script Gemini: {res.text}")
+            return json.loads(res.json()["candidates"][0]["content"]["parts"][0]["text"])
 
-        script_data = res.json()["choices"][0]["message"]["content"]
-        try:
-            script_data = json.loads(script_data)
-        except Exception:
+    async def try_provider(p_name: str):
+        if p_name == "mistral":
+            return await call_mistral()
+        elif p_name == "gemini":
+            return await call_gemini()
+        else:
+            raise ValueError("Fournisseur inconnu.")
+
+    try:
+        script_data = await try_provider(provider)
+    except Exception as e:
+        print(f"Erreur génération script avec {provider} : {e}")
+        if fallback_enabled:
+            fallback_provider = "gemini" if provider == "mistral" else "mistral"
+            print(f"Fallback activé : tentative avec {fallback_provider}...")
+            try:
+                script_data = await try_provider(fallback_provider)
+            except Exception as e2:
+                print(f"Erreur Fallback {fallback_provider} : {e2}")
+                script_data = {
+                    "show_title": f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')} (Erreur IA)",
+                    "script": "Bonjour, suite à une erreur technique de l'intelligence artificielle, l'émission n'a pas pu être générée."
+                }
+        else:
             script_data = {
-                "show_title": f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}",
-                "script": script_data
+                "show_title": f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')} (Erreur IA)",
+                "script": "Bonjour, suite à une erreur technique de l'intelligence artificielle, l'émission n'a pas pu être générée."
             }
 
         show_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
@@ -201,7 +254,9 @@ async def generate_podcast_show(
             show_title = f"{show_title} (Revue de presse)"
 
         full_script = script_data.get("script", "")
-        audio_filename = await generate_podcast_audio(full_script, voice_key=voice_key, api_key=key)
+        
+        # Audio generation is still dependent on voxtral TTS API, we assume it's working with any text.
+        audio_filename = await generate_podcast_audio(full_script, voice_key=voice_key, api_key=m_key) # Audio is unrelated to Gemini API for now, we just pass m_key just in case
 
     audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
 

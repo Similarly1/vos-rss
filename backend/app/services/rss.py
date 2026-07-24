@@ -423,17 +423,22 @@ async def refresh_all_feeds_and_vectorize(api_key: str = None):
         except Exception as e:
             print(f"Erreur rafraîchissement flux {f['url']}: {e}")
 
-    key = api_key or settings.mistral_api_key
+    # Use mistral key for retrocompatibility, but we should rely on settings
+    m_key = api_key or settings.mistral_api_key
+    g_key = settings.gemini_api_key
+    
+    # Read provider preferences from somewhere, for now we will pass default values
+    # In a full app, these might be passed via the request or stored in DB
     vectorized_count = 0
-    if key:
+    if m_key or g_key:
         try:
             from app.services.embeddings import vectorize_all_pending
             from app.services.clustering import precompute_and_cache_clusters
 
-            vec_res = await vectorize_all_pending(key, force_revectorize=False)
+            vec_res = await vectorize_all_pending(mistral_key=m_key, gemini_key=g_key, force_revectorize=False)
             vectorized_count = vec_res.get("processed_count", 0)
 
-            await precompute_and_cache_clusters(key)
+            await precompute_and_cache_clusters(mistral_key=m_key, gemini_key=g_key)
         except Exception as e:
             print(f"Erreur auto-vectorisation & pre-clustering: {e}")
 

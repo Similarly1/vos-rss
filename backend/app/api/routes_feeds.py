@@ -34,6 +34,26 @@ def get_vps_api_key(provided_key: str = None) -> str:
             pass
     return ""
 
+def get_vps_gemini_key(provided_key: str = None) -> str:
+    if provided_key and provided_key.strip():
+        return provided_key.strip()
+    if settings.gemini_api_key and settings.gemini_api_key.strip():
+        return settings.gemini_api_key.strip()
+
+    env_path = Path("./.env")
+    if env_path.exists():
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("GEMINI_API_KEY="):
+                        k = line.split("=", 1)[1].strip()
+                        if k:
+                            settings.gemini_api_key = k
+                            return k
+        except Exception:
+            pass
+    return ""
+
 class FeedInput(BaseModel):
     url: str
     category: Optional[str] = "Général"
@@ -58,8 +78,18 @@ class AnalyzeRequest(BaseModel):
 class ImportOpmlRequest(BaseModel):
     content: str
 
-class SaveEnvKeyRequest(BaseModel):
-    api_key: str
+class AppSettingsRequest(BaseModel):
+    mistral_key: Optional[str] = None
+    gemini_key: Optional[str] = None
+    synthesis_provider: Optional[str] = None
+    vectorization_provider: Optional[str] = None
+    mistral_model: Optional[str] = None
+    gemini_model: Optional[str] = None
+    fallback_enabled: Optional[bool] = None
+    refresh_interval_minutes: Optional[int] = None
+    article_retention_days: Optional[int] = None
+    article_language: Optional[str] = None
+    full_text_only: Optional[bool] = None
 
 @router.get("")
 @router.get("/")
@@ -87,42 +117,83 @@ def import_opml(payload: ImportOpmlRequest):
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/env-key")
-def get_env_key():
-    key = get_vps_api_key()
-    has_key = bool(key)
-    masked = (key[:4] + "..." + key[-4:]) if len(key) >= 8 else ""
-    return {"status": "success", "has_key": has_key, "key": key, "masked": masked}
+@router.get("/settings")
+def get_settings():
+    return {
+        "status": "success",
+        "data": {
+            "mistral_key": settings.mistral_api_key or get_vps_api_key(),
+            "gemini_key": settings.gemini_api_key or get_vps_gemini_key(),
+            "synthesis_provider": settings.synthesis_provider,
+            "vectorization_provider": settings.vectorization_provider,
+            "mistral_model": settings.mistral_model,
+            "gemini_model": settings.gemini_model,
+            "fallback_enabled": settings.fallback_enabled,
+            "refresh_interval_minutes": settings.refresh_interval_minutes,
+            "article_retention_days": settings.article_retention_days,
+            "article_language": settings.article_language,
+            "full_text_only": settings.full_text_only,
+        }
+    }
 
-@router.post("/save-env-key")
-def save_env_key(payload: SaveEnvKeyRequest):
-    key = payload.api_key.strip()
-    if not key:
-        raise HTTPException(status_code=400, detail="La clé API ne peut pas être vide.")
-
+@router.post("/settings")
+def save_settings(payload: AppSettingsRequest):
     env_path = Path("./.env")
     lines = []
     if env_path.exists():
         with open(env_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
-    key_updated = False
+    # Define the variables to update
+    updates = {
+        "MISTRAL_API_KEY": payload.mistral_key if payload.mistral_key is not None else settings.mistral_api_key,
+        "GEMINI_API_KEY": payload.gemini_key if payload.gemini_key is not None else settings.gemini_api_key,
+        "SYNTHESIS_PROVIDER": payload.synthesis_provider if payload.synthesis_provider is not None else settings.synthesis_provider,
+        "VECTORIZATION_PROVIDER": payload.vectorization_provider if payload.vectorization_provider is not None else settings.vectorization_provider,
+        "MISTRAL_MODEL": payload.mistral_model if payload.mistral_model is not None else settings.mistral_model,
+        "GEMINI_MODEL": payload.gemini_model if payload.gemini_model is not None else settings.gemini_model,
+        "FALLBACK_ENABLED": str(payload.fallback_enabled).lower() if payload.fallback_enabled is not None else str(settings.fallback_enabled).lower(),
+        "REFRESH_INTERVAL_MINUTES": str(payload.refresh_interval_minutes) if payload.refresh_interval_minutes is not None else str(settings.refresh_interval_minutes),
+        "ARTICLE_RETENTION_DAYS": str(payload.article_retention_days) if payload.article_retention_days is not None else str(settings.article_retention_days),
+        "ARTICLE_LANGUAGE": payload.article_language if payload.article_language is not None else settings.article_language,
+        "FULL_TEXT_ONLY": str(payload.full_text_only).lower() if payload.full_text_only is not None else str(settings.full_text_only).lower(),
+    }
+
     new_lines = []
+    updated_keys = set()
+    
     for line in lines:
-        if line.startswith("MISTRAL_API_KEY="):
-            new_lines.append(f"MISTRAL_API_KEY={key}\n")
-            key_updated = True
-        else:
+        updated = False
+        for k, v in updates.items():
+            if line.startswith(f"{k}="):
+                new_lines.append(f"{k}={v}\n")
+                updated_keys.add(k)
+                updated = True
+                break
+        if not updated:
             new_lines.append(line)
 
-    if not key_updated:
-        new_lines.append(f"MISTRAL_API_KEY={key}\n")
+    for k, v in updates.items():
+        if k not in updated_keys:
+            new_lines.append(f"{k}={v}\n")
 
     with open(env_path, "w", encoding="utf-8") as f:
         f.writelines(new_lines)
 
-    settings.mistral_api_key = key
-    return {"status": "success", "message": "Clé API enregistrée dans le fichier .env du serveur VPS !", "key": key}
+    # Update global settings in memory
+    if payload.mistral_key is not None: settings.mistral_api_key = payload.mistral_key
+    if payload.gemini_key is not None: settings.gemini_api_key = payload.gemini_key
+    if payload.synthesis_provider is not None: settings.synthesis_provider = payload.synthesis_provider
+    if payload.vectorization_provider is not None: settings.vectorization_provider = payload.vectorization_provider
+    if payload.mistral_model is not None: settings.mistral_model = payload.mistral_model
+    if payload.gemini_model is not None: settings.gemini_model = payload.gemini_model
+    if payload.fallback_enabled is not None: settings.fallback_enabled = payload.fallback_enabled
+    if payload.refresh_interval_minutes is not None: settings.refresh_interval_minutes = payload.refresh_interval_minutes
+    if payload.article_retention_days is not None: settings.article_retention_days = payload.article_retention_days
+    if payload.article_language is not None: settings.article_language = payload.article_language
+    if payload.full_text_only is not None: settings.full_text_only = payload.full_text_only
+        
+    return {"status": "success", "message": "Paramètres enregistrés dans le fichier .env !"}
 
 @router.post("")
 @router.post("/")

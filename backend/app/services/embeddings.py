@@ -71,9 +71,47 @@ async def generate_mistral_embedding(text: str, api_key: str) -> list[float]:
         embedding = res_data["data"][0]["embedding"]
         return embedding
 
-async def vectorize_article(article_id: int, api_key: str):
+async def generate_gemini_embedding(text: str, api_key: str, output_dimensionality: int = None) -> list[float]:
     """
-    Fetches article text, cleans site boilerplate, generates embedding with Mistral AI,
+    Calls Google Gemini API (model: text-embedding-004). Returns a 768-dim vector by default.
+    Using outputDimensionality parameter if provided (but it can only truncate, not expand beyond 768).
+    """
+    if not api_key:
+        raise ValueError("Clé API Gemini requise pour générer l'embedding.")
+
+    clean_text = text[:2500].strip()
+    if not clean_text:
+        clean_text = "Article sans contenu"
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={api_key}"
+    payload = {
+        "model": "models/text-embedding-004",
+        "content": {
+            "parts": [{"text": clean_text}]
+        }
+    }
+    if output_dimensionality:
+        payload["outputDimensionality"] = output_dimensionality
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            url,
+            headers={"Content-Type": "application/json"},
+            json=payload,
+            timeout=30.0
+        )
+
+        if response.status_code != 200:
+            err_data = response.json()
+            raise ValueError(f"Erreur API Gemini Embeddings: {err_data.get('error', {}).get('message', response.text)}")
+
+        res_data = response.json()
+        embedding = res_data["embedding"]["values"]
+        return embedding
+
+async def vectorize_article(article_id: int, mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True):
+    """
+    Fetches article text, cleans site boilerplate, generates embedding (with primary/fallback logic),
     and stores it in article_embeddings.
     """
     conn = get_db_connection()
@@ -88,7 +126,26 @@ async def vectorize_article(article_id: int, api_key: str):
     text_to_embed = clean_text_for_embedding(article['title'], article['content'])
     conn.close()
 
-    embedding = await generate_mistral_embedding(text_to_embed, api_key)
+    embedding = None
+    
+    async def try_provider(p_name: str):
+        if p_name == "mistral":
+            return await generate_mistral_embedding(text_to_embed, mistral_key)
+        elif p_name == "gemini":
+            return await generate_gemini_embedding(text_to_embed, gemini_key)
+        else:
+            raise ValueError("Fournisseur inconnu.")
+
+    try:
+        embedding = await try_provider(provider)
+    except Exception as e:
+        print(f"Erreur embedding {provider} pour article {article_id}: {e}")
+        if fallback_enabled:
+            fallback_provider = "gemini" if provider == "mistral" else "mistral"
+            print(f"Fallback activé : tentative avec {fallback_provider}...")
+            embedding = await try_provider(fallback_provider)
+        else:
+            raise e
     embedding_json = json.dumps(embedding)
 
     conn = get_db_connection()
@@ -113,7 +170,7 @@ async def vectorize_article(article_id: int, api_key: str):
     conn.close()
     return {"article_id": article_id, "vector_dim": len(embedding)}
 
-async def vectorize_all_pending(api_key: str, force_revectorize: bool = False):
+async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True, force_revectorize: bool = False):
     """
     Vectorizes articles. If force_revectorize is True, clears existing embeddings
     and re-computes vectors for all articles with clean text.
@@ -144,7 +201,7 @@ async def vectorize_all_pending(api_key: str, force_revectorize: bool = False):
 
     for art in pending_articles:
         try:
-            res = await vectorize_article(art["id"], api_key)
+            res = await vectorize_article(art["id"], mistral_key, gemini_key, provider, fallback_enabled)
             results.append(res)
         except Exception as e:
             print(f"Erreur vectorisation article {art['id']}: {e}")

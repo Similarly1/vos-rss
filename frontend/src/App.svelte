@@ -10,7 +10,7 @@
   import SynthesisView from './lib/components/SynthesisView.svelte';
   import PerplexityFeedView from './lib/components/PerplexityFeedView.svelte';
   import PodcastStudioView from './lib/components/PodcastStudioView.svelte';
-  import SettingsModal from './lib/components/SettingsModal.svelte';
+  import SettingsView from './lib/components/SettingsView.svelte';
   import AddFeedModal from './lib/components/AddFeedModal.svelte';
   import FeedManagerModal from './lib/components/FeedManagerModal.svelte';
 
@@ -41,6 +41,8 @@
         <DiscoverView />
       {:else if $currentView === 'synthesis'}
         <SynthesisView />
+      {:else if $currentView === 'settings'}
+        <SettingsView />
       {:else}
         <ArticleList />
         <ReaderView />
@@ -56,6 +58,8 @@
         <DiscoverView />
       {:else if $currentView === 'synthesis'}
         <SynthesisView />
+      {:else if $currentView === 'settings'}
+        <SettingsView />
       {:else}
         <div class="flex-1 w-full flex flex-col h-full overflow-hidden pb-16">
           {#if $selectedItemId}
@@ -79,7 +83,6 @@
   {/if}
   
   <!-- Modals -->
-  <SettingsModal />
   <AddFeedModal />
   <FeedManagerModal />
 

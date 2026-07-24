@@ -87,9 +87,10 @@ def update_schedule(payload: ScheduleConfigRequest):
     return {"status": "success", "schedule": updated}
 
 @router.get("/history")
-def list_podcast_history():
+def list_podcast_history(request: Request):
     try:
-        podcasts = get_podcast_history()
+        base_url = str(request.base_url).rstrip("/")
+        podcasts = get_podcast_history(base_url=base_url)
         return {"status": "success", "podcasts": podcasts}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

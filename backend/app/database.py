@@ -10,7 +10,7 @@ except ImportError:
 DB_PATH = Path("./vos.db")
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     
     if HAS_SQLITE_VEC:
@@ -126,7 +126,7 @@ def init_db():
     )
     ''')
 
-    # 6. App Settings Table (for persistent token storage, etc.)
+    # 6. App Settings Table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS app_settings (
         key TEXT PRIMARY KEY,
@@ -143,7 +143,7 @@ def init_db():
     except Exception as e:
         print(f"[Migration note] podcasts image_url check: {e}")
 
-    # 6. sqlite-vec virtual table
+    # 7. sqlite-vec virtual table
     if HAS_SQLITE_VEC:
         try:
             cursor.execute('''

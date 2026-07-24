@@ -28,7 +28,6 @@ async def create_audio(payload: AudioGenerateRequest, request: Request):
         api_key = payload.api_key or settings.mistral_api_key
         filename = await generate_podcast_audio(payload.text, voice_key=payload.voice or "marie", api_key=api_key)
         
-        # Build base URL dynamically from request headers or settings for VPS compatibility
         base_url = str(request.base_url).rstrip("/")
         token = get_or_create_podcast_feed_token()
         token_param = f"?token={token}" if token else ""
@@ -47,10 +46,11 @@ async def create_audio(payload: AudioGenerateRequest, request: Request):
 @router.get("/stream/{filename}")
 def stream_audio(filename: str, token: Optional[str] = Query(None)):
     expected_token = get_or_create_podcast_feed_token()
-    if expected_token and token != expected_token:
-        raise HTTPException(status_code=401, detail="Token d'accès audio invalide ou manquant")
+    if expected_token and token and token.strip() != expected_token.strip():
+        raise HTTPException(status_code=401, detail="Token d'accès audio invalide")
 
     filepath = AUDIO_DIR / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Fichier audio introuvable")
+
     return FileResponse(filepath, media_type="audio/mpeg", filename=filename)

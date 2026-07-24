@@ -28,6 +28,27 @@ async def create_audio(payload: AudioGenerateRequest, request: Request):
         api_key = payload.api_key or settings.mistral_api_key
         filename = await generate_podcast_audio(payload.text, voice_key=payload.voice or "marie", api_key=api_key)
         
+        candidate_paths = [
+            AUDIO_DIR / filename,
+            Path("./audio_cache") / filename,
+            Path("../audio_cache") / filename,
+            Path(__file__).resolve().parent.parent.parent / "audio_cache" / filename,
+        ]
+
+        target_filepath = None
+        for p in candidate_paths:
+            if p.exists():
+                target_filepath = p
+                break
+
+        audio_b64 = None
+        if target_filepath and target_filepath.exists():
+            try:
+                with open(target_filepath, "rb") as f:
+                    audio_b64 = f"data:audio/mp3;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+            except Exception as e:
+                print(f"[audio_b64 read note]: {e}")
+
         base_url = sanitize_base_url(str(request.base_url))
         token = get_or_create_podcast_feed_token()
         token_param = f"?token={token}" if token else ""
@@ -36,7 +57,8 @@ async def create_audio(payload: AudioGenerateRequest, request: Request):
         return {
             "status": "success",
             "filename": filename,
-            "audio_url": audio_url
+            "audio_url": audio_url,
+            "audio_b64": audio_b64
         }
     except Exception as e:
         print("[Audio Generation Error Traceback]:")

@@ -132,8 +132,8 @@
 
       const result = await res.json();
 
-      if (res.ok && result.audio_url) {
-        playTrack(title, result.audio_url, 'Podcast Synthèse Vos');
+      if (res.ok && (result.audio_b64 || result.audio_url)) {
+        playTrack(title, result.audio_b64 || result.audio_url, 'Podcast Synthèse Vos');
       } else {
         alert(result.detail || "Échec de la génération audio TTS.");
       }

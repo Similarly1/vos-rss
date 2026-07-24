@@ -173,8 +173,8 @@
 
       const result = await res.json();
 
-      if (res.ok && result.audio_url) {
-        playTrack(title, result.audio_url, 'Voix Marie (Mistral Studio)');
+      if (res.ok && (result.audio_b64 || result.audio_url)) {
+        playTrack(title, result.audio_b64 || result.audio_url, 'Voix Marie (Mistral Studio)');
       } else {
         alert(result.detail || "Échec de la génération de la voix Mistral.");
         if (result.detail && result.detail.includes("Clé API")) {

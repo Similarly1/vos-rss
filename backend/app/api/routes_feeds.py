@@ -1,6 +1,6 @@
 import traceback
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 from app.services.rss import parse_and_save_feed, get_all_feeds, update_feed, delete_feed, refresh_all_feeds_and_vectorize, generate_opml_export, import_feeds_from_content
@@ -134,10 +134,14 @@ def remove_feed(feed_id: int):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/refresh")
-async def trigger_refresh_all(payload: Optional[RefreshRequest] = None):
+async def trigger_refresh_all(background_tasks: BackgroundTasks, payload: Optional[RefreshRequest] = None):
     try:
         api_key = (payload.api_key if payload else None) or settings.mistral_api_key
-        res = await refresh_all_feeds_and_vectorize(api_key=api_key)
-        return {"status": "success", "data": res}
+        # Execute refresh and vectorization asynchronously in BackgroundTasks
+        background_tasks.add_task(refresh_all_feeds_and_vectorize, api_key)
+        return {
+            "status": "success",
+            "message": "Rafraîchissement de tous les flux RSS démarré en arrière-plan !"
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

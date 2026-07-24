@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 
-// 'feeds' | 'discover' | 'synthesis'
+// 'feeds' | 'discover' | 'synthesis' | 'perplexity' | 'podcast'
 export const currentView = writable('feeds');
 
 // Responsive state
@@ -13,6 +13,9 @@ export const selectedItemId = writable(null);
 export const showSettingsModal = writable(false);
 export const showAddFeedModal = writable(false);
 export const showFeedManagerModal = writable(false);
+
+// Refreshing state indicator
+export const isRefreshingFeeds = writable(false);
 
 // Settings state
 export const mistralApiKey = writable(localStorage.getItem('vos_mistral_api_key') || '');
@@ -76,6 +79,31 @@ export async function fetchFeeds() {
   }
 }
 
+export async function triggerFeedRefresh() {
+  isRefreshingFeeds.set(true);
+  const apiKey = get(mistralApiKey);
+  try {
+    const res = await fetch('/api/feeds/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey })
+    });
+    if (res.ok) {
+      setTimeout(async () => {
+        await fetchArticles();
+        await fetchFeeds();
+        isRefreshingFeeds.set(false);
+      }, 2500);
+      return true;
+    }
+  } catch (err) {
+    console.error("Erreur rafraîchissement des flux:", err);
+  } finally {
+    setTimeout(() => isRefreshingFeeds.set(false), 3500);
+  }
+  return false;
+}
+
 let autoRefreshTimer = null;
 export function setupAutoRefresh() {
   if (autoRefreshTimer) {
@@ -87,18 +115,11 @@ export function setupAutoRefresh() {
   if (minutes > 0) {
     const ms = minutes * 60 * 1000;
     autoRefreshTimer = setInterval(() => {
-      const apiKey = get(mistralApiKey);
       console.log(`[Auto-Refresh & Auto-Vectorize] Rafraîchissement automatique (${minutes} min)...`);
-      fetch('/api/feeds/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: apiKey })
-      })
-        .then(() => {
-          fetchArticles();
-          fetchFeeds();
-        })
-        .catch(err => console.error("Erreur auto-refresh:", err));
+      triggerFeedRefresh();
     }, ms);
   }
 }
+
+// Auto setup timer on load
+setupAutoRefresh();

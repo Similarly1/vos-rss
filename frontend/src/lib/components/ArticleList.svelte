@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { selectedItemId, articlesList, fetchArticles, showAddFeedModal } from '../stores/appState.js';
+  import { selectedItemId, articlesList, fetchArticles, triggerFeedRefresh, isRefreshingFeeds, showAddFeedModal } from '../stores/appState.js';
 
   onMount(() => {
     fetchArticles();
@@ -10,14 +10,17 @@
 <div class="w-full lg:w-96 h-full bg-gray-50 dark:bg-dark-bg border-r border-gray-200 dark:border-gray-800 overflow-y-auto flex flex-col">
   <div class="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-dark-card sticky top-0 z-10 flex justify-between items-center">
     <h2 class="text-xl font-bold">À lire ({$articlesList.length})</h2>
+    
     <button 
-      on:click={fetchArticles}
-      class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-      title="Rafraîchir"
+      on:click={triggerFeedRefresh}
+      disabled={$isRefreshingFeeds}
+      class="p-2 text-gray-500 hover:text-primary-500 dark:hover:text-primary-400 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all flex items-center gap-1 text-xs font-semibold disabled:opacity-50"
+      title="Rafraîchir les flux RSS"
     >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-4 h-4 {$isRefreshingFeeds ? 'animate-spin text-primary-500' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
       </svg>
+      <span>{$isRefreshingFeeds ? 'Mise à jour...' : 'Actualiser'}</span>
     </button>
   </div>
   

@@ -19,7 +19,11 @@ export function sanitizeTextForSpeech(text) {
 }
 
 export function playTrack(title, audioUrl, feedTitle = 'Vos Podcast') {
-  currentTrack.set({ title, audioUrl, feedTitle });
+  let cleanUrl = audioUrl || '';
+  if (cleanUrl.startsWith('http:') && typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    cleanUrl = cleanUrl.replace(/^http:/, 'https:');
+  }
+  currentTrack.set({ title, audioUrl: cleanUrl, feedTitle });
   isPlaying.set(true);
 }
 

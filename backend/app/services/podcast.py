@@ -86,7 +86,7 @@ async def generate_podcast_show(
     if not m_key and not g_key:
         raise ValueError("Clé API Mistral ou Gemini requise pour générer l'émission de podcast.")
 
-    b_url = (base_url or settings.base_url).rstrip("/")
+    b_url = sanitize_base_url(base_url)
     feed_token = get_or_create_podcast_feed_token()
     token_param = f"?token={feed_token}" if feed_token else ""
 
@@ -287,12 +287,18 @@ async def generate_podcast_show(
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
+def sanitize_base_url(url: str) -> str:
+    b_url = (url or settings.base_url or "").rstrip("/")
+    if b_url.startswith("http://") and not b_url.startswith("http://127.0.0.1") and not b_url.startswith("http://localhost"):
+        b_url = b_url.replace("http://", "https://")
+    return b_url
+
 def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
     """
     Generates a 100% valid RSS 2.0 XML podcast feed with iTunes / AntennaPod / Spotify / Apple Podcasts metadata.
     Includes episode image, HTML description with clickable sources, and audio enclosure length.
     """
-    b_url = (base_url or settings.base_url).rstrip("/")
+    b_url = sanitize_base_url(base_url)
     feed_token = token or get_or_create_podcast_feed_token()
     token_param = f"?token={feed_token}" if feed_token else ""
 
@@ -376,7 +382,7 @@ def get_podcast_history(base_url: str = None):
     """
     Returns the list of previously generated podcasts with dynamically adapted audio URLs.
     """
-    b_url = (base_url or settings.base_url).rstrip("/")
+    b_url = sanitize_base_url(base_url)
     token = get_or_create_podcast_feed_token()
     token_param = f"?token={token}" if token else ""
 

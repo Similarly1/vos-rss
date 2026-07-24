@@ -17,6 +17,15 @@ def cosine_similarity(v1: list[float], v2: list[float]) -> float:
         return 0.0
     return dot_product / (norm_v1 * norm_v2)
 
+def compute_centroid(vectors: list[list[float]]) -> list[float]:
+    dim = len(vectors[0])
+    centroid = [0.0] * dim
+    for vec in vectors:
+        for k in range(dim):
+            centroid[k] += vec[k]
+    count = float(len(vectors))
+    return [val / count for val in centroid]
+
 def parse_article_date(date_str: str) -> datetime:
     if not date_str:
         return datetime.now()
@@ -56,14 +65,14 @@ def save_clusters_to_cache(threshold_key: str, clusters: list):
     conn.commit()
     conn.close()
 
-def compute_article_clusters(similarity_threshold: float = 0.91, max_time_diff_hours: float = None):
+def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_hours: float = None):
     """
     Reads all embeddings from DB, computes pairwise cosine similarities across all languages (FR, EN, DE, ES),
-    and groups articles into clusters of related news with strict temporal proximity enforcement.
+    and groups articles into clusters of related news with Centroid Matching & strict temporal proximity.
     
-    Time Proximity Rules:
-    - Strict Event Mode (similarity_threshold >= 0.86): max time gap = 48h (2 days).
-    - Thematic Mode (similarity_threshold < 0.86): max time gap = 72h (3 days).
+    Proximity & Centroid Rules:
+    - Event Mode (similarity_threshold >= 0.84): max time gap = 48h (2 days). Uses Centroid Vector.
+    - Thematic Mode (similarity_threshold < 0.84): max time gap = 72h (3 days).
     - Applies a temporal decay factor so closer articles match with higher confidence.
     """
     conn = get_db_connection()
@@ -106,7 +115,7 @@ def compute_article_clusters(similarity_threshold: float = 0.91, max_time_diff_h
 
     clusters = []
     visited = set()
-    is_strict_mode = similarity_threshold >= 0.86
+    is_strict_mode = similarity_threshold >= 0.84
 
     # Determine maximum time gap between articles in the same cluster
     if max_time_diff_hours is None:
@@ -135,17 +144,11 @@ def compute_article_clusters(similarity_threshold: float = 0.91, max_time_diff_h
             # Temporal decay penalty (mild reduction for articles further apart within window)
             decay_factor = max(0.85, 1.0 - (time_diff_hours / max_allowed_hours) * 0.15)
 
-            adjusted_sims = [
-                cosine_similarity(art_j["vector"], item["vector"]) * decay_factor 
-                for item in cluster_items
-            ]
+            # Centroid Vector Similarity
+            centroid = compute_centroid([item["vector"] for item in cluster_items])
+            sim = cosine_similarity(art_j["vector"], centroid) * decay_factor
 
-            if is_strict_mode:
-                is_match = min(adjusted_sims) >= similarity_threshold
-            else:
-                is_match = (sum(adjusted_sims) / len(adjusted_sims)) >= similarity_threshold
-
-            if is_match:
+            if sim >= similarity_threshold:
                 cluster_items.append(art_j)
                 visited.add(art_j["id"])
 
@@ -190,7 +193,8 @@ async def synthesize_cluster(cluster_articles: list[dict], api_key: str, model: 
     Uses Mistral AI to create a unified cross-referenced news summary from multiple articles in different languages.
     Always generates both the title and summary strictly in French.
     """
-    key = api_key or settings.mistral_api_key
+    from app.api.routes_feeds import get_vps_api_key
+    key = get_vps_api_key(api_key)
     if not key:
         raise ValueError("Clé API Mistral requise.")
 
@@ -254,15 +258,16 @@ async def synthesize_cluster(cluster_articles: list[dict], api_key: str, model: 
                 "key_takeaways": []
             }
 
-async def precompute_and_cache_clusters(api_key: str):
+async def precompute_and_cache_clusters(api_key: str = None):
     """
-    Background job to pre-compute clusters for strict event mode (0.91) and thematic mode (0.78),
+    Background job to pre-compute clusters for strict event mode (0.86) and thematic mode (0.78),
     and pre-synthesize top event clusters with Mistral AI so they load instantly (0ms) in Perplexity feed.
     """
-    key = api_key or settings.mistral_api_key
+    from app.api.routes_feeds import get_vps_api_key
+    key = get_vps_api_key(api_key)
 
-    # 1. Event Mode (0.91)
-    event_clusters = compute_article_clusters(similarity_threshold=0.91, max_time_diff_hours=48.0)
+    # 1. Event Mode (0.86 with Centroid Matching & 48h Window)
+    event_clusters = compute_article_clusters(similarity_threshold=0.86, max_time_diff_hours=48.0)
 
     # Pre-synthesize top 8 event clusters if API key available
     if key and event_clusters:
@@ -273,11 +278,14 @@ async def precompute_and_cache_clusters(api_key: str):
             except Exception as e:
                 print(f"[Pre-synthesis note for {c['cluster_id']}]: {e}")
 
-    save_clusters_to_cache("event_0.91", event_clusters)
+    save_clusters_to_cache("threshold_events", event_clusters)
+    save_clusters_to_cache("threshold_0.91", event_clusters)
+    save_clusters_to_cache("threshold_0.86", event_clusters)
 
     # 2. Digest Mode (0.78)
     digest_clusters = compute_article_clusters(similarity_threshold=0.78, max_time_diff_hours=72.0)
-    save_clusters_to_cache("digest_0.78", digest_clusters)
+    save_clusters_to_cache("threshold_themes", digest_clusters)
+    save_clusters_to_cache("threshold_0.78", digest_clusters)
 
     return {
         "event_clusters_count": len(event_clusters),

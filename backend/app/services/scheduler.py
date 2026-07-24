@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from app.services.podcast import generate_podcast_show
 from app.config import settings
+from app.database import get_db_connection
 
 SCHEDULES_FILE = Path("./podcast_schedules.json")
 LEGACY_SCHEDULE_FILE = Path("./podcast_schedule.json")
@@ -78,34 +79,56 @@ def calculate_next_run(prog: dict) -> str:
     return "Prochainement"
 
 def load_schedules() -> list[dict]:
-    if not SCHEDULES_FILE.exists():
-        if LEGACY_SCHEDULE_FILE.exists():
-            try:
-                with open(LEGACY_SCHEDULE_FILE, "r", encoding="utf-8") as f:
-                    legacy = json.load(f)
-                    legacy["id"] = "prog_matinale_legacy"
-                    legacy["name"] = "Programme Principal"
-                    save_schedules([legacy])
-                    return [legacy]
-            except Exception:
-                pass
-        save_schedules(DEFAULT_PROGRAMS)
-        return DEFAULT_PROGRAMS
-
+    # 1. Try loading from SQLite database first
     try:
-        with open(SCHEDULES_FILE, "r", encoding="utf-8") as f:
-            programs = json.load(f)
-            if isinstance(programs, list):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM app_settings WHERE key = 'podcast_schedules'")
+        row = cursor.fetchone()
+        conn.close()
+        if row and row["value"]:
+            programs = json.loads(row["value"])
+            if isinstance(programs, list) and len(programs) > 0:
                 for p in programs:
                     p["next_run_display"] = calculate_next_run(p)
                 return programs
-            return DEFAULT_PROGRAMS
-    except Exception:
-        return DEFAULT_PROGRAMS
+    except Exception as e:
+        print(f"[Scheduler DB Load Note]: {e}")
+
+    # 2. Fallback to SCHEDULES_FILE if DB record not found
+    if SCHEDULES_FILE.exists():
+        try:
+            with open(SCHEDULES_FILE, "r", encoding="utf-8") as f:
+                programs = json.load(f)
+                if isinstance(programs, list) and len(programs) > 0:
+                    for p in programs:
+                        p["next_run_display"] = calculate_next_run(p)
+                    save_schedules(programs)
+                    return programs
+        except Exception:
+            pass
+
+    # 3. Default fallback
+    save_schedules(DEFAULT_PROGRAMS)
+    return DEFAULT_PROGRAMS
 
 def save_schedules(programs: list[dict]):
-    with open(SCHEDULES_FILE, "w", encoding="utf-8") as f:
-        json.dump(programs, f, indent=2, ensure_ascii=False)
+    # 1. Save to SQLite database (primary, permission-safe)
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('podcast_schedules', ?)", (json.dumps(programs, ensure_ascii=False),))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[Scheduler DB Save Error]: {e}")
+
+    # 2. Try mirror write to SCHEDULES_FILE (catch PermissionError gracefully)
+    try:
+        with open(SCHEDULES_FILE, "w", encoding="utf-8") as f:
+            json.dump(programs, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[Scheduler File Write Note - fallback to DB only]: {e}")
 
 def add_schedule_program(data: dict) -> dict:
     programs = load_schedules()

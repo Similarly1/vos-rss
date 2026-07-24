@@ -6,7 +6,7 @@ from typing import Optional
 from pathlib import Path
 
 from app.services.audio import generate_podcast_audio, fetch_mistral_voices, AUDIO_DIR
-from app.services.podcast import get_or_create_podcast_feed_token
+from app.services.podcast import get_or_create_podcast_feed_token, sanitize_base_url
 from app.config import settings
 
 router = APIRouter(prefix="/api/audio", tags=["Audio"])
@@ -28,7 +28,7 @@ async def create_audio(payload: AudioGenerateRequest, request: Request):
         api_key = payload.api_key or settings.mistral_api_key
         filename = await generate_podcast_audio(payload.text, voice_key=payload.voice or "marie", api_key=api_key)
         
-        base_url = str(request.base_url).rstrip("/")
+        base_url = sanitize_base_url(str(request.base_url))
         token = get_or_create_podcast_feed_token()
         token_param = f"?token={token}" if token else ""
         audio_url = f"{base_url}/api/audio/stream/{filename}{token_param}"

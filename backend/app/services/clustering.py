@@ -77,7 +77,7 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-
+    cursor.execute("""
         SELECT e.article_id, e.embedding_json, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.category
         FROM article_embeddings e
         JOIN articles a ON e.article_id = a.id

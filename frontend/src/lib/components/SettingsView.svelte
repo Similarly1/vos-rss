@@ -300,7 +300,8 @@
           <div class="space-y-3 mt-4">
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Modèle d'Embedding Gemini</label>
             <select bind:value={geminiEmbedInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-primary-500">
-              <option value="gemini-embedding-001">gemini-embedding-001 (Gemini Embedding - Multilingue / RAG)</option>
+              <option value="gemini-embedding-001">gemini-embedding-001 (Gemini Embedding v1)</option>
+              <option value="gemini-embedding-002">gemini-embedding-002 (Gemini Embedding v2)</option>
               <option value="text-embedding-004">text-embedding-004 (Gecko - 768 dims)</option>
               <option value="text-embedding-005">text-embedding-005 (Gecko 005 - 768 dims)</option>
               <option value="text-multilingual-embedding-002">text-multilingual-embedding-002 (Cross-lingue)</option>

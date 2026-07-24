@@ -7,6 +7,53 @@
   let isUserSeeking = false;
   let seekInputValue = 0;
 
+  let activeObjectUrl = null;
+  let isLoadingAudio = false;
+  let audioFetchError = null;
+
+  async function loadAndPlayTrack(track) {
+    if (!track || !track.audioUrl || !audioElement) return;
+
+    if (activeObjectUrl) {
+      URL.revokeObjectURL(activeObjectUrl);
+      activeObjectUrl = null;
+    }
+
+    loadedAudioUrl = track.audioUrl;
+    audioFetchError = null;
+    isLoadingAudio = true;
+
+    try {
+      let targetUrl = track.audioUrl;
+      if (targetUrl.startsWith('http://') && window.location.protocol === 'https:') {
+        targetUrl = targetUrl.replace('http://', 'https://');
+      }
+
+      // Fetch audio file via authenticated fetch (passes YunoHost SSO session cookies)
+      const res = await fetch(targetUrl, { credentials: 'same-origin' });
+      const contentType = res.headers.get('content-type') || '';
+
+      if (!res.ok || contentType.includes('text/html')) {
+        throw new Error("L'accès au fichier audio a été redirigé ou le fichier n'est pas prêt.");
+      }
+
+      const blob = await res.blob();
+      activeObjectUrl = URL.createObjectURL(blob);
+
+      audioElement.src = activeObjectUrl;
+      audioElement.currentTime = 0;
+      $playbackTime = 0;
+      await audioElement.play();
+      $isPlaying = true;
+    } catch (err) {
+      console.error("Audio Load Error:", err);
+      audioFetchError = err.message || "Erreur de lecture audio.";
+      $isPlaying = false;
+    } finally {
+      isLoadingAudio = false;
+    }
+  }
+
   function togglePlay() {
     if (!audioElement) return;
     if ($isPlaying) {
@@ -22,6 +69,10 @@
     if (audioElement) {
       audioElement.pause();
       audioElement.currentTime = 0;
+    }
+    if (activeObjectUrl) {
+      URL.revokeObjectURL(activeObjectUrl);
+      activeObjectUrl = null;
     }
     $isPlaying = false;
     $currentTrack = null;
@@ -73,18 +124,9 @@
     ? seekInputValue 
     : ($duration ? ($playbackTime / $duration) * 100 : 0);
 
-  // FIX: Only set audioElement.src when the URL actually changes to a new track
   $: if ($currentTrack && $currentTrack.audioUrl && audioElement) {
     if (loadedAudioUrl !== $currentTrack.audioUrl) {
-      loadedAudioUrl = $currentTrack.audioUrl;
-      audioElement.src = $currentTrack.audioUrl;
-      audioElement.currentTime = 0;
-      $playbackTime = 0;
-      audioElement.play().then(() => {
-        $isPlaying = true;
-      }).catch(err => {
-        console.error("Playback error:", err);
-      });
+      loadAndPlayTrack($currentTrack);
     }
   }
 </script>

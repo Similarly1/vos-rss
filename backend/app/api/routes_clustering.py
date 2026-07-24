@@ -101,15 +101,22 @@ def get_clusters(threshold: float = 0.91):
 
 @router.post("/synthesize")
 async def create_synthesis(payload: SynthesizeRequest):
-    api_key = get_vps_api_key(payload.api_key)
-    if not api_key:
+    m_key = get_vps_api_key(payload.api_key) or settings.mistral_api_key
+    g_key = settings.gemini_api_key
+    if not m_key and not g_key:
         raise HTTPException(
             status_code=400, 
-            detail="Clé API Mistral requise pour générer la synthèse. Veuillez la renseigner dans les Paramètres."
+            detail="Clé API Mistral ou Gemini requise pour générer la synthèse. Veuillez la renseigner dans les Paramètres."
         )
 
     try:
-        synthesis = await synthesize_cluster(payload.articles, api_key=api_key, model=payload.model or "mistral-small-latest")
+        synthesis = await synthesize_cluster(
+            payload.articles,
+            mistral_key=m_key,
+            gemini_key=g_key,
+            provider="gemini" if not m_key and g_key else "mistral",
+            mistral_model=payload.model or "mistral-small-latest"
+        )
         return {"status": "success", "data": synthesis}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

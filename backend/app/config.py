@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-1.5-flash"
     mistral_embed_model: str = "mistral-embed"
     gemini_embed_model: str = "text-embedding-004"
+    fallback_enabled: bool = True  # Retro-compatibility
     refresh_interval_minutes: int = 30
     article_retention_days: int = 14
     article_language: str = "fr"
@@ -22,6 +23,6 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
     base_url: str = "http://127.0.0.1:8000"  # Can be overridden in .env (ex: BASE_URL=https://my-vps-domain.com)
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()

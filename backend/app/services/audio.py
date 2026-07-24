@@ -6,8 +6,9 @@ import base64
 from pathlib import Path
 from app.config import settings
 
-AUDIO_DIR = Path("./audio_cache")
-AUDIO_DIR.mkdir(exist_ok=True)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+AUDIO_DIR = BASE_DIR / "audio_cache"
+AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 def sanitize_text_for_speech(text: str) -> str:
     """

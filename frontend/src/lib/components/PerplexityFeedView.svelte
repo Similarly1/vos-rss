@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { mistralApiKey, selectedMistralModel, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice, sanitizeTextForSpeech } from '../stores/audioStore.js';
 
@@ -15,6 +15,15 @@
   
   // Selected Cluster for Detail Overlay / Modal
   let activeCluster = null;
+  let modalContainer = null;
+
+  $: if (activeCluster) {
+    tick().then(() => {
+      if (modalContainer) {
+        modalContainer.scrollTop = 0;
+      }
+    });
+  }
 
   let syntheses = {};
   let synthLoading = {};
@@ -371,14 +380,17 @@
   {@const activeIsVerified = activeFeedsCount >= 3}
   {@const activeSynth = syntheses[activeCluster.cluster_id] || activeCluster.precomputed_synthesis}
 
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+  <div class="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md overflow-hidden">
     
-    <div class="bg-gray-950 w-full max-w-4xl min-h-screen sm:min-h-0 sm:max-h-[90vh] rounded-none sm:rounded-3xl shadow-2xl overflow-y-auto border border-gray-800 relative flex flex-col">
+    <div 
+      bind:this={modalContainer}
+      class="bg-gray-950 w-full max-w-4xl h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl shadow-2xl overflow-y-auto border-0 sm:border border-gray-800 relative flex flex-col pt-12 sm:pt-0 pb-24 sm:pb-8"
+    >
       
       <!-- Sticky Close Button -->
       <button 
         on:click={() => activeCluster = null}
-        class="fixed sm:absolute top-4 right-4 z-50 p-3 bg-gray-950/80 hover:bg-gray-900 text-white rounded-full border border-gray-700 backdrop-blur-md shadow-2xl transition-all"
+        class="fixed sm:absolute top-3 right-3 sm:top-5 sm:right-5 z-50 p-2.5 sm:p-3 bg-gray-950/90 hover:bg-gray-900 text-white rounded-full border border-gray-700 backdrop-blur-md shadow-2xl transition-all"
         title="Fermer la vue détaillée"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -10,6 +10,30 @@ from app.config import settings
 
 router = APIRouter(prefix="/api/feeds", tags=["Feeds"])
 
+def get_vps_api_key(provided_key: str = None) -> str:
+    """
+    Robustly resolves the Mistral API Key from payload, settings object, or .env file.
+    """
+    if provided_key and provided_key.strip():
+        return provided_key.strip()
+
+    if settings.mistral_api_key and settings.mistral_api_key.strip():
+        return settings.mistral_api_key.strip()
+
+    env_path = Path("./.env")
+    if env_path.exists():
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("MISTRAL_API_KEY="):
+                        k = line.split("=", 1)[1].strip()
+                        if k:
+                            settings.mistral_api_key = k
+                            return k
+        except Exception:
+            pass
+    return ""
+
 class FeedInput(BaseModel):
     url: str
     category: Optional[str] = "Général"
@@ -63,6 +87,13 @@ def import_opml(payload: ImportOpmlRequest):
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.get("/env-key")
+def get_env_key():
+    key = get_vps_api_key()
+    has_key = bool(key)
+    masked = (key[:4] + "..." + key[-4:]) if len(key) >= 8 else ""
+    return {"status": "success", "has_key": has_key, "key": key, "masked": masked}
+
 @router.post("/save-env-key")
 def save_env_key(payload: SaveEnvKeyRequest):
     key = payload.api_key.strip()
@@ -91,7 +122,7 @@ def save_env_key(payload: SaveEnvKeyRequest):
         f.writelines(new_lines)
 
     settings.mistral_api_key = key
-    return {"status": "success", "message": "Clé API enregistrée dans le fichier .env du serveur VPS !"}
+    return {"status": "success", "message": "Clé API enregistrée dans le fichier .env du serveur VPS !", "key": key}
 
 @router.post("")
 @router.post("/")
@@ -149,7 +180,7 @@ def cleanup_articles(payload: CleanupRequest):
 @router.post("/refresh")
 async def trigger_refresh_all(background_tasks: BackgroundTasks, payload: Optional[RefreshRequest] = None):
     try:
-        api_key = (payload.api_key if payload else None) or settings.mistral_api_key
+        api_key = get_vps_api_key(payload.api_key if payload else None)
         background_tasks.add_task(refresh_all_feeds_and_vectorize, api_key)
         return {
             "status": "success",

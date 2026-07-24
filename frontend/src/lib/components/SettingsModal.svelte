@@ -1,5 +1,6 @@
 <script>
-  import { showSettingsModal, mistralApiKey, selectedMistralModel, refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, saveSettings, runArticlesCleanup } from '../stores/appState.js';
+  import { onMount } from 'svelte';
+  import { showSettingsModal, mistralApiKey, selectedMistralModel, refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, saveSettings, runArticlesCleanup, fetchVpsApiKey } from '../stores/appState.js';
   import { selectedVoice, saveVoiceSetting } from '../stores/audioStore.js';
 
   let apiKeyInput = $mistralApiKey;
@@ -18,6 +19,25 @@
   let isSavingEnv = false;
   let isCleaning = false;
   let testResult = null;
+
+  onMount(async () => {
+    if (!apiKeyInput) {
+      const vpsKey = await fetchVpsApiKey();
+      if (vpsKey) {
+        apiKeyInput = vpsKey;
+        envSaveStatus = '✓ Clé API chargée automatiquement depuis le serveur VPS !';
+      }
+    }
+  });
+
+  $: if ($showSettingsModal && !apiKeyInput) {
+    fetchVpsApiKey().then(vpsKey => {
+      if (vpsKey) {
+        apiKeyInput = vpsKey;
+        envSaveStatus = '✓ Clé API chargée automatiquement depuis le serveur VPS !';
+      }
+    });
+  }
 
   function handleSave() {
     saveSettings(apiKeyInput, modelInput, refreshInput, langInput, fullTextInput, retentionInput);

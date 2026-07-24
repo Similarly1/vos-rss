@@ -31,6 +31,23 @@ export const fullTextOnlyFilter = writable(localStorage.getItem('vos_full_text_o
 export const articlesList = writable([]);
 export const feedsList = writable([]);
 
+export async function fetchVpsApiKey() {
+  try {
+    const res = await fetch('/api/feeds/env-key');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.has_key && data.key) {
+        mistralApiKey.set(data.key);
+        localStorage.setItem('vos_mistral_api_key', data.key);
+        return data.key;
+      }
+    }
+  } catch (err) {
+    console.error("Erreur synchro clé API VPS:", err);
+  }
+  return null;
+}
+
 export function saveSettings(apiKey, model, refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14) {
   mistralApiKey.set(apiKey);
   selectedMistralModel.set(model);
@@ -142,5 +159,6 @@ export function setupAutoRefresh() {
   }
 }
 
-// Auto setup timer on load
+// Auto setup timer and sync VPS key on load
+fetchVpsApiKey();
 setupAutoRefresh();

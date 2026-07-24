@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from app.database import get_db_connection, HAS_SQLITE_VEC, init_db
 from app.config import settings
+from app.api.routes_feeds import get_vps_api_key
 from app.services.embeddings import vectorize_all_pending
 from app.services.clustering import compute_article_clusters, synthesize_cluster, get_cached_clusters, precompute_and_cache_clusters
 
@@ -43,7 +44,7 @@ def get_vector_status():
 
 @router.post("/vectorize")
 async def trigger_vectorization(payload: VectorizeRequest, background_tasks: BackgroundTasks):
-    api_key = payload.api_key or settings.mistral_api_key
+    api_key = get_vps_api_key(payload.api_key)
     if not api_key:
         raise HTTPException(
             status_code=400, 
@@ -62,7 +63,7 @@ async def trigger_vectorization(payload: VectorizeRequest, background_tasks: Bac
 
 @router.post("/precompute")
 async def trigger_precompute(payload: Optional[PrecomputeRequest] = None, background_tasks: BackgroundTasks = None):
-    api_key = (payload.api_key if payload else None) or settings.mistral_api_key
+    api_key = get_vps_api_key(payload.api_key if payload else None)
     try:
         res = await precompute_and_cache_clusters(api_key=api_key)
         return {"status": "success", "data": res}
@@ -92,7 +93,7 @@ def get_clusters(threshold: float = 0.91):
 
 @router.post("/synthesize")
 async def create_synthesis(payload: SynthesizeRequest):
-    api_key = payload.api_key or settings.mistral_api_key
+    api_key = get_vps_api_key(payload.api_key)
     if not api_key:
         raise HTTPException(
             status_code=400, 

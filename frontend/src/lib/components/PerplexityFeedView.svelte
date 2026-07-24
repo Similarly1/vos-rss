@@ -17,12 +17,13 @@
   let activeCluster = null;
   let modalContainer = null;
 
-  $: if (activeCluster) {
-    tick().then(() => {
+  function openCluster(cluster) {
+    activeCluster = cluster;
+    setTimeout(() => {
       if (modalContainer) {
         modalContainer.scrollTop = 0;
       }
-    });
+    }, 20);
   }
 
   let syntheses = {};
@@ -304,7 +305,7 @@
 
           <!-- COMPACT TILE CARD (SNAP-START MAGNET) -->
           <div 
-            on:click={() => activeCluster = cluster}
+            on:click={() => openCluster(cluster)}
             class="snap-start scroll-mt-4 sm:scroll-mt-6 bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800/80 hover:border-cyan-500/60 rounded-3xl overflow-hidden shadow-2xl transition-all cursor-pointer group space-y-0 relative"
           >
             
@@ -532,7 +533,7 @@
                 {@const relImg = getClusterImage(rel)}
                 {@const relTitle = getClusterTitle(rel)}
                 <div 
-                  on:click={() => activeCluster = rel}
+                  on:click={() => openCluster(rel)}
                   class="bg-gray-900 hover:bg-gray-850 border border-gray-800 hover:border-cyan-500/60 rounded-2xl p-3.5 transition-all cursor-pointer space-y-2 group"
                 >
                   <div class="w-full h-28 rounded-xl overflow-hidden relative">

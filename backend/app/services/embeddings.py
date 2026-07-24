@@ -38,9 +38,9 @@ def clean_text_for_embedding(title: str, content: str) -> str:
 
     return f"Titre: {clean_title}\nContenu: {snippet}"
 
-async def generate_mistral_embedding(text: str, api_key: str) -> list[float]:
+async def generate_mistral_embedding(text: str, api_key: str, model: str = "mistral-embed") -> list[float]:
     """
-    Calls Mistral AI Embeddings API (model: mistral-embed) and returns a 1024-dim vector.
+    Calls Mistral AI Embeddings API and returns a vector.
     """
     if not api_key:
         raise ValueError("Clé API Mistral requise pour générer l'embedding.")
@@ -57,7 +57,7 @@ async def generate_mistral_embedding(text: str, api_key: str) -> list[float]:
                 "Content-Type": "application/json"
             },
             json={
-                "model": "mistral-embed",
+                "model": model,
                 "input": [clean_text]
             },
             timeout=30.0
@@ -71,9 +71,9 @@ async def generate_mistral_embedding(text: str, api_key: str) -> list[float]:
         embedding = res_data["data"][0]["embedding"]
         return embedding
 
-async def generate_gemini_embedding(text: str, api_key: str, output_dimensionality: int = None) -> list[float]:
+async def generate_gemini_embedding(text: str, api_key: str, model: str = "text-embedding-004", output_dimensionality: int = None) -> list[float]:
     """
-    Calls Google Gemini API (model: text-embedding-004). Returns a 768-dim vector by default.
+    Calls Google Gemini API. Returns a vector (default 768-dim).
     Using outputDimensionality parameter if provided (but it can only truncate, not expand beyond 768).
     """
     if not api_key:
@@ -83,9 +83,9 @@ async def generate_gemini_embedding(text: str, api_key: str, output_dimensionali
     if not clean_text:
         clean_text = "Article sans contenu"
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent?key={api_key}"
     payload = {
-        "model": "models/text-embedding-004",
+        "model": f"models/{model}",
         "content": {
             "parts": [{"text": clean_text}]
         }
@@ -109,7 +109,7 @@ async def generate_gemini_embedding(text: str, api_key: str, output_dimensionali
         embedding = res_data["embedding"]["values"]
         return embedding
 
-async def vectorize_article(article_id: int, mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True):
+async def vectorize_article(article_id: int, mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_provider: str = "gemini", mistral_model: str = "mistral-embed", gemini_model: str = "text-embedding-004"):
     """
     Fetches article text, cleans site boilerplate, generates embedding (with primary/fallback logic),
     and stores it in article_embeddings.
@@ -130,19 +130,20 @@ async def vectorize_article(article_id: int, mistral_key: str = "", gemini_key: 
     
     async def try_provider(p_name: str):
         if p_name == "mistral":
-            return await generate_mistral_embedding(text_to_embed, mistral_key)
+            return await generate_mistral_embedding(text_to_embed, mistral_key, model=mistral_model)
         elif p_name == "gemini":
-            return await generate_gemini_embedding(text_to_embed, gemini_key)
+            return await generate_gemini_embedding(text_to_embed, gemini_key, model=gemini_model)
         else:
             raise ValueError("Fournisseur inconnu.")
 
+    provider_used = provider
     try:
         embedding = await try_provider(provider)
     except Exception as e:
         print(f"Erreur embedding {provider} pour article {article_id}: {e}")
-        if fallback_enabled:
-            fallback_provider = "gemini" if provider == "mistral" else "mistral"
+        if fallback_provider and fallback_provider != "aucun":
             print(f"Fallback activé : tentative avec {fallback_provider}...")
+            provider_used = fallback_provider
             embedding = await try_provider(fallback_provider)
         else:
             raise e
@@ -152,17 +153,23 @@ async def vectorize_article(article_id: int, mistral_key: str = "", gemini_key: 
     cursor = conn.cursor()
 
     cursor.execute(
-        "INSERT OR REPLACE INTO article_embeddings (article_id, embedding_json) VALUES (?, ?)",
-        (article_id, embedding_json)
+        "INSERT OR REPLACE INTO article_embeddings (article_id, provider, embedding_json) VALUES (?, ?, ?)",
+        (article_id, provider_used, embedding_json)
     )
 
     if HAS_SQLITE_VEC:
         try:
             serialized = sqlite_vec.serialize_float_vector(embedding)
-            cursor.execute(
-                "INSERT OR REPLACE INTO vec_articles (article_id, embedding) VALUES (?, ?)",
-                (article_id, serialized)
-            )
+            if provider_used == "mistral":
+                cursor.execute(
+                    "INSERT OR REPLACE INTO vec_articles_mistral (article_id, embedding) VALUES (?, ?)",
+                    (article_id, serialized)
+                )
+            elif provider_used == "gemini":
+                cursor.execute(
+                    "INSERT OR REPLACE INTO vec_articles_gemini (article_id, embedding) VALUES (?, ?)",
+                    (article_id, serialized)
+                )
         except Exception as e:
             print(f"[sqlite-vec note] Insertion dans vec_articles: {e}")
 
@@ -170,7 +177,7 @@ async def vectorize_article(article_id: int, mistral_key: str = "", gemini_key: 
     conn.close()
     return {"article_id": article_id, "vector_dim": len(embedding)}
 
-async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True, force_revectorize: bool = False):
+async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_provider: str = "gemini", mistral_model: str = "mistral-embed", gemini_model: str = "text-embedding-004", force_revectorize: bool = False):
     """
     Vectorizes articles. If force_revectorize is True, clears existing embeddings
     and re-computes vectors for all articles with clean text.
@@ -179,10 +186,13 @@ async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", pro
     cursor = conn.cursor()
 
     if force_revectorize:
-        cursor.execute("DELETE FROM article_embeddings")
+        cursor.execute(f"DELETE FROM article_embeddings WHERE provider = '{provider}'")
         if HAS_SQLITE_VEC:
             try:
-                cursor.execute("DELETE FROM vec_articles")
+                if provider == "mistral":
+                    cursor.execute("DELETE FROM vec_articles_mistral")
+                elif provider == "gemini":
+                    cursor.execute("DELETE FROM vec_articles_gemini")
             except Exception:
                 pass
         conn.commit()
@@ -190,9 +200,9 @@ async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", pro
     cursor.execute("""
         SELECT a.id, a.title 
         FROM articles a 
-        LEFT JOIN article_embeddings e ON a.id = e.article_id 
+        LEFT JOIN article_embeddings e ON a.id = e.article_id AND e.provider = ?
         WHERE e.article_id IS NULL
-    """)
+    """, (provider,))
     pending_articles = cursor.fetchall()
     conn.close()
 
@@ -201,7 +211,7 @@ async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", pro
 
     for art in pending_articles:
         try:
-            res = await vectorize_article(art["id"], mistral_key, gemini_key, provider, fallback_enabled)
+            res = await vectorize_article(art["id"], mistral_key, gemini_key, provider, fallback_provider, mistral_model, gemini_model)
             results.append(res)
         except Exception as e:
             print(f"Erreur vectorisation article {art['id']}: {e}")

@@ -435,7 +435,15 @@ async def refresh_all_feeds_and_vectorize(api_key: str = None):
             from app.services.embeddings import vectorize_all_pending
             from app.services.clustering import precompute_and_cache_clusters
 
-            vec_res = await vectorize_all_pending(mistral_key=m_key, gemini_key=g_key, force_revectorize=False)
+            vec_res = await vectorize_all_pending(
+                mistral_key=m_key, 
+                gemini_key=g_key, 
+                provider=settings.vectorization_provider,
+                fallback_provider=settings.vectorization_fallback_provider,
+                mistral_model=settings.mistral_embed_model,
+                gemini_model=settings.gemini_embed_model,
+                force_revectorize=False
+            )
             vectorized_count = vec_res.get("processed_count", 0)
 
             await precompute_and_cache_clusters(mistral_key=m_key, gemini_key=g_key)

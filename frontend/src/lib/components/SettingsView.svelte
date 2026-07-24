@@ -3,7 +3,7 @@
   import { 
     mistralApiKey, selectedMistralModel, 
     geminiApiKey, selectedGeminiModel,
-    synthesisProvider, vectorizationProvider, fallbackEnabled,
+    synthesisProvider, vectorizationProvider, synthesisFallbackProvider, vectorizationFallbackProvider, mistralEmbedModel, geminiEmbedModel,
     refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, 
     saveSettings, runArticlesCleanup, fetchVpsSettings 
   } from '../stores/appState.js';
@@ -16,7 +16,10 @@
   
   let synthProvInput = $synthesisProvider;
   let vectProvInput = $vectorizationProvider;
-  let fallbackInput = $fallbackEnabled;
+  let synthFallbackInput = $synthesisFallbackProvider;
+  let vectFallbackInput = $vectorizationFallbackProvider;
+  let mistralEmbedInput = $mistralEmbedModel;
+  let geminiEmbedInput = $geminiEmbedModel;
 
   let voiceInput = $selectedVoice || 'Marie - Neutral';
   let refreshInput = $refreshIntervalMinutes;
@@ -45,7 +48,10 @@
       vectProvInput = vpsKeys.vectorization_provider || 'mistral';
       mistralModelInput = vpsKeys.mistral_model || 'mistral-small-latest';
       geminiModelInput = vpsKeys.gemini_model || 'gemini-1.5-flash';
-      fallbackInput = vpsKeys.fallback_enabled !== undefined ? vpsKeys.fallback_enabled : true;
+      synthFallbackInput = vpsKeys.synthesis_fallback_provider || 'gemini';
+      vectFallbackInput = vpsKeys.vectorization_fallback_provider || 'gemini';
+      mistralEmbedInput = vpsKeys.mistral_embed_model || 'mistral-embed';
+      geminiEmbedInput = vpsKeys.gemini_embed_model || 'text-embedding-004';
       refreshInput = vpsKeys.refresh_interval_minutes || 30;
       langInput = vpsKeys.article_language || 'fr';
       fullTextInput = vpsKeys.full_text_only || false;
@@ -59,7 +65,8 @@
     await saveSettings(
       mistralKeyInput, mistralModelInput, 
       geminiKeyInput, geminiModelInput,
-      synthProvInput, vectProvInput, fallbackInput,
+      synthProvInput, vectProvInput, synthFallbackInput, vectFallbackInput,
+      mistralEmbedInput, geminiEmbedInput,
       refreshInput, langInput, fullTextInput, retentionInput
     );
     saveVoiceSetting(voiceInput);
@@ -249,7 +256,7 @@
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div class="space-y-3">
-            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Fournisseur pour la Synthèse (Génération de texte)</label>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Fournisseur Principal pour la Synthèse</label>
             <select bind:value={synthProvInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500">
               <option value="mistral">Mistral AI (Recommandé)</option>
               <option value="gemini">Google Gemini</option>
@@ -257,21 +264,45 @@
           </div>
 
           <div class="space-y-3">
-            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Fournisseur pour la Vectorisation (Embeddings)</label>
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Fournisseur de Secours (Fallback) pour la Synthèse</label>
+            <select bind:value={synthFallbackInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500">
+              <option value="aucun">Aucun (Désactivé)</option>
+              <option value="mistral">Mistral AI</option>
+              <option value="gemini">Google Gemini</option>
+            </select>
+          </div>
+
+          <div class="space-y-3 mt-4">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Fournisseur Principal pour la Vectorisation</label>
             <select bind:value={vectProvInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500">
               <option value="mistral">Mistral AI</option>
               <option value="gemini">Google Gemini</option>
             </select>
-            <p class="text-[10px] text-rose-500 font-medium mt-1">⚠️ Changer de fournisseur de vectorisation réinitialisera les vecteurs existants (Re-vectorisation en arrière-plan).</p>
+            <p class="text-[10px] text-gray-500 dark:text-gray-400 font-medium mt-1">Note : Les articles sont conservés par fournisseur dans des tables séparées pour éviter la re-vectorisation totale.</p>
           </div>
-        </div>
 
-        <div class="mt-6 p-4 bg-gray-50 dark:bg-dark-bg rounded-2xl flex items-center justify-between border border-gray-200 dark:border-gray-700">
-          <div>
-            <span class="block text-sm font-semibold text-gray-800 dark:text-gray-200">Activer le Basculement de Secours (Fallback)</span>
-            <span class="text-xs text-gray-500">Si le fournisseur principal échoue, utiliser le secondaire automatiquement.</span>
+          <div class="space-y-3 mt-4">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Fournisseur de Secours (Fallback) pour la Vectorisation</label>
+            <select bind:value={vectFallbackInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500">
+              <option value="aucun">Aucun (Désactivé)</option>
+              <option value="mistral">Mistral AI</option>
+              <option value="gemini">Google Gemini</option>
+            </select>
           </div>
-          <input type="checkbox" bind:checked={fallbackInput} class="w-5 h-5 accent-primary-500 rounded cursor-pointer" />
+          
+          <div class="space-y-3 mt-4">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Modèle d'Embedding Mistral</label>
+            <select bind:value={mistralEmbedInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-primary-500">
+              <option value="mistral-embed">mistral-embed (1024 dims)</option>
+            </select>
+          </div>
+
+          <div class="space-y-3 mt-4">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Modèle d'Embedding Gemini</label>
+            <select bind:value={geminiEmbedInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-primary-500">
+              <option value="text-embedding-004">text-embedding-004 (768 dims)</option>
+            </select>
+          </div>
         </div>
       </section>
 

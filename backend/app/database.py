@@ -86,16 +86,20 @@ def init_db():
     try:
         cursor.execute("PRAGMA table_info(article_embeddings)")
         columns = [row["name"] for row in cursor.fetchall()]
-        if columns and "embedding_json" not in columns:
+        if columns and "provider" not in columns:
             cursor.execute("DROP TABLE IF EXISTS article_embeddings")
+            if HAS_SQLITE_VEC:
+                cursor.execute("DROP TABLE IF EXISTS vec_articles")
     except Exception:
         cursor.execute("DROP TABLE IF EXISTS article_embeddings")
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS article_embeddings (
-        article_id INTEGER PRIMARY KEY,
+        article_id INTEGER,
+        provider TEXT NOT NULL,
         embedding_json TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (article_id, provider),
         FOREIGN KEY (article_id) REFERENCES articles (id)
     )
     ''')
@@ -143,13 +147,19 @@ def init_db():
     except Exception as e:
         print(f"[Migration note] podcasts image_url check: {e}")
 
-    # 7. sqlite-vec virtual table
+    # 7. sqlite-vec virtual tables
     if HAS_SQLITE_VEC:
         try:
             cursor.execute('''
-            CREATE VIRTUAL TABLE IF NOT EXISTS vec_articles USING vec0(
+            CREATE VIRTUAL TABLE IF NOT EXISTS vec_articles_mistral USING vec0(
                 article_id integer primary key,
                 embedding float[1024]
+            )
+            ''')
+            cursor.execute('''
+            CREATE VIRTUAL TABLE IF NOT EXISTS vec_articles_gemini USING vec0(
+                article_id integer primary key,
+                embedding float[768]
             )
             ''')
         except Exception as e:

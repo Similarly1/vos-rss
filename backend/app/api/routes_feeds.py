@@ -85,7 +85,10 @@ class AppSettingsRequest(BaseModel):
     vectorization_provider: Optional[str] = None
     mistral_model: Optional[str] = None
     gemini_model: Optional[str] = None
-    fallback_enabled: Optional[bool] = None
+    synthesis_fallback_provider: Optional[str] = None
+    vectorization_fallback_provider: Optional[str] = None
+    mistral_embed_model: Optional[str] = None
+    gemini_embed_model: Optional[str] = None
     refresh_interval_minutes: Optional[int] = None
     article_retention_days: Optional[int] = None
     article_language: Optional[str] = None
@@ -128,7 +131,10 @@ def get_settings():
             "vectorization_provider": settings.vectorization_provider,
             "mistral_model": settings.mistral_model,
             "gemini_model": settings.gemini_model,
-            "fallback_enabled": settings.fallback_enabled,
+            "synthesis_fallback_provider": settings.synthesis_fallback_provider,
+            "vectorization_fallback_provider": settings.vectorization_fallback_provider,
+            "mistral_embed_model": settings.mistral_embed_model,
+            "gemini_embed_model": settings.gemini_embed_model,
             "refresh_interval_minutes": settings.refresh_interval_minutes,
             "article_retention_days": settings.article_retention_days,
             "article_language": settings.article_language,
@@ -152,7 +158,10 @@ def save_settings(payload: AppSettingsRequest):
         "VECTORIZATION_PROVIDER": payload.vectorization_provider if payload.vectorization_provider is not None else settings.vectorization_provider,
         "MISTRAL_MODEL": payload.mistral_model if payload.mistral_model is not None else settings.mistral_model,
         "GEMINI_MODEL": payload.gemini_model if payload.gemini_model is not None else settings.gemini_model,
-        "FALLBACK_ENABLED": str(payload.fallback_enabled).lower() if payload.fallback_enabled is not None else str(settings.fallback_enabled).lower(),
+        "SYNTHESIS_FALLBACK_PROVIDER": payload.synthesis_fallback_provider if payload.synthesis_fallback_provider is not None else settings.synthesis_fallback_provider,
+        "VECTORIZATION_FALLBACK_PROVIDER": payload.vectorization_fallback_provider if payload.vectorization_fallback_provider is not None else settings.vectorization_fallback_provider,
+        "MISTRAL_EMBED_MODEL": payload.mistral_embed_model if payload.mistral_embed_model is not None else settings.mistral_embed_model,
+        "GEMINI_EMBED_MODEL": payload.gemini_embed_model if payload.gemini_embed_model is not None else settings.gemini_embed_model,
         "REFRESH_INTERVAL_MINUTES": str(payload.refresh_interval_minutes) if payload.refresh_interval_minutes is not None else str(settings.refresh_interval_minutes),
         "ARTICLE_RETENTION_DAYS": str(payload.article_retention_days) if payload.article_retention_days is not None else str(settings.article_retention_days),
         "ARTICLE_LANGUAGE": payload.article_language if payload.article_language is not None else settings.article_language,
@@ -187,7 +196,10 @@ def save_settings(payload: AppSettingsRequest):
     if payload.vectorization_provider is not None: settings.vectorization_provider = payload.vectorization_provider
     if payload.mistral_model is not None: settings.mistral_model = payload.mistral_model
     if payload.gemini_model is not None: settings.gemini_model = payload.gemini_model
-    if payload.fallback_enabled is not None: settings.fallback_enabled = payload.fallback_enabled
+    if payload.synthesis_fallback_provider is not None: settings.synthesis_fallback_provider = payload.synthesis_fallback_provider
+    if payload.vectorization_fallback_provider is not None: settings.vectorization_fallback_provider = payload.vectorization_fallback_provider
+    if payload.mistral_embed_model is not None: settings.mistral_embed_model = payload.mistral_embed_model
+    if payload.gemini_embed_model is not None: settings.gemini_embed_model = payload.gemini_embed_model
     if payload.refresh_interval_minutes is not None: settings.refresh_interval_minutes = payload.refresh_interval_minutes
     if payload.article_retention_days is not None: settings.article_retention_days = payload.article_retention_days
     if payload.article_language is not None: settings.article_language = payload.article_language

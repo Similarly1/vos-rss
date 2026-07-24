@@ -24,7 +24,10 @@ export const selectedGeminiModel = writable('gemini-1.5-flash');
 
 export const synthesisProvider = writable('mistral');
 export const vectorizationProvider = writable('mistral');
-export const fallbackEnabled = writable(true);
+export const synthesisFallbackProvider = writable('gemini');
+export const vectorizationFallbackProvider = writable('gemini');
+export const mistralEmbedModel = writable('mistral-embed');
+export const geminiEmbedModel = writable('text-embedding-004');
 
 export const refreshIntervalMinutes = writable(30);
 export const articleRetentionDays = writable(14);
@@ -50,7 +53,10 @@ export async function fetchVpsSettings() {
       if (data.vectorization_provider) vectorizationProvider.set(data.vectorization_provider);
       if (data.mistral_model) selectedMistralModel.set(data.mistral_model);
       if (data.gemini_model) selectedGeminiModel.set(data.gemini_model);
-      if (data.fallback_enabled !== undefined) fallbackEnabled.set(data.fallback_enabled);
+      if (data.synthesis_fallback_provider) synthesisFallbackProvider.set(data.synthesis_fallback_provider);
+      if (data.vectorization_fallback_provider) vectorizationFallbackProvider.set(data.vectorization_fallback_provider);
+      if (data.mistral_embed_model) mistralEmbedModel.set(data.mistral_embed_model);
+      if (data.gemini_embed_model) geminiEmbedModel.set(data.gemini_embed_model);
       if (data.refresh_interval_minutes) refreshIntervalMinutes.set(data.refresh_interval_minutes);
       if (data.article_retention_days) articleRetentionDays.set(data.article_retention_days);
       if (data.article_language) articleLanguageFilter.set(data.article_language);
@@ -64,14 +70,17 @@ export async function fetchVpsSettings() {
   return null;
 }
 
-export async function saveSettings(mistralKey, mistralModel, geminiKey, geminiModel, synthProv, vectProv, fallback, refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14) {
+export async function saveSettings(mistralKey, mistralModel, geminiKey, geminiModel, synthProv, vectProv, synthFallback, vectFallback, mistralEmbed, geminiEmbed, refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14) {
   mistralApiKey.set(mistralKey);
   selectedMistralModel.set(mistralModel);
   geminiApiKey.set(geminiKey);
   selectedGeminiModel.set(geminiModel);
   synthesisProvider.set(synthProv);
   vectorizationProvider.set(vectProv);
-  fallbackEnabled.set(fallback);
+  synthesisFallbackProvider.set(synthFallback);
+  vectorizationFallbackProvider.set(vectFallback);
+  mistralEmbedModel.set(mistralEmbed);
+  geminiEmbedModel.set(geminiEmbed);
 
   refreshIntervalMinutes.set(refreshMinutes);
   articleLanguageFilter.set(langFilter);
@@ -89,7 +98,10 @@ export async function saveSettings(mistralKey, mistralModel, geminiKey, geminiMo
         vectorization_provider: vectProv,
         mistral_model: mistralModel,
         gemini_model: geminiModel,
-        fallback_enabled: fallback,
+        synthesis_fallback_provider: synthFallback,
+        vectorization_fallback_provider: vectFallback,
+        mistral_embed_model: mistralEmbed,
+        gemini_embed_model: geminiEmbed,
         refresh_interval_minutes: refreshMinutes,
         article_retention_days: retentionDays,
         article_language: langFilter,

@@ -52,7 +52,15 @@ async def trigger_vectorization(payload: VectorizeRequest, background_tasks: Bac
         )
 
     try:
-        res = await vectorize_all_pending(api_key, force_revectorize=payload.force_revectorize or False)
+        res = await vectorize_all_pending(
+            mistral_key=api_key,
+            gemini_key=settings.gemini_api_key,
+            provider=settings.vectorization_provider,
+            fallback_provider=settings.vectorization_fallback_provider,
+            mistral_model=settings.mistral_embed_model,
+            gemini_model=settings.gemini_embed_model,
+            force_revectorize=payload.force_revectorize or False
+        )
         
         # Schedule cluster & AI summary pre-computation in the background
         background_tasks.add_task(precompute_and_cache_clusters, api_key)

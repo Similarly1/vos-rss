@@ -100,11 +100,13 @@ def search_catalog(
     query: Optional[str] = None,
     category: Optional[str] = None,
     tag: Optional[str] = None,
-    language: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    language: Optional[str] = None,
+    limit: int = 30,
+    offset: int = 0
+) -> Dict[str, Any]:
     """
-    Search and filter catalog feeds.
-    Returns list of dicts with feed details and associated tags list.
+    Search and filter catalog feeds with limit and offset pagination.
+    Returns dict with feeds list, total count, and has_more flag.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -162,7 +164,7 @@ def search_catalog(
 
     try:
         cursor.execute(sql, params)
-        rows = cursor.fetchall()
+        all_rows = cursor.fetchall()
     except sqlite3.OperationalError:
         # Fallback query if FTS query syntax error
         sql_fallback = "SELECT DISTINCT cf.* FROM catalog_feeds cf WHERE 1=1"
@@ -179,10 +181,13 @@ def search_catalog(
             fallback_params.extend([like_p, like_p, like_p])
         sql_fallback += " ORDER BY cf.is_verified DESC, cf.title ASC"
         cursor.execute(sql_fallback, fallback_params)
-        rows = cursor.fetchall()
+        all_rows = cursor.fetchall()
+
+    total_count = len(all_rows)
+    paged_rows = all_rows[offset:offset + limit]
 
     results = []
-    for row in rows:
+    for row in paged_rows:
         feed_dict = dict(row)
         feed_id = feed_dict['id']
         
@@ -200,7 +205,11 @@ def search_catalog(
         results.append(feed_dict)
 
     conn.close()
-    return results
+    return {
+        "feeds": results,
+        "total": total_count,
+        "has_more": offset + limit < total_count
+    }
 
 def get_all_tags() -> List[Dict[str, Any]]:
     """Returns all tags with count of associated catalog feeds."""

@@ -8,9 +8,15 @@ from app.services.rss_discovery import discover_rss_feed
 
 router = APIRouter(prefix="/api/catalog", tags=["Catalog"])
 
+from app.services.opml_importer import import_opml_text
+
 class DiscoverRequest(BaseModel):
     query: str
-    auto_save: Optional[bool] = True
+    auto_save: Optional[bool] = False
+
+class OpmlImportRequest(BaseModel):
+    content: str
+    default_category: Optional[str] = "Général"
 
 @router.get("")
 @router.get("/")
@@ -18,12 +24,14 @@ def get_catalog_feeds(
     q: Optional[str] = Query(None, description="Search term or keywords"),
     category: Optional[str] = Query(None, description="Category filter"),
     tag: Optional[str] = Query(None, description="Hashtag filter (e.g. #suisse)"),
-    language: Optional[str] = Query(None, description="Language code filter (fr, en, de, es)")
+    language: Optional[str] = Query(None, description="Language code filter (fr, en, de, es)"),
+    limit: int = Query(30, ge=1, le=200, description="Number of items per page"),
+    offset: int = Query(0, ge=0, description="Offset for pagination")
 ):
     """
-    Search and filter catalog feeds stored in SQLite using Full-Text Search or tags.
+    Search and filter catalog feeds stored in SQLite using Full-Text Search or tags with pagination.
     """
-    return search_catalog(query=q, category=category, tag=tag, language=language)
+    return search_catalog(query=q, category=category, tag=tag, language=language, limit=limit, offset=offset)
 
 @router.get("/tags")
 def get_catalog_tags():
@@ -31,6 +39,17 @@ def get_catalog_tags():
     Returns list of available tags with count of associated catalog feeds.
     """
     return get_all_tags()
+
+@router.post("/import-opml")
+def import_opml_catalog(payload: OpmlImportRequest):
+    """
+    Imports catalog feeds from raw OPML content.
+    """
+    if not payload.content or not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Contenu OPML vide.")
+
+    count = import_opml_text(payload.content, default_category=payload.default_category)
+    return {"success": True, "imported_count": count}
 
 @router.post("/discover")
 async def discover_feed(payload: DiscoverRequest):
@@ -45,7 +64,7 @@ async def discover_feed(payload: DiscoverRequest):
     if not res.get("success"):
         raise HTTPException(status_code=404, detail=res.get("error", "Aucun flux RSS trouvé."))
 
-    # Save to catalog database automatically if requested
+    # Save to catalog database ONLY if explicitly requested (auto_save defaults to False)
     if payload.auto_save:
         feed_data = {
             "url": res["feed_url"],

@@ -10,6 +10,13 @@
   let catalogFeeds = [];
   let availableTags = [];
   let loadingCatalog = false;
+  let loadingMore = false;
+
+  // Pagination state
+  let currentOffset = 0;
+  let limit = 30;
+  let totalFeedsCount = 0;
+  let hasMoreFeeds = false;
 
   // Auto-discovery state
   let discoveringFeed = false;
@@ -43,7 +50,7 @@
 
   onMount(() => {
     loadTags();
-    loadCatalog();
+    loadCatalog(true);
   });
 
   async function loadTags() {
@@ -57,8 +64,14 @@
     }
   }
 
-  async function loadCatalog() {
-    loadingCatalog = true;
+  async function loadCatalog(reset = true) {
+    if (reset) {
+      currentOffset = 0;
+      loadingCatalog = true;
+    } else {
+      loadingMore = true;
+    }
+
     try {
       const params = new URLSearchParams();
       if (searchQuery.trim() && !isUrlCandidate(searchQuery.trim())) {
@@ -73,15 +86,34 @@
       if (selectedLanguageFilter !== 'Tous') {
         params.append('language', selectedLanguageFilter);
       }
+      params.append('limit', limit.toString());
+      params.append('offset', currentOffset.toString());
 
       const res = await fetch(`/api/catalog?${params.toString()}`);
       if (res.ok) {
-        catalogFeeds = await res.json();
+        const data = await res.json();
+        const newFeeds = data.feeds || [];
+        totalFeedsCount = data.total || 0;
+        hasMoreFeeds = data.has_more || false;
+
+        if (reset) {
+          catalogFeeds = newFeeds;
+        } else {
+          catalogFeeds = [...catalogFeeds, ...newFeeds];
+        }
       }
     } catch (e) {
       console.error('Erreur chargement catalogue:', e);
     } finally {
       loadingCatalog = false;
+      loadingMore = false;
+    }
+  }
+
+  function loadMoreFeeds() {
+    if (hasMoreFeeds && !loadingMore) {
+      currentOffset += limit;
+      loadCatalog(false);
     }
   }
 
@@ -96,7 +128,7 @@
     clearTimeout(searchTimeout);
 
     searchTimeout = setTimeout(() => {
-      loadCatalog();
+      loadCatalog(true);
     }, 250);
   }
 
@@ -110,14 +142,12 @@
       const res = await fetch('/api/catalog/discover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery.trim(), auto_save: true })
+        body: JSON.stringify({ query: searchQuery.trim(), auto_save: false })
       });
 
       const data = await res.json();
       if (res.ok) {
         discoveredFeedResult = data;
-        await loadCatalog();
-        await loadTags();
       } else {
         discoveryError = data.detail || "Impossible d'auto-détecter un flux RSS sur ce domaine.";
       }
@@ -133,7 +163,7 @@
       if (isUrlCandidate(searchQuery)) {
         triggerAutoDiscovery();
       } else {
-        loadCatalog();
+        loadCatalog(true);
       }
     }
   }
@@ -144,17 +174,17 @@
     } else {
       selectedTag = tagName;
     }
-    loadCatalog();
+    loadCatalog(true);
   }
 
   function selectCategory(cat) {
     selectedCategory = cat;
-    loadCatalog();
+    loadCatalog(true);
   }
 
   function selectLanguage(langCode) {
     selectedLanguageFilter = langCode;
-    loadCatalog();
+    loadCatalog(true);
   }
 
   async function subscribeToFeed(feedUrl, category = 'Général', language = 'fr') {
@@ -239,7 +269,7 @@
       </div>
       <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Catalogue des flux RSS</h1>
       <p class="text-sm text-gray-500 dark:text-dark-muted max-w-2xl">
-        Explorez des médias certifiés ou tapez l'adresse d'un site web (ex: <span class="font-mono text-primary-600 dark:text-primary-400">lemonde.fr</span>) pour détecter automatiquement son flux RSS.
+        Explorez plus de 150+ médias certifiés et répertoires d'annuaires ou tapez l'adresse d'un site web (ex: <span class="font-mono text-primary-600 dark:text-primary-400">lemonde.fr</span>) pour détecter automatiquement son flux RSS.
       </p>
     </div>
 
@@ -397,7 +427,7 @@
         <h2 class="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
           <span>Catalogue de médias</span>
           <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-            {catalogFeeds.length}
+            {catalogFeeds.length} sur {totalFeedsCount}
           </span>
         </h2>
 
@@ -515,6 +545,25 @@
             </div>
           {/each}
         </div>
+
+        <!-- Load More Pagination Button -->
+        {#if hasMoreFeeds}
+          <div class="pt-8 flex justify-center">
+            <button
+              on:click={loadMoreFeeds}
+              disabled={loadingMore}
+              class="px-8 py-3.5 bg-white dark:bg-dark-card hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-800 dark:text-white font-extrabold text-xs rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              {#if loadingMore}
+                <svg class="w-4 h-4 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <span>Chargement des flux suivants...</span>
+              {:else}
+                <span>Charger plus de médias ({totalFeedsCount - catalogFeeds.length} restants)</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              {/if}
+            </button>
+          </div>
+        {/if}
       {/if}
     </div>
 

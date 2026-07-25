@@ -7,14 +7,14 @@ from app.database import init_db, get_db_connection
 from app.config import settings
 from app.api import routes_feeds, routes_articles, routes_clustering, routes_audio, routes_podcast, routes_catalog
 from app.services.scheduler import start_podcast_scheduler_loop
-from seed_catalog import seed_catalog
+from seed_massive_catalog import seed_catalog
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize DB on startup
     init_db()
 
-    # Auto-seed & sync catalog database on startup
+    # Auto-seed & sync massive catalog database on startup
     try:
         seed_catalog()
     except Exception as e:

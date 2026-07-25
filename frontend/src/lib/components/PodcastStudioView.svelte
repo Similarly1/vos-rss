@@ -269,11 +269,15 @@
         }
       }
 
-      if (res.ok && data.podcast) {
-        currentPodcast = data.podcast;
-        showScript = false;
-        playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
+      if (res.ok) {
         await fetchHistory();
+        const pod = data.podcast || (data.id ? data : null) || (podcastHistory.length > 0 ? podcastHistory[0] : null);
+        if (pod) {
+          currentPodcast = pod;
+          showScript = false;
+          playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
+        }
+        errorMsg = "";
       } else if (res.status === 504 || res.status === 502) {
         console.warn("Nginx Timeout (504/502) détecté. Tentative de récupération dans l'historique...");
         await new Promise(r => setTimeout(r, 2000));

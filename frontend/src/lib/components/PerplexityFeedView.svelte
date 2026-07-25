@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { mistralApiKey, geminiApiKey, synthesisProvider, selectedMistralDiscoverModel, selectedGeminiDiscoverModel, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice, sanitizeTextForSpeech } from '../stores/audioStore.js';
+  import ProgressiveImage from './ProgressiveImage.svelte';
 
   // Mode: 'events' (Strict same event) vs 'themes' (Broad thematic digest)
   let perplexityMode = 'events'; // 'events' | 'themes'
@@ -77,12 +78,16 @@
     return clean.slice(0, 160) + '...';
   }
 
+  function getCategoryFallbackImage(category) {
+    const cat = category || 'Général';
+    return THEME_FALLBACK_IMAGES[cat] || THEME_FALLBACK_IMAGES['Général'];
+  }
+
   function getClusterImage(cluster) {
     if (cluster.articles[0] && cluster.articles[0].image_url) {
       return cluster.articles[0].image_url;
     }
-    const cat = cluster.category || 'Général';
-    return THEME_FALLBACK_IMAGES[cat] || THEME_FALLBACK_IMAGES['Général'];
+    return getCategoryFallbackImage(cluster.category);
   }
 
   async function fetchPerplexityClusters() {
@@ -316,12 +321,13 @@
             
             <!-- Cover Image Preview -->
             <div class="w-full h-44 sm:h-52 overflow-hidden relative">
-              <img 
+              <ProgressiveImage 
                 src={coverImg} 
+                fallbackSrc={getCategoryFallbackImage(cluster.category)}
                 alt={titleText} 
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                imgClass="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent pointer-events-none"></div>
               
               <!-- Badges on top of Image -->
               <div class="absolute top-4 left-4 flex items-center gap-2">
@@ -406,12 +412,13 @@
 
       <!-- HERO IMAGE HEADER WITH PARALLAX EFFECT -->
       <div class="w-full h-64 sm:h-80 relative overflow-hidden shrink-0">
-        <img 
+        <ProgressiveImage 
           src={activeImg} 
+          fallbackSrc={getCategoryFallbackImage(activeCluster.category)}
           alt={activeTitle}
-          class="w-full h-full object-cover scale-105 transform transition-transform duration-700"
+          imgClass="w-full h-full object-cover scale-105 transform transition-transform duration-700"
         />
-        <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent pointer-events-none"></div>
 
         <!-- Foreground Header Info -->
         <div class="absolute bottom-6 left-6 right-6 space-y-3">
@@ -542,7 +549,12 @@
                   class="bg-gray-900 hover:bg-gray-850 border border-gray-800 hover:border-cyan-500/60 rounded-2xl p-3.5 transition-all cursor-pointer space-y-2 group"
                 >
                   <div class="w-full h-28 rounded-xl overflow-hidden relative">
-                    <img src={relImg} alt={relTitle} class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    <ProgressiveImage 
+                      src={relImg} 
+                      fallbackSrc={getCategoryFallbackImage(rel.category)}
+                      alt={relTitle} 
+                      imgClass="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   </div>
                   <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">{rel.category || 'Général'}</span>
                   <h4 class="font-bold text-xs text-white group-hover:text-cyan-400 line-clamp-2 leading-snug">

@@ -162,26 +162,79 @@ async def generate_audio_bytes_for_voice(text: str, voice_key: str = "Marie - Ne
         else:
             raise ValueError(f"Erreur API Mistral Voxtral ({response.status_code}): {response.text}")
 
+def split_script_into_emotion_segments(raw_text: str, default_voice: str = "Marie - Neutral") -> list[tuple[str, str]]:
+    """
+    Parses a script containing bracketed emotion markers like:
+    [Marie - Neutral] Bonjour...
+    [Marie - Angry] Amende record...
+    Returns a list of (voice_key, text_segment) tuples.
+    """
+    if not raw_text:
+        return [(default_voice, "")]
+
+    pattern = r'\[(Marie\s*-\s*[^\]]+)\]'
+    parts = re.split(pattern, raw_text)
+    
+    if len(parts) == 1:
+        return [(default_voice, raw_text)]
+
+    segments = []
+    if parts[0].strip():
+        segments.append((default_voice, parts[0].strip()))
+    
+    idx = 1
+    while idx < len(parts):
+        v_tag = parts[idx].strip()
+        text_seg = parts[idx + 1].strip() if idx + 1 < len(parts) else ""
+        if text_seg:
+            segments.append((v_tag, text_seg))
+        idx += 2
+
+    return segments if segments else [(default_voice, raw_text)]
+
 async def generate_podcast_audio(text: str, voice_key: str = "Marie - Neutral", api_key: str = None) -> str:
     """
-    Generates high quality MP3 audio and saves to file cache.
+    Generates high quality MP3 audio (supporting multi-emotion dynamic segments) and saves to file cache.
     """
-    clean_text = sanitize_text_for_speech(text)
-    if not clean_text:
-        clean_text = "Synthèse d'actualité."
+    if not text:
+        text = "Synthèse d'actualité."
 
-    v_requested = voice_key.strip() if voice_key else "Marie - Neutral"
-    text_hash = hashlib.md5(f"{clean_text}_{v_requested}".encode('utf-8')).hexdigest()
-    filename = f"voxtral_{text_hash}.mp3"
-    filepath = AUDIO_DIR / filename
+    segments = split_script_into_emotion_segments(text, default_voice=voice_key)
+    
+    if len(segments) <= 1:
+        clean_text = sanitize_text_for_speech(text)
+        v_requested = voice_key.strip() if voice_key else "Marie - Neutral"
+        text_hash = hashlib.md5(f"{clean_text}_{v_requested}".encode('utf-8')).hexdigest()
+        filename = f"voxtral_{text_hash}.mp3"
+        filepath = AUDIO_DIR / filename
 
-    if filepath.exists():
+        if filepath.exists():
+            return filename
+
+        audio_bytes = await generate_audio_bytes_for_voice(clean_text, voice_key=v_requested, api_key=api_key)
+        with open(filepath, "wb") as f:
+            f.write(audio_bytes)
         return filename
 
-    audio_bytes = await generate_audio_bytes_for_voice(clean_text, voice_key=v_requested, api_key=api_key)
-    with open(filepath, "wb") as f:
-        f.write(audio_bytes)
-    return filename
+    # Multi-emotion dynamic synthesis
+    print(f"[Voxtral Multi-Émotions]: Synthèse de {len(segments)} segments vocaux avec intonations adaptées...")
+    audio_chunks = []
+    for segment_voice, segment_text in segments:
+        clean_seg = sanitize_text_for_speech(segment_text)
+        if not clean_seg:
+            continue
+        try:
+            seg_bytes = await generate_audio_bytes_for_voice(clean_seg, voice_key=segment_voice, api_key=api_key)
+            audio_chunks.append(seg_bytes)
+        except Exception as e:
+            print(f"[Voxtral Segment Note ({segment_voice})]: {e}")
+
+    if not audio_chunks:
+        clean_text = sanitize_text_for_speech(text)
+        audio_bytes = await generate_audio_bytes_for_voice(clean_text, voice_key=voice_key, api_key=api_key)
+        audio_chunks = [audio_bytes]
+
+    return combine_audio_chunks(audio_chunks)
 
 def combine_audio_chunks(audio_chunks: list[bytes]) -> str:
     """

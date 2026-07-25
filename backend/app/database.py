@@ -138,14 +138,19 @@ def init_db():
     )
     ''')
 
-    # Auto-migration for podcasts image_url column
+    # Auto-migration for podcasts columns
     try:
         cursor.execute("PRAGMA table_info(podcasts)")
         pod_cols = [row["name"] for row in cursor.fetchall()]
-        if pod_cols and "image_url" not in pod_cols:
-            cursor.execute("ALTER TABLE podcasts ADD COLUMN image_url TEXT")
+        if pod_cols:
+            if "image_url" not in pod_cols:
+                cursor.execute("ALTER TABLE podcasts ADD COLUMN image_url TEXT")
+            if "key_points_json" not in pod_cols:
+                cursor.execute("ALTER TABLE podcasts ADD COLUMN key_points_json TEXT")
+            if "sources_json" not in pod_cols:
+                cursor.execute("ALTER TABLE podcasts ADD COLUMN sources_json TEXT")
     except Exception as e:
-        print(f"[Migration note] podcasts image_url check: {e}")
+        print(f"[Migration note] podcasts columns check: {e}")
 
     # 7. Catalog Feeds & Tags Tables
     cursor.execute('''

@@ -147,7 +147,57 @@ def init_db():
     except Exception as e:
         print(f"[Migration note] podcasts image_url check: {e}")
 
-    # 7. sqlite-vec virtual tables
+    # 7. Catalog Feeds & Tags Tables
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS catalog_feeds (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT UNIQUE NOT NULL,
+        site_url TEXT,
+        title TEXT NOT NULL,
+        description TEXT,
+        icon_url TEXT,
+        category TEXT DEFAULT 'Général',
+        language TEXT DEFAULT 'fr',
+        country TEXT,
+        is_full_text INTEGER DEFAULT 1,
+        is_verified INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL,
+        slug TEXT UNIQUE NOT NULL
+    )
+    ''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS catalog_feed_tags (
+        catalog_feed_id INTEGER NOT NULL,
+        tag_id INTEGER NOT NULL,
+        PRIMARY KEY (catalog_feed_id, tag_id),
+        FOREIGN KEY (catalog_feed_id) REFERENCES catalog_feeds (id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+    )
+    ''')
+
+    # FTS5 virtual table for catalog full text search
+    try:
+        cursor.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS catalog_feeds_fts USING fts5(
+            catalog_feed_id UNINDEXED,
+            title,
+            description,
+            category,
+            tokenize = 'unicode61'
+        )
+        ''')
+    except Exception as e:
+        print(f"[Migration note] catalog_feeds_fts: {e}")
+
+    # 8. sqlite-vec virtual tables
     if HAS_SQLITE_VEC:
         try:
             cursor.execute('''

@@ -27,3 +27,6 @@ vos.db
 .antigravity/
 .vscode/
 .idea/
+
+# Audio cache
+backend/audio_cache/

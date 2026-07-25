@@ -54,6 +54,26 @@ def get_vps_gemini_key(provided_key: str = None) -> str:
             pass
     return ""
 
+def get_vps_langsearch_key(provided_key: str = None) -> str:
+    if provided_key and provided_key.strip():
+        return provided_key.strip()
+    if settings.langsearch_api_key and settings.langsearch_api_key.strip():
+        return settings.langsearch_api_key.strip()
+
+    env_path = Path("./.env")
+    if env_path.exists():
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("LANGSEARCH_API_KEY="):
+                        k = line.split("=", 1)[1].strip()
+                        if k:
+                            settings.langsearch_api_key = k
+                            return k
+        except Exception:
+            pass
+    return ""
+
 class FeedInput(BaseModel):
     url: str
     category: Optional[str] = "Général"
@@ -81,6 +101,7 @@ class ImportOpmlRequest(BaseModel):
 class AppSettingsRequest(BaseModel):
     mistral_key: Optional[str] = None
     gemini_key: Optional[str] = None
+    langsearch_key: Optional[str] = None
     synthesis_provider: Optional[str] = None
     vectorization_provider: Optional[str] = None
     mistral_model: Optional[str] = None
@@ -133,6 +154,7 @@ def get_settings():
         "data": {
             "mistral_key": settings.mistral_api_key or get_vps_api_key(),
             "gemini_key": settings.gemini_api_key or get_vps_gemini_key(),
+            "langsearch_key": settings.langsearch_api_key or get_vps_langsearch_key(),
             "synthesis_provider": settings.synthesis_provider,
             "vectorization_provider": settings.vectorization_provider,
             "mistral_model": settings.mistral_model,
@@ -166,6 +188,7 @@ def save_settings(payload: AppSettingsRequest):
     updates = {
         "MISTRAL_API_KEY": payload.mistral_key if payload.mistral_key is not None else settings.mistral_api_key,
         "GEMINI_API_KEY": payload.gemini_key if payload.gemini_key is not None else settings.gemini_api_key,
+        "LANGSEARCH_API_KEY": payload.langsearch_key if payload.langsearch_key is not None else settings.langsearch_api_key,
         "SYNTHESIS_PROVIDER": payload.synthesis_provider if payload.synthesis_provider is not None else settings.synthesis_provider,
         "VECTORIZATION_PROVIDER": payload.vectorization_provider if payload.vectorization_provider is not None else settings.vectorization_provider,
         "MISTRAL_MODEL": payload.mistral_model if payload.mistral_model is not None else settings.mistral_model,
@@ -210,6 +233,7 @@ def save_settings(payload: AppSettingsRequest):
     # Update global settings in memory
     if payload.mistral_key is not None: settings.mistral_api_key = payload.mistral_key
     if payload.gemini_key is not None: settings.gemini_api_key = payload.gemini_key
+    if payload.langsearch_key is not None: settings.langsearch_api_key = payload.langsearch_key
     if payload.synthesis_provider is not None: settings.synthesis_provider = payload.synthesis_provider
     if payload.vectorization_provider is not None: settings.vectorization_provider = payload.vectorization_provider
     if payload.mistral_model is not None: settings.mistral_model = payload.mistral_model
@@ -276,6 +300,27 @@ async def test_gemini_key(payload: KeyTestRequest):
             return {"status": "error", "message": f"Erreur Gemini ({res.status_code}) : {detail}"}
     except Exception as e:
         return {"status": "error", "message": f"Erreur de connexion Gemini : {str(e)}"}
+
+@router.post("/test-langsearch")
+async def test_langsearch_key(payload: KeyTestRequest):
+    import httpx
+    key = payload.key or settings.langsearch_api_key or get_vps_langsearch_key()
+    if not key:
+        return {"status": "error", "message": "Clé API LangSearch manquante."}
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                "https://api.langsearch.com/v1/search",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={"query": "test actualites", "summary": False, "count": 1},
+                timeout=10.0
+            )
+            if res.status_code == 200:
+                return {"status": "success", "message": "Connexion réussie à l'API LangSearch !"}
+            err_msg = res.json().get("message", res.text) if res.headers.get("content-type", "").startswith("application/json") else res.text
+            return {"status": "error", "message": f"Erreur LangSearch ({res.status_code}) : {err_msg}"}
+    except Exception as e:
+        return {"status": "error", "message": f"Erreur de connexion LangSearch : {str(e)}"}
 
 @router.post("")
 @router.post("/")

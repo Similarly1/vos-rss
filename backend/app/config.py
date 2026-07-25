@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./vos.db"
     mistral_api_key: str = ""
     gemini_api_key: str = ""
+    langsearch_api_key: str = ""
     synthesis_provider: str = "mistral"
     vectorization_provider: str = "mistral"
     synthesis_fallback_provider: str = "gemini"

@@ -3,6 +3,7 @@
   import { 
     mistralApiKey, selectedMistralModel, 
     geminiApiKey, selectedGeminiModel,
+    langsearchApiKey,
     selectedMistralArticleModel, selectedGeminiArticleModel,
     selectedMistralDiscoverModel, selectedGeminiDiscoverModel,
     selectedMistralPodcastModel, selectedGeminiPodcastModel,
@@ -24,6 +25,8 @@
   let geminiDiscoverInput = $selectedGeminiDiscoverModel;
   let geminiPodcastInput = $selectedGeminiPodcastModel;
   
+  let langsearchKeyInput = $langsearchApiKey;
+
   let synthProvInput = $synthesisProvider;
   let vectProvInput = $vectorizationProvider;
   let synthFallbackInput = $synthesisFallbackProvider;
@@ -39,21 +42,25 @@
 
   let showMistralPassword = false;
   let showGeminiPassword = false;
+  let showLangsearchPassword = false;
   let saveStatus = '';
   let envSaveStatus = '';
   let cleanupStatus = '';
   let isTestingMistral = false;
   let isTestingGemini = false;
+  let isTestingLangsearch = false;
   let isSavingEnv = false;
   let isCleaning = false;
   let testResultMistral = null;
   let testResultGemini = null;
+  let testResultLangsearch = null;
 
   onMount(async () => {
     const vpsKeys = await fetchVpsSettings();
     if (vpsKeys) {
       mistralKeyInput = vpsKeys.mistral_key || '';
       geminiKeyInput = vpsKeys.gemini_key || '';
+      langsearchKeyInput = vpsKeys.langsearch_key || '';
       synthProvInput = vpsKeys.synthesis_provider || 'mistral';
       vectProvInput = vpsKeys.vectorization_provider || 'mistral';
       mistralModelInput = vpsKeys.mistral_model || 'mistral-small-latest';
@@ -86,7 +93,8 @@
       mistralPodcastInput, geminiPodcastInput,
       synthProvInput, vectProvInput, synthFallbackInput, vectFallbackInput,
       mistralEmbedInput, geminiEmbedInput,
-      refreshInput, langInput, fullTextInput, retentionInput
+      refreshInput, langInput, fullTextInput, retentionInput,
+      langsearchKeyInput
     );
     saveVoiceSetting(voiceInput);
     isSavingEnv = false;
@@ -154,10 +162,29 @@
       } else {
         testResultGemini = { success: false, message: data.message || 'Clé API invalide ou accès refusé.' };
       }
+  async function testLangsearchConnection() {
+    if (!langsearchKeyInput) {
+      testResultLangsearch = { success: false, message: 'Veuillez saisir une clé API LangSearch.' };
+      return;
+    }
+    isTestingLangsearch = true;
+    testResultLangsearch = null;
+    try {
+      const res = await fetch('/api/feeds/test-langsearch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: langsearchKeyInput })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        testResultLangsearch = { success: true, message: data.message };
+      } else {
+        testResultLangsearch = { success: false, message: data.message || 'Clé API invalide ou accès refusé.' };
+      }
     } catch (err) {
-      testResultGemini = { success: false, message: 'Erreur réseau lors du test.' };
+      testResultLangsearch = { success: false, message: 'Erreur réseau lors du test.' };
     } finally {
-      isTestingGemini = false;
+      isTestingLangsearch = false;
     }
   }
 </script>
@@ -329,6 +356,45 @@
               </button>
               {#if testResultGemini}
                 <div class="text-xs font-medium mt-1 {testResultGemini.success ? 'text-emerald-500' : 'text-rose-500'}">{testResultGemini.message}</div>
+              {/if}
+            </div>
+          </div>
+
+          <!-- LANGSEARCH CARD -->
+          <div class="p-6 bg-gray-50 dark:bg-dark-bg rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">🔎</span>
+                <div>
+                  <h4 class="font-bold text-gray-900 dark:text-white text-sm">LangSearch API (Recherche de Médias Locaux)</h4>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Découverte automatique de journaux et actualités régionales</p>
+                </div>
+              </div>
+              <span class="text-xs font-semibold px-2 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg">Web Search API</span>
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Clé API LangSearch</label>
+              <div class="relative">
+                <input 
+                  type={showLangsearchPassword ? 'text' : 'password'} 
+                  bind:value={langsearchKeyInput} 
+                  placeholder="Saisissez votre clé API LangSearch (ex: ls_...)"
+                  class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-primary-500 pr-10"
+                />
+                <button 
+                  on:click={() => showLangsearchPassword = !showLangsearchPassword}
+                  class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-xs"
+                >
+                  {showLangsearchPassword ? '👁️‍🗨️' : '👁️'}
+                </button>
+              </div>
+
+              <button on:click={testLangsearchConnection} disabled={isTestingLangsearch} class="text-xs font-semibold px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 rounded-lg w-full mt-2">
+                {isTestingLangsearch ? 'Test en cours...' : 'Tester la connexion LangSearch'}
+              </button>
+              {#if testResultLangsearch}
+                <div class="text-xs font-medium mt-1 {testResultLangsearch.success ? 'text-emerald-500' : 'text-rose-500'}">{testResultLangsearch.message}</div>
               {/if}
             </div>
           </div>

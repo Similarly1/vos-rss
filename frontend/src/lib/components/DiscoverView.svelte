@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { fetchFeeds, fetchArticles, feedsList } from '../stores/appState.js';
+  import { fetchFeeds, fetchArticles, feedsList, langsearchApiKey } from '../stores/appState.js';
 
   let searchQuery = '';
   let selectedCategory = 'Tous';
@@ -11,6 +11,12 @@
   let availableTags = [];
   let loadingCatalog = false;
   let loadingMore = false;
+
+  // Local News Search state (LangSearch API)
+  let localQuery = '';
+  let searchingLocal = false;
+  let localNewsResults = [];
+  let localNewsError = null;
 
   // Pagination state
   let currentOffset = 0;
@@ -221,6 +227,41 @@
     }
   }
 
+  async function handleSearchLocalNews(queryToSearch = null) {
+    const targetQ = (queryToSearch !== null ? queryToSearch : localQuery).strip ? (queryToSearch !== null ? queryToSearch : localQuery).trim() : '';
+    if (queryToSearch !== null) localQuery = queryToSearch;
+    if (!targetQ) return;
+
+    searchingLocal = true;
+    localNewsError = null;
+    localNewsResults = [];
+
+    try {
+      const res = await fetch('/api/catalog/search-local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: targetQ,
+          api_key: $langsearchApiKey
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        localNewsResults = data.data || [];
+        if (localNewsResults.length === 0) {
+          localNewsError = `Aucun média local avec flux RSS détecté pour "${targetQ}".`;
+        }
+      } else {
+        localNewsError = data.detail || data.message || "Échec de la recherche de médias locaux.";
+      }
+    } catch (err) {
+      localNewsError = "Erreur réseau lors de la recherche des médias locaux.";
+    } finally {
+      searchingLocal = false;
+    }
+  }
+
   async function openPreview(feed) {
     previewFeedObj = feed;
     previewLoading = true;
@@ -271,6 +312,123 @@
       <p class="text-sm text-gray-500 dark:text-dark-muted max-w-2xl">
         Explorez plus de 150+ médias certifiés et répertoires d'annuaires ou tapez l'adresse d'un site web (ex: <span class="font-mono text-primary-600 dark:text-primary-400">lemonde.fr</span>) pour détecter automatiquement son flux RSS.
       </p>
+    </div>
+
+    <!-- LOCAL NEWS SEARCH CARD (LangSearch API) -->
+    <div class="bg-gradient-to-r from-emerald-500/10 via-sky-500/10 to-purple-500/10 p-5 md:p-6 rounded-3xl border border-emerald-500/20 dark:border-emerald-500/30 shadow-sm space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+            <span>📍 Recherche de Médias Locaux & Régionaux</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-emerald-500 text-white rounded-full">LangSearch Web API</span>
+          </h2>
+          <p class="text-xs text-gray-600 dark:text-gray-300 mt-1">
+            Trouvez les journaux et sites d'actualité locaux de votre canton, ville ou région (ex: Vaud, Toulouse, Bretagne) et abonnez-vous en 1 clic.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+        <div class="relative flex-1">
+          <input 
+            type="text"
+            placeholder="Saisissez une région, ville ou canton (ex: Vaud, Neuchâtel, Lyon, Bretagne)..."
+            bind:value={localQuery}
+            on:keydown={(e) => e.key === 'Enter' && handleSearchLocalNews()}
+            class="w-full bg-white dark:bg-dark-card text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-2xl py-2.5 px-4 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-gray-400"
+          />
+        </div>
+        <button 
+          on:click={() => handleSearchLocalNews()}
+          disabled={searchingLocal}
+          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
+        >
+          {#if searchingLocal}
+            <svg class="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            <span>Recherche...</span>
+          {:else}
+            <span>🔍 Chercher les médias locaux</span>
+          {/if}
+        </button>
+      </div>
+
+      <!-- Quick Region Suggestions -->
+      <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 shrink-0">Exemples :</span>
+        {#each ['🇨🇭 Vaud', '🇨🇭 Valais', '🇨🇭 Neuchâtel', '🇨🇭 Genève', '🇨🇭 Fribourg', '🇫🇷 Lyon', '🇫🇷 Toulouse', '🇫🇷 Bretagne'] as pill}
+          <button 
+            on:click={() => handleSearchLocalNews(pill.replace(/^[^\s]+\s*/, ''))}
+            class="px-2.5 py-1 bg-white/80 dark:bg-dark-card/80 hover:bg-white dark:hover:bg-dark-card border border-emerald-500/20 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-semibold shrink-0 transition-all shadow-2xs"
+          >
+            {pill}
+          </button>
+        {/each}
+      </div>
+
+      <!-- Error / Notice Banner -->
+      {#if localNewsError}
+        <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-xs font-medium text-amber-600 dark:text-amber-400">
+          ⚠️ {localNewsError}
+        </div>
+      {/if}
+
+      <!-- Results Grid -->
+      {#if localNewsResults && localNewsResults.length > 0}
+        <div class="pt-3 border-t border-emerald-500/20 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold text-emerald-600 dark:text-emerald-400">
+              {localNewsResults.length} médias locaux trouvés avec flux RSS :
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {#each localNewsResults as item}
+              <div class="p-4 bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 shadow-2xs flex flex-col justify-between space-y-3">
+                <div class="flex items-start gap-3">
+                  <img src={item.favicon} alt="" class="w-8 h-8 rounded-lg object-cover shrink-0 mt-0.5" on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=' + item.site_url} />
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-bold text-xs text-gray-900 dark:text-white truncate">{item.title}</h3>
+                    <a href={item.site_url} target="_blank" rel="noopener noreferrer" class="text-[11px] text-gray-400 hover:text-primary-500 truncate block">
+                      {item.site_url}
+                    </a>
+                    {#if item.description}
+                      <p class="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
+                        {item.description}
+                      </p>
+                    {/if}
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <div class="flex flex-wrap gap-1">
+                    {#each (item.tags || []) as t}
+                      <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">{t}</span>
+                    {/each}
+                  </div>
+
+                  {#if item.already_subscribed || subscribedSuccessMap[item.feed_url]}
+                    <span class="text-xs font-bold text-emerald-500 flex items-center gap-1">
+                      ✓ Abonné
+                    </span>
+                  {:else}
+                    <button 
+                      on:click={() => subscribeToFeed(item.feed_url, 'Général', 'fr')}
+                      disabled={subscribingMap[item.feed_url]}
+                      class="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {#if subscribingMap[item.feed_url]}
+                        <span>...</span>
+                      {:else}
+                        <span>➕ Ajouter</span>
+                      {/if}
+                    </button>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <!-- Search & Auto-Discovery Bar -->

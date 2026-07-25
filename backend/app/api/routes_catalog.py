@@ -125,3 +125,15 @@ async def preview_feed(url: str = Query(..., description="Feed RSS URL to previe
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Impossible d'afficher l'aperçu du flux : {str(e)}")
+
+class SearchLocalNewsRequest(BaseModel):
+    query: str
+    api_key: Optional[str] = None
+
+@router.post("/search-local")
+async def search_local_news(payload: SearchLocalNewsRequest):
+    from app.services.local_news import search_local_news_feeds
+    res = await search_local_news_feeds(payload.query, langsearch_key=payload.api_key)
+    if res.get("status") == "error":
+        raise HTTPException(status_code=400, detail=res.get("message", "Erreur lors de la recherche LangSearch."))
+    return res

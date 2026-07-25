@@ -20,6 +20,7 @@ export const isRefreshingFeeds = writable(false);
 export const mistralApiKey = writable('');
 export const selectedMistralModel = writable('mistral-small-latest');
 export const geminiApiKey = writable('');
+export const langsearchApiKey = writable('');
 export const selectedGeminiModel = writable('gemini-1.5-flash');
 
 export const selectedMistralArticleModel = writable('mistral-small-latest');
@@ -56,6 +57,7 @@ export async function fetchVpsSettings() {
       
       if (data.mistral_key) mistralApiKey.set(data.mistral_key);
       if (data.gemini_key) geminiApiKey.set(data.gemini_key);
+      if (data.langsearch_key) langsearchApiKey.set(data.langsearch_key);
       if (data.synthesis_provider) synthesisProvider.set(data.synthesis_provider);
       if (data.vectorization_provider) vectorizationProvider.set(data.vectorization_provider);
       if (data.mistral_model) selectedMistralModel.set(data.mistral_model);
@@ -90,12 +92,14 @@ export async function saveSettings(
   mistralDiscoverModel, geminiDiscoverModel,
   mistralPodcastModel, geminiPodcastModel,
   synthProv, vectProv, synthFallback, vectFallback, mistralEmbed, geminiEmbed, 
-  refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14
+  refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14,
+  langsearchKey = ''
 ) {
   mistralApiKey.set(mistralKey);
   selectedMistralModel.set(mistralModel);
   geminiApiKey.set(geminiKey);
   selectedGeminiModel.set(geminiModel);
+  if (langsearchKey !== undefined) langsearchApiKey.set(langsearchKey);
   selectedMistralArticleModel.set(mistralArticleModel);
   selectedGeminiArticleModel.set(geminiArticleModel);
   selectedMistralDiscoverModel.set(mistralDiscoverModel);
@@ -122,6 +126,7 @@ export async function saveSettings(
       body: JSON.stringify({
         mistral_key: mistralKey,
         gemini_key: geminiKey,
+        langsearch_key: langsearchKey !== undefined ? langsearchKey : get(langsearchApiKey),
         synthesis_provider: synthProv,
         vectorization_provider: vectProv,
         mistral_model: mistralModel,

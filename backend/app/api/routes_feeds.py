@@ -231,6 +231,52 @@ def save_settings(payload: AppSettingsRequest):
         
     return {"status": "success", "message": "Paramètres enregistrés dans le fichier .env !"}
 
+class KeyTestRequest(BaseModel):
+    key: Optional[str] = None
+
+@router.post("/test-mistral")
+async def test_mistral_key(payload: KeyTestRequest):
+    import httpx
+    key = payload.key or settings.mistral_api_key or get_vps_api_key()
+    if not key:
+        return {"status": "error", "message": "Clé API Mistral manquante."}
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.get(
+                "https://api.mistral.ai/v1/models",
+                headers={"Authorization": f"Bearer {key}"},
+                timeout=10.0
+            )
+            if res.status_code == 200:
+                return {"status": "success", "message": "Connexion réussie à l'API Mistral AI !"}
+            err_msg = res.json().get("message", res.text) if res.headers.get("content-type", "").startswith("application/json") else res.text
+            return {"status": "error", "message": f"Erreur Mistral ({res.status_code}) : {err_msg}"}
+    except Exception as e:
+        return {"status": "error", "message": f"Erreur de connexion Mistral : {str(e)}"}
+
+@router.post("/test-gemini")
+async def test_gemini_key(payload: KeyTestRequest):
+    import httpx
+    key = payload.key or settings.gemini_api_key or get_vps_gemini_key()
+    if not key:
+        return {"status": "error", "message": "Clé API Gemini manquante."}
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.get(
+                f"https://generativelanguage.googleapis.com/v1beta/models?key={key}",
+                timeout=10.0
+            )
+            if res.status_code == 200:
+                return {"status": "success", "message": "Connexion réussie à l'API Google Gemini !"}
+            
+            err_data = res.json() if res.headers.get("content-type", "").startswith("application/json") else {}
+            detail = err_data.get("error", {}).get("message", res.text)
+            if "invalid authentication credentials" in detail.lower() or res.status_code == 401:
+                detail = f"{detail} (Note : Utilisez une clé API Google AI Studio ex: AIzaSy... créée sur https://aistudio.google.com/app/apikey)"
+            return {"status": "error", "message": f"Erreur Gemini ({res.status_code}) : {detail}"}
+    except Exception as e:
+        return {"status": "error", "message": f"Erreur de connexion Gemini : {str(e)}"}
+
 @router.post("")
 @router.post("/")
 def add_feed(payload: FeedInput):

@@ -117,14 +117,16 @@
     isTestingMistral = true;
     testResultMistral = null;
     try {
-      const res = await fetch('https://api.mistral.ai/v1/models', {
-        headers: { 'Authorization': `Bearer ${mistralKeyInput}` }
+      const res = await fetch('/api/feeds/test-mistral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: mistralKeyInput })
       });
-      if (res.ok) {
-        testResultMistral = { success: true, message: 'Connexion réussie à l\'API Mistral AI !' };
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        testResultMistral = { success: true, message: data.message };
       } else {
-        const errorData = await res.json().catch(() => ({}));
-        testResultMistral = { success: false, message: errorData.message || 'Clé API invalide ou accès refusé.' };
+        testResultMistral = { success: false, message: data.message || 'Clé API invalide ou accès refusé.' };
       }
     } catch (err) {
       testResultMistral = { success: false, message: 'Erreur réseau lors du test.' };
@@ -141,12 +143,16 @@
     isTestingGemini = true;
     testResultGemini = null;
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKeyInput}`);
-      if (res.ok) {
-        testResultGemini = { success: true, message: 'Connexion réussie à l\'API Gemini !' };
+      const res = await fetch('/api/feeds/test-gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: geminiKeyInput })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        testResultGemini = { success: true, message: data.message };
       } else {
-        const errorData = await res.json().catch(() => ({}));
-        testResultGemini = { success: false, message: errorData.error?.message || 'Clé API invalide ou accès refusé.' };
+        testResultGemini = { success: false, message: data.message || 'Clé API invalide ou accès refusé.' };
       }
     } catch (err) {
       testResultGemini = { success: false, message: 'Erreur réseau lors du test.' };

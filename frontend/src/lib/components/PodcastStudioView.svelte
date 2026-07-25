@@ -268,7 +268,17 @@
         errorMsg = data.detail || "Échec de la génération du podcast.";
       }
     } catch (err) {
-      errorMsg = "Erreur de connexion au serveur.";
+      console.warn("Connexion interrompue ou timeout HTTP. Vérification dans l'historique...", err);
+      await new Promise(r => setTimeout(r, 1500));
+      await fetchHistory();
+      if (podcastHistory.length > 0) {
+        currentPodcast = podcastHistory[0];
+        showScript = false;
+        playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
+        errorMsg = "";
+      } else {
+        errorMsg = "Délai d'attente dépassé (Timeout HTTP). Mettez à jour la conf Nginx de votre VPS avec 'proxy_read_timeout 300s;'.";
+      }
     } finally {
       isGenerating = false;
       progressStep = "";

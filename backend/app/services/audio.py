@@ -148,7 +148,7 @@ async def generate_audio_bytes_for_voice(text: str, voice_key: str = "Marie - Ne
                 "voice_id": target_voice_id,
                 "response_format": "mp3"
             },
-            timeout=40.0
+            timeout=120.0
         )
         
         if response.status_code == 200:

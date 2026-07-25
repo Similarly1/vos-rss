@@ -363,6 +363,9 @@ def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
         
         audio_filename = r["audio_filename"]
         audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
+        audio_url_escaped = xml_escape(audio_url)
+        img_url = r["image_url"] or DEFAULT_PODCAST_COVER
+        img_url_escaped = xml_escape(img_url)
 
         filepath = AUDIO_DIR / audio_filename
         file_size = filepath.stat().st_size if filepath.exists() else 2000000
@@ -377,12 +380,12 @@ def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
 
         item_str = f"""    <item>
       <title>{title}</title>
-      <link>{audio_url}</link>
+      <link>{audio_url_escaped}</link>
       <description>{desc_html}</description>
-      <enclosure url="{audio_url}" length="{file_size}" type="audio/mpeg"/>
+      <enclosure url="{audio_url_escaped}" length="{file_size}" type="audio/mpeg"/>
       <guid isPermaLink="false">vos-podcast-{r['id']}</guid>
       <pubDate>{pub_date_str}</pubDate>
-      <itunes:image href="{img_url}"/>
+      <itunes:image href="{img_url_escaped}"/>
       <itunes:duration>05:00</itunes:duration>
       <itunes:explicit>no</itunes:explicit>
     </item>"""
@@ -397,7 +400,7 @@ def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
      xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
     <title>Vos - Revues de Presse Audio</title>
-    <link>{feed_url}</link>
+    <link>{xml_escape(feed_url)}</link>
     <language>fr</language>
     <copyright>Vos AI Reader</copyright>
     <itunes:subtitle>Revues de presse quotidiennes scénarisées et lues par Voxtral</itunes:subtitle>
@@ -408,7 +411,7 @@ def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
       <itunes:name>Vos App</itunes:name>
       <itunes:email>podcast@vos-app.local</itunes:email>
     </itunes:owner>
-    <itunes:image href="{DEFAULT_PODCAST_COVER}"/>
+    <itunes:image href="{xml_escape(DEFAULT_PODCAST_COVER)}"/>
     <itunes:category text="News">
       <itunes:category text="Daily News"/>
     </itunes:category>

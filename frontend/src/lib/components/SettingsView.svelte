@@ -162,6 +162,13 @@
       } else {
         testResultGemini = { success: false, message: data.message || 'Clé API invalide ou accès refusé.' };
       }
+    } catch (err) {
+      testResultGemini = { success: false, message: 'Erreur réseau lors du test.' };
+    } finally {
+      isTestingGemini = false;
+    }
+  }
+
   async function testLangsearchConnection() {
     if (!langsearchKeyInput) {
       testResultLangsearch = { success: false, message: 'Veuillez saisir une clé API LangSearch.' };

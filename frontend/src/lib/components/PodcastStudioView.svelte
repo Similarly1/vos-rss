@@ -244,6 +244,7 @@
 
       const res = await fetch('/api/podcast/generate', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topics_count: topicsCount,

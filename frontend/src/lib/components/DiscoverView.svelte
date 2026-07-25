@@ -228,8 +228,10 @@
   }
 
   async function handleSearchLocalNews(queryToSearch = null) {
-    const targetQ = (queryToSearch !== null ? queryToSearch : localQuery).strip ? (queryToSearch !== null ? queryToSearch : localQuery).trim() : '';
-    if (queryToSearch !== null) localQuery = queryToSearch;
+    if (queryToSearch !== null) {
+      localQuery = queryToSearch;
+    }
+    const targetQ = (localQuery || '').trim();
     if (!targetQ) return;
 
     searchingLocal = true;

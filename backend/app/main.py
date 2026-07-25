@@ -14,15 +14,9 @@ async def lifespan(app: FastAPI):
     # Initialize DB on startup
     init_db()
 
-    # Auto-seed catalog if empty
+    # Auto-seed & sync catalog database on startup
     try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) as cnt FROM catalog_feeds")
-        cnt = c.fetchone()["cnt"]
-        conn.close()
-        if cnt == 0:
-            seed_catalog()
+        seed_catalog()
     except Exception as e:
         print(f"[Auto-seed note] {e}")
 

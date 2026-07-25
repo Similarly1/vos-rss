@@ -62,19 +62,6 @@ SEED_FEEDS = [
         "tags": ["#suisse", "#actualité", "#presse"]
     },
     {
-        "url": "https://www.heidi.news/feed",
-        "site_url": "https://www.heidi.news",
-        "title": "Heidi.news",
-        "description": "Média de grand reportage et d'investigation basé à Genève, spécialisé en sciences et santé.",
-        "icon_url": "https://www.google.com/s2/favicons?domain=heidi.news&sz=128",
-        "category": "Suisse",
-        "language": "fr",
-        "country": "CH",
-        "is_full_text": False,
-        "is_verified": True,
-        "tags": ["#suisse", "#science", "#innovation"]
-    },
-    {
         "url": "https://www.nzz.ch/recent.rss",
         "site_url": "https://www.nzz.ch",
         "title": "Neue Zürcher Zeitung (NZZ)",
@@ -87,6 +74,7 @@ SEED_FEEDS = [
         "is_verified": True,
         "tags": ["#suisse", "#allemand", "#économie"]
     },
+
     {
         "url": "https://surgir.ch/feed",
         "site_url": "https://surgir.ch",
@@ -413,6 +401,27 @@ def seed_catalog():
     print("[Catalogue Seed] Initialisation de la base de donnees...")
     init_db()
     
+    # Clean up obsolete verified seed feeds that were removed from SEED_FEEDS
+    valid_urls = {f["url"] for f in SEED_FEEDS}
+    try:
+        from app.database import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, url FROM catalog_feeds WHERE is_verified = 1")
+        rows = cursor.fetchall()
+        deleted_count = 0
+        for r in rows:
+            if r["url"] not in valid_urls:
+                cursor.execute("DELETE FROM catalog_feeds WHERE id = ?", (r["id"],))
+                cursor.execute("DELETE FROM catalog_feeds_fts WHERE catalog_feed_id = ?", (r["id"],))
+                deleted_count += 1
+        conn.commit()
+        conn.close()
+        if deleted_count > 0:
+            print(f"[Catalogue Seed] Suppression de {deleted_count} flux mort/obsolete du catalogue.")
+    except Exception as e:
+        print(f"[Catalogue Cleanup note]: {e}")
+
     added_count = 0
     for feed_info in SEED_FEEDS:
         tags = feed_info.pop("tags", [])

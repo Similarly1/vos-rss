@@ -1,4 +1,6 @@
 <script>
+  import smartcrop from 'smartcrop';
+
   export let src = '';
   export let fallbackSrc = '';
   export let alt = '';
@@ -9,23 +11,48 @@
   let isLoaded = false;
   let isError = false;
   let currentSrc = src;
+  let objectPosition = 'center 22%'; // Default smart fallback (focus on upper third for faces)
+  let imgElement = null;
 
   $: if (src) {
     if (currentSrc !== src) {
       currentSrc = src;
       isLoaded = false;
       isError = false;
+      objectPosition = 'center 22%';
     }
   }
 
-  function handleLoad() {
+  async function handleLoad() {
     isLoaded = true;
+
+    // Run smartcrop analysis on load to find face/subject focal point
+    if (imgElement && imgElement.naturalWidth && imgElement.naturalHeight) {
+      try {
+        const result = await smartcrop.crop(imgElement, {
+          width: 400,
+          height: 250,
+          minScale: 1.0
+        });
+
+        if (result && result.topCrop) {
+          const crop = result.topCrop;
+          const centerX = Math.round(((crop.x + crop.width / 2) / imgElement.naturalWidth) * 100);
+          const centerY = Math.round(((crop.y + crop.height / 2) / imgElement.naturalHeight) * 100);
+          objectPosition = `${centerX}% ${centerY}%`;
+        }
+      } catch (err) {
+        // Fallback gracefully to upper-third alignment 'center 22%' if CORS prevents canvas inspection
+        objectPosition = 'center 22%';
+      }
+    }
   }
 
   function handleError() {
     if (!isError && fallbackSrc && currentSrc !== fallbackSrc) {
       isError = true;
       currentSrc = fallbackSrc;
+      objectPosition = 'center 22%';
     } else {
       isError = true;
       isLoaded = true;
@@ -41,14 +68,16 @@
     </div>
   {/if}
 
-  <!-- Progressive Image with Blur-Up & Fade-In -->
+  <!-- Progressive Image with SmartCrop & Blur-Up -->
   {#if currentSrc}
     <img
+      bind:this={imgElement}
       src={currentSrc}
       {alt}
       {loading}
       on:load={handleLoad}
       on:error={handleError}
+      style="object-position: {objectPosition};"
       class="{imgClass} transition-all duration-700 ease-out {isLoaded ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-105 blur-sm'}"
     />
   {/if}

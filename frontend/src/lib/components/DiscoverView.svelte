@@ -234,7 +234,7 @@
     
     <!-- Header -->
     <div class="space-y-3">
-      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-300 rounded-full text-xs font-bold border border-primary-200 dark:border-primary-800/80">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-sky-100 dark:bg-slate-800 text-sky-800 dark:text-sky-300 rounded-full text-xs font-bold border border-sky-200 dark:border-slate-700">
         <span>✨ Catalogue & Auto-Détection Web</span>
       </div>
       <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Catalogue des flux RSS</h1>
@@ -466,7 +466,7 @@
                     {#each feed.tags as tag}
                       <button 
                         on:click={() => selectTag(tag)}
-                        class="text-[11px] font-extrabold text-primary-600 dark:text-primary-300 bg-primary-50 dark:bg-primary-950/70 border border-primary-200 dark:border-primary-800/80 hover:bg-primary-100 dark:hover:bg-primary-900/60 px-2.5 py-1 rounded-lg transition-all"
+                        class="text-[11px] font-extrabold text-sky-800 dark:text-sky-300 bg-sky-100 dark:bg-slate-800 border border-sky-200 dark:border-slate-700 hover:bg-sky-200 dark:hover:bg-slate-700 px-2.5 py-1 rounded-lg transition-all"
                       >
                         {tag}
                       </button>

@@ -26,7 +26,7 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
     # Format search query for local news focus if not already specified
     lower_q = user_query.lower()
     if not any(k in lower_q for k in ["journal", "presse", "actualit", "médias", "media", "news"]):
-        search_query = f"journal local actualités {user_query}"
+        search_query = f"journal local actualites {user_query}"
     else:
         search_query = user_query
 
@@ -34,6 +34,7 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
     
     try:
         async with httpx.AsyncClient() as client:
+            # 1st attempt: noLimit / default query
             res = await client.post(
                 "https://api.langsearch.com/v1/web-search",
                 headers={
@@ -42,12 +43,28 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
                 },
                 json={
                     "query": search_query,
-                    "freshness": "oneMonth",
+                    "freshness": "noLimit",
                     "summary": False,
                     "count": 10
                 },
                 timeout=12.0
             )
+
+            # 2nd attempt fallback if 500 error occurs
+            if res.status_code != 200:
+                res = await client.post(
+                    "https://api.langsearch.com/v1/web-search",
+                    headers={
+                        "Authorization": f"Bearer {key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "query": user_query,
+                        "summary": False,
+                        "count": 10
+                    },
+                    timeout=12.0
+                )
 
             if res.status_code != 200:
                 err_text = res.text

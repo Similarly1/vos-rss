@@ -5,12 +5,34 @@ import secrets
 from pathlib import Path
 from datetime import datetime, timedelta
 from xml.sax.saxutils import escape as xml_escape
+from urllib.parse import urlparse
 from app.database import get_db_connection
 from app.config import settings
 from app.services.clustering import compute_article_clusters
 from app.services.audio import generate_podcast_audio, generate_audio_bytes_for_voice, combine_audio_chunks, AUDIO_DIR
 
 DEFAULT_PODCAST_COVER = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80"
+
+def format_script_html(script_text: str) -> str:
+    """
+    Formats the raw podcast transcript into clean, readable HTML paragraphs and subheadings for AntennaPod.
+    """
+    if not script_text:
+        return "<p>Aucune transcription disponible.</p>"
+    
+    lines = [line.strip() for line in script_text.split("\n") if line.strip()]
+    html_parts = []
+    
+    for line in lines:
+        if line.startswith("#") or line.startswith("---") or line.lower().startswith("sujet"):
+            clean_title = re.sub(r"^[#\-\s]+", "", line)
+            html_parts.append(f"<h4 style=\"color:#2563eb;margin-top:14px;margin-bottom:6px;\">📌 {xml_escape(clean_title)}</h4>")
+        elif line.startswith("- ") or line.startswith("* "):
+            html_parts.append(f"<li style=\"margin-bottom:4px;\">{xml_escape(line[2:].strip())}</li>")
+        else:
+            html_parts.append(f"<p style=\"margin-bottom:10px;\">{xml_escape(line)}</p>")
+            
+    return "\n".join(html_parts)
 
 def sanitize_script_for_tts(text: str) -> str:
     if not text:
@@ -81,15 +103,30 @@ def get_or_create_podcast_feed_token(force_regenerate: bool = False) -> str:
 def extract_cover_image(selected_topics: list) -> str:
     """
     Extracts the best article image URL from selected topics for AntennaPod / iTunes episode cover.
+    Iterates over articles in topics clusters to find an authentic article image URL.
     """
+    if not selected_topics:
+        return DEFAULT_PODCAST_COVER
+
     for t in selected_topics:
-        img = t.get("image_url")
-        if img and img.startswith("http"):
-            return img
-        content = t.get("content") or ""
-        match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content, re.IGNORECASE)
-        if match and match.group(1).startswith("http"):
-            return match.group(1)
+        # Check if t is a cluster dictionary containing an "articles" list
+        articles = t.get("articles") or ([t] if isinstance(t, dict) and ("title" in t or "image_url" in t) else [])
+        for a in articles:
+            if isinstance(a, dict):
+                img = a.get("image_url")
+                if img and isinstance(img, str) and img.startswith("http"):
+                    return img
+                content = a.get("content") or ""
+                match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content, re.IGNORECASE)
+                if match and match.group(1).startswith("http"):
+                    return match.group(1)
+
+        # Direct check if t itself has an image_url
+        if isinstance(t, dict):
+            img = t.get("image_url")
+            if img and isinstance(img, str) and img.startswith("http"):
+                return img
+
     return DEFAULT_PODCAST_COVER
 
 async def generate_podcast_show(
@@ -336,11 +373,21 @@ def sanitize_base_url(url: str) -> str:
 def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
     """
     Generates a 100% valid RSS 2.0 XML podcast feed with iTunes / AntennaPod / Spotify / Apple Podcasts metadata.
-    Includes episode image, HTML description with clickable sources, and audio enclosure length.
+    Includes domain host in channel title, unique episode cover images, and structured HTML description with key points & full transcript.
     """
     b_url = sanitize_base_url(base_url)
     feed_token = token or get_or_create_podcast_feed_token()
     token_param = f"?token={feed_token}" if feed_token else ""
+
+    parsed = urlparse(b_url)
+    domain_host = parsed.netloc.split(":")[0] if parsed.netloc else ""
+    
+    if domain_host and domain_host not in ("127.0.0.1", "localhost", ""):
+        channel_title = f"Vos - Revue de Presse ({domain_host})"
+        author_name = domain_host
+    else:
+        channel_title = "Vos - Revues de Presse Audio"
+        author_name = "Vos Studio"
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -359,7 +406,8 @@ def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
     for r in rows:
         title = xml_escape(r["title"])
         script = r["script"]
-        img_url = r["image_url"] or DEFAULT_PODCAST_COVER
+        topics_count = r["topics_count"] or 5
+        voice_used = r["voice"] or "Marie"
         
         audio_filename = r["audio_filename"]
         audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
@@ -373,15 +421,27 @@ def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
         try:
             dt = datetime.strptime(r["created_at"][:19], "%Y-%m-%d %H:%M:%S")
             pub_date_str = dt.strftime("%a, %d %b %Y %H:%M:%S +0200")
+            display_date = dt.strftime("%d/%m/%Y à %H:%M")
         except Exception:
             pub_date_str = datetime.now().strftime("%a, %d %b %Y %H:%M:%S +0200")
+            display_date = datetime.now().strftime("%d/%m/%Y")
 
-        desc_html = f"<![CDATA[<p>{script[:500]}...</p><h3>Transcription &amp; Émission complète :</h3><p>{script}</p>]]>"
+        formatted_script_html = format_script_html(script)
+
+        desc_html = f"""<![CDATA[<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;line-height:1.6;color:#333;">
+  <p><strong>🎙️ Édition du {display_date}</strong> • <em>{topics_count} sujets d'actualité récapitulés • Voix: {xml_escape(voice_used)}</em></p>
+  <hr style="border:0;border-top:1px solid #eee;margin:12px 0;"/>
+  <h3 style="color:#2563eb;margin-bottom:8px;">📌 Points clés &amp; Transcription radio :</h3>
+  {formatted_script_html}
+  <hr style="border:0;border-top:1px solid #eee;margin:16px 0;"/>
+  <p style="font-size:12px;color:#666;">Émission générée automatiquement par <strong>Vos AI Reader</strong> sur {xml_escape(domain_host or 'adrienotge.nohost.me')}.</p>
+</div>]]>"""
 
         item_str = f"""    <item>
       <title>{title}</title>
       <link>{audio_url_escaped}</link>
       <description>{desc_html}</description>
+      <content:encoded>{desc_html}</content:encoded>
       <enclosure url="{audio_url_escaped}" length="{file_size}" type="audio/mpeg"/>
       <guid isPermaLink="false">vos-podcast-{r['id']}</guid>
       <pubDate>{pub_date_str}</pubDate>
@@ -399,17 +459,17 @@ def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
      xmlns:content="http://purl.org/rss/1.0/modules/content/" 
      xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
-    <title>Vos - Revues de Presse Audio</title>
+    <title>{xml_escape(channel_title)}</title>
     <link>{xml_escape(feed_url)}</link>
     <language>fr</language>
     <copyright>Vos AI Reader</copyright>
     <itunes:subtitle>Revues de presse quotidiennes scénarisées et lues par Voxtral</itunes:subtitle>
-    <itunes:author>Vos Studio</itunes:author>
+    <itunes:author>{xml_escape(author_name)}</itunes:author>
     <itunes:summary>Vos génère automatiquement votre revue de presse personnalisée à partir d'actualités croisées et lue par la voix de Marie.</itunes:summary>
     <description>Revue de presse quotidienne personnalisée et croisée.</description>
     <itunes:owner>
-      <itunes:name>Vos App</itunes:name>
-      <itunes:email>podcast@vos-app.local</itunes:email>
+      <itunes:name>{xml_escape(author_name)}</itunes:name>
+      <itunes:email>podcast@{xml_escape(domain_host or 'vos-app.local')}</itunes:email>
     </itunes:owner>
     <itunes:image href="{xml_escape(DEFAULT_PODCAST_COVER)}"/>
     <itunes:category text="News">

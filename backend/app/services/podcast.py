@@ -251,7 +251,7 @@ async def generate_podcast_show(
 
     async def call_mistral():
         if not m_key:
-            raise ValueError("Clé API Mistral manquante.")
+            raise ValueError("Clé API Mistral manquante. Renseignez votre clé API Mistral dans les Paramètres (icône ⚙️).")
         async with httpx.AsyncClient() as client:
             res = await client.post(
                 "https://api.mistral.ai/v1/chat/completions",
@@ -267,15 +267,25 @@ async def generate_podcast_show(
                     ],
                     "response_format": {"type": "json_object"}
                 },
-                timeout=45.0
+                timeout=60.0
             )
             if res.status_code != 200:
-                raise ValueError(f"Erreur génération script Mistral ({m_model}): {res.text}")
-            return json.loads(res.json()["choices"][0]["message"]["content"])
+                err_text = res.text
+                try:
+                    err_json = res.json()
+                    err_text = err_json.get("message") or err_json.get("detail") or res.text
+                except Exception:
+                    pass
+                raise ValueError(f"Erreur API Mistral ({res.status_code}) : {err_text}")
+            
+            raw_content = res.json()["choices"][0]["message"]["content"]
+            cleaned = re.sub(r"^```json\s*", "", raw_content.strip(), flags=re.IGNORECASE)
+            cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
+            return json.loads(cleaned)
 
     async def call_gemini():
         if not g_key:
-            raise ValueError("Clé API Gemini manquante.")
+            raise ValueError("Clé API Gemini manquante. Renseignez votre clé API Gemini dans les Paramètres (icône ⚙️).")
         async with httpx.AsyncClient() as client:
             res = await client.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={g_key}",
@@ -291,11 +301,21 @@ async def generate_podcast_show(
                         "responseMimeType": "application/json"
                     }
                 },
-                timeout=45.0
+                timeout=60.0
             )
             if res.status_code != 200:
-                raise ValueError(f"Erreur génération script Gemini ({g_model}): {res.text}")
-            return json.loads(res.json()["candidates"][0]["content"]["parts"][0]["text"])
+                err_text = res.text
+                try:
+                    err_json = res.json()
+                    err_text = err_json.get("error", {}).get("message") or res.text
+                except Exception:
+                    pass
+                raise ValueError(f"Erreur API Gemini ({res.status_code}) : {err_text}")
+            
+            raw_content = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+            cleaned = re.sub(r"^```json\s*", "", raw_content.strip(), flags=re.IGNORECASE)
+            cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
+            return json.loads(cleaned)
 
     async def try_provider(p_name: str):
         if p_name == "mistral":
@@ -303,28 +323,31 @@ async def generate_podcast_show(
         elif p_name == "gemini":
             return await call_gemini()
         else:
-            raise ValueError("Fournisseur inconnu.")
+            raise ValueError(f"Fournisseur IA inconnu ({p_name}).")
 
+    errors = []
     try:
         script_data = await try_provider(prov)
     except Exception as e:
-        print(f"Erreur génération script avec {prov} : {e}")
+        err_msg = f"Erreur {prov} : {e}"
+        print(f"[Podcast Script Generation Note]: {err_msg}")
+        errors.append(err_msg)
         if fallback_enabled:
             fallback_provider = "gemini" if prov == "mistral" else "mistral"
-            print(f"Fallback activé : tentative avec {fallback_provider}...")
-            try:
-                script_data = await try_provider(fallback_provider)
-            except Exception as e2:
-                print(f"Erreur Fallback {fallback_provider} : {e2}")
-                script_data = {
-                    "show_title": f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')} (Erreur IA)",
-                    "script": "Bonjour, suite à une erreur technique de l'intelligence artificielle, l'émission n'a pas pu être générée."
-                }
+            has_fallback_key = bool(g_key) if fallback_provider == "gemini" else bool(m_key)
+            if has_fallback_key:
+                print(f"Fallback activé : tentative avec {fallback_provider}...")
+                try:
+                    script_data = await try_provider(fallback_provider)
+                except Exception as e2:
+                    err_msg2 = f"Erreur fallback {fallback_provider} : {e2}"
+                    print(f"[Podcast Script Fallback Note]: {err_msg2}")
+                    errors.append(err_msg2)
+                    raise ValueError(" ; ".join(errors))
+            else:
+                raise ValueError(f"{err_msg}. Pour activer le secours automatique, renseignez votre clé API de secours dans les Paramètres.")
         else:
-            script_data = {
-                "show_title": f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')} (Erreur IA)",
-                "script": "Bonjour, suite à une erreur technique de l'intelligence artificielle, l'émission n'a pas pu être générée."
-            }
+            raise ValueError(err_msg)
 
     raw_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
     show_title = clean_podcast_title(raw_title)

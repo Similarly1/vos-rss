@@ -72,7 +72,8 @@
   async function fetchHistory() {
     try {
       const res = await fetch('/api/podcast/history');
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
         podcastHistory = data.podcasts || [];
         if (podcastHistory.length > 0 && !currentPodcast) {
@@ -88,7 +89,8 @@
     isFetchingSchedules = true;
     try {
       const res = await fetch('/api/podcast/schedules');
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
         schedulesList = data.schedules || [];
       }
@@ -257,19 +259,39 @@
         })
       });
 
-      const data = await res.json();
+      let data = {};
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          data = await res.json();
+        } catch (e) {
+          console.warn("Erreur parsing JSON:", e);
+        }
+      }
 
       if (res.ok && data.podcast) {
         currentPodcast = data.podcast;
         showScript = false;
         playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
         await fetchHistory();
+      } else if (res.status === 504 || res.status === 502) {
+        console.warn("Nginx Timeout (504/502) détecté. Tentative de récupération dans l'historique...");
+        await new Promise(r => setTimeout(r, 2000));
+        await fetchHistory();
+        if (podcastHistory.length > 0) {
+          currentPodcast = podcastHistory[0];
+          showScript = false;
+          playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
+          errorMsg = "";
+        } else {
+          errorMsg = "Le serveur VPS a dépassé le délai d'attente Nginx (504 Gateway Timeout). Pensez à ajouter 'proxy_read_timeout 300s;' dans votre conf Nginx.";
+        }
       } else {
-        errorMsg = data.detail || "Échec de la génération du podcast.";
+        errorMsg = data.detail || `Échec de la génération (Erreur HTTP ${res.status}).`;
       }
     } catch (err) {
       console.warn("Connexion interrompue ou timeout HTTP. Vérification dans l'historique...", err);
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 2000));
       await fetchHistory();
       if (podcastHistory.length > 0) {
         currentPodcast = podcastHistory[0];

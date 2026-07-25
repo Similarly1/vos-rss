@@ -188,10 +188,14 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
     clusters.sort(key=lambda c: (c["distinct_feed_count"] > 1, c["latest_published_date"], c["distinct_feed_count"], c["article_count"]), reverse=True)
     return clusters
 
-async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True, mistral_model: str = "mistral-small-latest", gemini_model: str = "gemini-1.5-flash"):
+async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True, mistral_model: str = None, gemini_model: str = None):
     """
     Uses Mistral AI or Gemini to create a unified cross-referenced news summary from multiple articles in different languages.
     """
+    from app.config import settings
+    m_model = mistral_model or settings.mistral_discover_model or settings.mistral_model or "mistral-small-latest"
+    g_model = gemini_model or settings.gemini_discover_model or settings.gemini_model or "gemini-1.5-flash"
+
     articles_text = "\n\n".join([
         f"--- Source : {a.get('feed_title', 'RSS')} (Langue d'origine: {a.get('language', 'fr').upper()}) ---\nTitre d'origine: {a.get('title')}\nContenu complet: {(a.get('content') or '')[:2500]}"
         for a in cluster_articles
@@ -232,7 +236,7 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": mistral_model,
+                    "model": m_model,
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
@@ -251,7 +255,7 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
             raise ValueError("Clé API Gemini manquante.")
         async with httpx.AsyncClient() as client:
             res = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={gemini_key}",
+                f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}",
                 headers={"Content-Type": "application/json"},
                 json={
                     "system_instruction": {
@@ -314,7 +318,15 @@ async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str =
     if (m_key or g_key) and event_clusters:
         for c in event_clusters[:8]:
             try:
-                synth = await synthesize_cluster(c["articles"], mistral_key=m_key, gemini_key=g_key, provider=provider, fallback_enabled=fallback_enabled)
+                synth = await synthesize_cluster(
+                    c["articles"], 
+                    mistral_key=m_key, 
+                    gemini_key=g_key, 
+                    provider=provider, 
+                    fallback_enabled=fallback_enabled,
+                    mistral_model=settings.mistral_discover_model,
+                    gemini_model=settings.gemini_discover_model
+                )
                 c["precomputed_synthesis"] = synth
             except Exception as e:
                 print(f"[Pre-synthesis note for {c['cluster_id']}]: {e}")

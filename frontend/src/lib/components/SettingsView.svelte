@@ -3,6 +3,9 @@
   import { 
     mistralApiKey, selectedMistralModel, 
     geminiApiKey, selectedGeminiModel,
+    selectedMistralArticleModel, selectedGeminiArticleModel,
+    selectedMistralDiscoverModel, selectedGeminiDiscoverModel,
+    selectedMistralPodcastModel, selectedGeminiPodcastModel,
     synthesisProvider, vectorizationProvider, synthesisFallbackProvider, vectorizationFallbackProvider, mistralEmbedModel, geminiEmbedModel,
     refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, 
     saveSettings, runArticlesCleanup, fetchVpsSettings 
@@ -11,8 +14,15 @@
 
   let mistralKeyInput = $mistralApiKey;
   let mistralModelInput = $selectedMistralModel;
+  let mistralArticleInput = $selectedMistralArticleModel;
+  let mistralDiscoverInput = $selectedMistralDiscoverModel;
+  let mistralPodcastInput = $selectedMistralPodcastModel;
+
   let geminiKeyInput = $geminiApiKey;
   let geminiModelInput = $selectedGeminiModel;
+  let geminiArticleInput = $selectedGeminiArticleModel;
+  let geminiDiscoverInput = $selectedGeminiDiscoverModel;
+  let geminiPodcastInput = $selectedGeminiPodcastModel;
   
   let synthProvInput = $synthesisProvider;
   let vectProvInput = $vectorizationProvider;
@@ -48,6 +58,12 @@
       vectProvInput = vpsKeys.vectorization_provider || 'mistral';
       mistralModelInput = vpsKeys.mistral_model || 'mistral-small-latest';
       geminiModelInput = vpsKeys.gemini_model || 'gemini-1.5-flash';
+      mistralArticleInput = vpsKeys.mistral_article_model || 'mistral-small-latest';
+      geminiArticleInput = vpsKeys.gemini_article_model || 'gemini-1.5-flash';
+      mistralDiscoverInput = vpsKeys.mistral_discover_model || 'mistral-small-latest';
+      geminiDiscoverInput = vpsKeys.gemini_discover_model || 'gemini-1.5-flash';
+      mistralPodcastInput = vpsKeys.mistral_podcast_model || 'mistral-large-latest';
+      geminiPodcastInput = vpsKeys.gemini_podcast_model || 'gemini-1.5-pro';
       synthFallbackInput = vpsKeys.synthesis_fallback_provider || 'gemini';
       vectFallbackInput = vpsKeys.vectorization_fallback_provider || 'gemini';
       mistralEmbedInput = vpsKeys.mistral_embed_model || 'mistral-embed';
@@ -65,6 +81,9 @@
     await saveSettings(
       mistralKeyInput, mistralModelInput, 
       geminiKeyInput, geminiModelInput,
+      mistralArticleInput, geminiArticleInput,
+      mistralDiscoverInput, geminiDiscoverInput,
+      mistralPodcastInput, geminiPodcastInput,
       synthProvInput, vectProvInput, synthFallbackInput, vectFallbackInput,
       mistralEmbedInput, geminiEmbedInput,
       refreshInput, langInput, fullTextInput, retentionInput
@@ -149,7 +168,7 @@
       </div>
       <div>
         <h2 class="text-2xl font-bold">Paramètres Globaux</h2>
-        <p class="text-sm text-gray-500">Intelligence Artificielle, Préférences et Stockage</p>
+        <p class="text-sm text-gray-500">Intelligence Artificielle, Modèles par Fonctionnalité & Stockage</p>
       </div>
     </div>
     <div>
@@ -176,33 +195,68 @@
 
       <!-- Section: Intelligence Artificielle & Fournisseurs -->
       <section class="bg-white dark:bg-dark-card rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
-        <h3 class="text-lg font-bold mb-6 border-b border-gray-100 dark:border-gray-800 pb-4 text-primary-500">🧠 Intelligence Artificielle & Fournisseurs</h3>
+        <h3 class="text-lg font-bold mb-6 border-b border-gray-100 dark:border-gray-800 pb-4 text-primary-500">🧠 Choix des Modèles IA par Fonctionnalité</h3>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
           
-          <!-- Bloc Mistral -->
+          <!-- Bloc Mistral AI -->
           <div class="space-y-4">
             <h4 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
               <span class="w-3 h-3 rounded-full bg-orange-400"></span> Mistral AI
             </h4>
-            <div class="space-y-3">
-              <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Clé API Mistral</label>
+            <div class="space-y-3 bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+              <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400">Clé API Mistral</label>
               <div class="relative">
-                <input type={showMistralPassword ? 'text' : 'password'} bind:value={mistralKeyInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-2 pl-4 pr-16 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ex: api_key_..."/>
+                <input type={showMistralPassword ? 'text' : 'password'} bind:value={mistralKeyInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 pl-4 pr-16 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ex: api_key_..."/>
                 <button on:click={() => showMistralPassword = !showMistralPassword} class="absolute right-3 top-2.5 text-gray-400 text-xs">
                   {showMistralPassword ? 'Cacher' : 'Voir'}
                 </button>
               </div>
-              
-              <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mt-2">Modèle Mistral</label>
-              <select bind:value={mistralModelInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-primary-500">
-                <option value="mistral-small-latest">Mistral Small (Rapide)</option>
-                <option value="mistral-medium-latest">Mistral Medium (Équilibré)</option>
-                <option value="mistral-large-latest">Mistral Large (Précis)</option>
-              </select>
 
-              <button on:click={testMistralConnection} disabled={isTestingMistral} class="text-xs font-semibold px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
-                {isTestingMistral ? 'Test...' : 'Tester la connexion Mistral'}
+              <div class="pt-2 space-y-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">📰 Résumés d'articles (Mistral)</label>
+                  <select bind:value={mistralArticleInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-primary-500">
+                    <option value="mistral-small-latest">Mistral Small (Rapide & Économique)</option>
+                    <option value="mistral-medium-latest">Mistral Medium (Équilibré)</option>
+                    <option value="mistral-large-latest">Mistral Large (Précis & Détaillé)</option>
+                    <option value="ministral-8b-latest">Ministral 8B</option>
+                    <option value="codestral-latest">Codestral</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">🧭 Tuiles Découvrir & Synthèses (Mistral)</label>
+                  <select bind:value={mistralDiscoverInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-primary-500">
+                    <option value="mistral-small-latest">Mistral Small (Rapide)</option>
+                    <option value="mistral-medium-latest">Mistral Medium (Équilibré)</option>
+                    <option value="mistral-large-latest">Mistral Large (Haute Qualité)</option>
+                    <option value="ministral-8b-latest">Ministral 8B</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-purple-600 dark:text-purple-400 mb-1 font-bold">🎙️ Studio Podcast (Mistral)</label>
+                  <select bind:value={mistralPodcastInput} class="w-full bg-white dark:bg-dark-card border border-purple-300 dark:border-purple-800 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-purple-500 font-medium">
+                    <option value="mistral-large-latest">Mistral Large (Recommandé - Haute Qualité Script)</option>
+                    <option value="mistral-medium-latest">Mistral Medium (Équilibré)</option>
+                    <option value="mistral-small-latest">Mistral Small (Rapide)</option>
+                    <option value="codestral-latest">Codestral</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Modèle par défaut / fallback</label>
+                  <select bind:value={mistralModelInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-1.5 px-3 text-xs text-gray-600">
+                    <option value="mistral-small-latest">Mistral Small</option>
+                    <option value="mistral-medium-latest">Mistral Medium</option>
+                    <option value="mistral-large-latest">Mistral Large</option>
+                  </select>
+                </div>
+              </div>
+
+              <button on:click={testMistralConnection} disabled={isTestingMistral} class="text-xs font-semibold px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 rounded-lg w-full mt-2">
+                {isTestingMistral ? 'Test en cours...' : 'Tester la connexion Mistral'}
               </button>
               {#if testResultMistral}
                 <div class="text-xs font-medium mt-1 {testResultMistral.success ? 'text-emerald-500' : 'text-rose-500'}">{testResultMistral.message}</div>
@@ -210,36 +264,62 @@
             </div>
           </div>
 
-          <!-- Bloc Gemini -->
+          <!-- Bloc Google Gemini -->
           <div class="space-y-4">
             <h4 class="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
               <span class="w-3 h-3 rounded-full bg-blue-500"></span> Google Gemini
             </h4>
-            <div class="space-y-3">
-              <label class="block text-sm font-medium text-gray-600 dark:text-gray-400">Clé API Gemini</label>
+            <div class="space-y-3 bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+              <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400">Clé API Gemini</label>
               <div class="relative">
-                <input type={showGeminiPassword ? 'text' : 'password'} bind:value={geminiKeyInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-2 pl-4 pr-16 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ex: AIzaSy..."/>
+                <input type={showGeminiPassword ? 'text' : 'password'} bind:value={geminiKeyInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 pl-4 pr-16 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ex: AIzaSy..."/>
                 <button on:click={() => showGeminiPassword = !showGeminiPassword} class="absolute right-3 top-2.5 text-gray-400 text-xs">
                   {showGeminiPassword ? 'Cacher' : 'Voir'}
                 </button>
               </div>
 
-              <label class="block text-sm font-medium text-gray-600 dark:text-gray-400 mt-2">Modèle Gemini</label>
-              <select bind:value={geminiModelInput} class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-primary-500">
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Rapide)</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Précis)</option>
-                <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                <option value="gemini-3.0-flash">Gemini 3.0 Flash</option>
-                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
-                <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
-              </select>
+              <div class="pt-2 space-y-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">📰 Résumés d'articles (Gemini)</label>
+                  <select bind:value={geminiArticleInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-primary-500">
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Rapide)</option>
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                  </select>
+                </div>
 
-              <button on:click={testGeminiConnection} disabled={isTestingGemini} class="text-xs font-semibold px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
-                {isTestingGemini ? 'Test...' : 'Tester la connexion Gemini'}
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">🧭 Tuiles Découvrir & Synthèses (Gemini)</label>
+                  <select bind:value={geminiDiscoverInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-primary-500">
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-purple-600 dark:text-purple-400 mb-1 font-bold">🎙️ Studio Podcast (Gemini)</label>
+                  <select bind:value={geminiPodcastInput} class="w-full bg-white dark:bg-dark-card border border-purple-300 dark:border-purple-800 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-purple-500 font-medium">
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (Recommandé - Haute Précision)</option>
+                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Modèle par défaut / fallback</label>
+                  <select bind:value={geminiModelInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-1.5 px-3 text-xs text-gray-600">
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                  </select>
+                </div>
+              </div>
+
+              <button on:click={testGeminiConnection} disabled={isTestingGemini} class="text-xs font-semibold px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 rounded-lg w-full mt-2">
+                {isTestingGemini ? 'Test en cours...' : 'Tester la connexion Gemini'}
               </button>
               {#if testResultGemini}
                 <div class="text-xs font-medium mt-1 {testResultGemini.success ? 'text-emerald-500' : 'text-rose-500'}">{testResultGemini.message}</div>

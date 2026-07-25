@@ -31,6 +31,9 @@ class PodcastGenerateRequest(BaseModel):
     voice: Optional[str] = "Marie - Neutral"
     theme: Optional[str] = None
     api_key: Optional[str] = None
+    provider: Optional[str] = None
+    mistral_model: Optional[str] = None
+    gemini_model: Optional[str] = None
 
 class ScheduleProgramInput(BaseModel):
     name: Optional[str] = "Nouveau Programme Radio"
@@ -43,6 +46,9 @@ class ScheduleProgramInput(BaseModel):
     tone: Optional[str] = "journal_matinal"
     voice: Optional[str] = "Marie - Neutral"
     theme: Optional[str] = ""
+    provider: Optional[str] = None
+    mistral_model: Optional[str] = None
+    gemini_model: Optional[str] = None
 
 @router.get("/feed-token")
 def get_feed_token():
@@ -138,6 +144,9 @@ async def run_schedule_now(program_id: str, request: Request, background_tasks: 
                 tone=target_prog.get("tone", "journal_matinal"),
                 voice_key=target_prog.get("voice", "Marie - Neutral"),
                 theme=target_prog.get("theme", ""),
+                provider=target_prog.get("provider"),
+                mistral_model=target_prog.get("mistral_model"),
+                gemini_model=target_prog.get("gemini_model"),
                 api_key=key,
                 base_url=base_url
             )
@@ -170,6 +179,9 @@ async def create_podcast(payload: PodcastGenerateRequest, request: Request):
             tone=payload.tone or "journal_matinal",
             voice_key=payload.voice or "Marie - Neutral",
             theme=payload.theme,
+            provider=payload.provider,
+            mistral_model=payload.mistral_model,
+            gemini_model=payload.gemini_model,
             api_key=api_key,
             base_url=base_url
         )

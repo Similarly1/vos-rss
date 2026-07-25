@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     vectorization_fallback_provider: str = "gemini"
     mistral_model: str = "mistral-small-latest"
     gemini_model: str = "gemini-1.5-flash"
+    mistral_article_model: str = "mistral-small-latest"
+    gemini_article_model: str = "gemini-1.5-flash"
+    mistral_discover_model: str = "mistral-small-latest"
+    gemini_discover_model: str = "gemini-1.5-flash"
+    mistral_podcast_model: str = "mistral-large-latest"
+    gemini_podcast_model: str = "gemini-1.5-pro"
     mistral_embed_model: str = "mistral-embed"
     gemini_embed_model: str = "text-embedding-004"
     fallback_enabled: bool = True  # Retro-compatibility

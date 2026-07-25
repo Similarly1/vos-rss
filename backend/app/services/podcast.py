@@ -70,8 +70,10 @@ async def generate_podcast_show(
     api_key: str = None, # kept for retrocompatibility
     mistral_key: str = "",
     gemini_key: str = "",
-    provider: str = "mistral",
+    provider: str = None,
     fallback_enabled: bool = True,
+    mistral_model: str = None,
+    gemini_model: str = None,
     base_url: str = None
 ) -> dict:
     """
@@ -85,6 +87,10 @@ async def generate_podcast_show(
     
     if not m_key and not g_key:
         raise ValueError("Clé API Mistral ou Gemini requise pour générer l'émission de podcast.")
+
+    prov = (provider or settings.synthesis_provider or ("mistral" if m_key else "gemini")).lower()
+    m_model = mistral_model or settings.mistral_podcast_model or settings.mistral_model or "mistral-large-latest"
+    g_model = gemini_model or settings.gemini_podcast_model or settings.gemini_model or "gemini-1.5-pro"
 
     b_url = sanitize_base_url(base_url)
     feed_token = get_or_create_podcast_feed_token()
@@ -183,7 +189,7 @@ async def generate_podcast_show(
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "mistral-small-latest",
+                    "model": m_model,
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
@@ -193,7 +199,7 @@ async def generate_podcast_show(
                 timeout=45.0
             )
             if res.status_code != 200:
-                raise ValueError(f"Erreur génération script Mistral: {res.text}")
+                raise ValueError(f"Erreur génération script Mistral ({m_model}): {res.text}")
             return json.loads(res.json()["choices"][0]["message"]["content"])
 
     async def call_gemini():
@@ -201,7 +207,7 @@ async def generate_podcast_show(
             raise ValueError("Clé API Gemini manquante.")
         async with httpx.AsyncClient() as client:
             res = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={g_key}",
+                f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={g_key}",
                 headers={"Content-Type": "application/json"},
                 json={
                     "system_instruction": {
@@ -217,7 +223,7 @@ async def generate_podcast_show(
                 timeout=45.0
             )
             if res.status_code != 200:
-                raise ValueError(f"Erreur génération script Gemini: {res.text}")
+                raise ValueError(f"Erreur génération script Gemini ({g_model}): {res.text}")
             return json.loads(res.json()["candidates"][0]["content"]["parts"][0]["text"])
 
     async def try_provider(p_name: str):
@@ -229,11 +235,11 @@ async def generate_podcast_show(
             raise ValueError("Fournisseur inconnu.")
 
     try:
-        script_data = await try_provider(provider)
+        script_data = await try_provider(prov)
     except Exception as e:
-        print(f"Erreur génération script avec {provider} : {e}")
+        print(f"Erreur génération script avec {prov} : {e}")
         if fallback_enabled:
-            fallback_provider = "gemini" if provider == "mistral" else "mistral"
+            fallback_provider = "gemini" if prov == "mistral" else "mistral"
             print(f"Fallback activé : tentative avec {fallback_provider}...")
             try:
                 script_data = await try_provider(fallback_provider)

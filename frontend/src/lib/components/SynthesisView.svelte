@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { mistralApiKey, selectedMistralModel, currentView } from '../stores/appState.js';
+  import { mistralApiKey, geminiApiKey, synthesisProvider, selectedMistralDiscoverModel, selectedGeminiDiscoverModel, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice } from '../stores/audioStore.js';
 
   let status = { total_articles: 0, vectorized_articles: 0, pending_articles: 0, sqlite_vec_enabled: true };
@@ -80,8 +80,8 @@
   }
 
   async function generateClusterSynthesis(cluster) {
-    if (!$mistralApiKey) {
-      error = "Veuillez configurer votre clé API Mistral dans les Paramètres.";
+    if (!$mistralApiKey && !$geminiApiKey) {
+      error = "Veuillez configurer une clé API (Mistral ou Gemini) dans les Paramètres.";
       return;
     }
 
@@ -90,13 +90,18 @@
     synthLoading = { ...synthLoading };
 
     try {
+      const activeProvider = $synthesisProvider || ($mistralApiKey ? 'mistral' : 'gemini');
+      const activeKey = activeProvider === 'gemini' ? $geminiApiKey : $mistralApiKey;
+      const activeModel = activeProvider === 'gemini' ? $selectedGeminiDiscoverModel : $selectedMistralDiscoverModel;
+
       const res = await fetch('/api/clustering/synthesize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           articles: cluster.articles,
-          api_key: $mistralApiKey,
-          model: $selectedMistralModel
+          provider: activeProvider,
+          api_key: activeKey,
+          model: activeModel
         })
       });
 

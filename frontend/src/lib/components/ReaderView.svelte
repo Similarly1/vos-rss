@@ -1,5 +1,5 @@
 <script>
-  import { selectedItemId, articlesList, mistralApiKey, selectedMistralModel, currentView } from '../stores/appState.js';
+  import { selectedItemId, articlesList, mistralApiKey, geminiApiKey, synthesisProvider, selectedMistralArticleModel, selectedGeminiArticleModel, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice, sanitizeTextForSpeech } from '../stores/audioStore.js';
 
   $: selectedArticle = $articlesList.find(a => a.id === $selectedItemId);
@@ -13,8 +13,8 @@
   async function generateSummary(articleId) {
     if (!articleId) return;
 
-    if (!$mistralApiKey) {
-      errorState[articleId] = "Veuillez d'abord configurer votre clé API Mistral dans les Paramètres.";
+    if (!$mistralApiKey && !$geminiApiKey) {
+      errorState[articleId] = "Veuillez d'abord configurer une clé API (Mistral ou Gemini) dans les Paramètres.";
       return;
     }
 
@@ -24,12 +24,17 @@
     errorState = { ...errorState };
 
     try {
+      const activeProvider = $synthesisProvider || ($mistralApiKey ? 'mistral' : 'gemini');
+      const activeKey = activeProvider === 'gemini' ? $geminiApiKey : $mistralApiKey;
+      const activeModel = activeProvider === 'gemini' ? $selectedGeminiArticleModel : $selectedMistralArticleModel;
+
       const res = await fetch(`/api/articles/${articleId}/summarize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          api_key: $mistralApiKey,
-          model: $selectedMistralModel
+          provider: activeProvider,
+          api_key: activeKey,
+          model: activeModel
         })
       });
 

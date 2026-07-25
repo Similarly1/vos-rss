@@ -85,6 +85,12 @@ class AppSettingsRequest(BaseModel):
     vectorization_provider: Optional[str] = None
     mistral_model: Optional[str] = None
     gemini_model: Optional[str] = None
+    mistral_article_model: Optional[str] = None
+    gemini_article_model: Optional[str] = None
+    mistral_discover_model: Optional[str] = None
+    gemini_discover_model: Optional[str] = None
+    mistral_podcast_model: Optional[str] = None
+    gemini_podcast_model: Optional[str] = None
     synthesis_fallback_provider: Optional[str] = None
     vectorization_fallback_provider: Optional[str] = None
     mistral_embed_model: Optional[str] = None
@@ -131,6 +137,12 @@ def get_settings():
             "vectorization_provider": settings.vectorization_provider,
             "mistral_model": settings.mistral_model,
             "gemini_model": settings.gemini_model,
+            "mistral_article_model": settings.mistral_article_model,
+            "gemini_article_model": settings.gemini_article_model,
+            "mistral_discover_model": settings.mistral_discover_model,
+            "gemini_discover_model": settings.gemini_discover_model,
+            "mistral_podcast_model": settings.mistral_podcast_model,
+            "gemini_podcast_model": settings.gemini_podcast_model,
             "synthesis_fallback_provider": settings.synthesis_fallback_provider,
             "vectorization_fallback_provider": settings.vectorization_fallback_provider,
             "mistral_embed_model": settings.mistral_embed_model,
@@ -158,6 +170,12 @@ def save_settings(payload: AppSettingsRequest):
         "VECTORIZATION_PROVIDER": payload.vectorization_provider if payload.vectorization_provider is not None else settings.vectorization_provider,
         "MISTRAL_MODEL": payload.mistral_model if payload.mistral_model is not None else settings.mistral_model,
         "GEMINI_MODEL": payload.gemini_model if payload.gemini_model is not None else settings.gemini_model,
+        "MISTRAL_ARTICLE_MODEL": payload.mistral_article_model if payload.mistral_article_model is not None else settings.mistral_article_model,
+        "GEMINI_ARTICLE_MODEL": payload.gemini_article_model if payload.gemini_article_model is not None else settings.gemini_article_model,
+        "MISTRAL_DISCOVER_MODEL": payload.mistral_discover_model if payload.mistral_discover_model is not None else settings.mistral_discover_model,
+        "GEMINI_DISCOVER_MODEL": payload.gemini_discover_model if payload.gemini_discover_model is not None else settings.gemini_discover_model,
+        "MISTRAL_PODCAST_MODEL": payload.mistral_podcast_model if payload.mistral_podcast_model is not None else settings.mistral_podcast_model,
+        "GEMINI_PODCAST_MODEL": payload.gemini_podcast_model if payload.gemini_podcast_model is not None else settings.gemini_podcast_model,
         "SYNTHESIS_FALLBACK_PROVIDER": payload.synthesis_fallback_provider if payload.synthesis_fallback_provider is not None else settings.synthesis_fallback_provider,
         "VECTORIZATION_FALLBACK_PROVIDER": payload.vectorization_fallback_provider if payload.vectorization_fallback_provider is not None else settings.vectorization_fallback_provider,
         "MISTRAL_EMBED_MODEL": payload.mistral_embed_model if payload.mistral_embed_model is not None else settings.mistral_embed_model,
@@ -196,6 +214,12 @@ def save_settings(payload: AppSettingsRequest):
     if payload.vectorization_provider is not None: settings.vectorization_provider = payload.vectorization_provider
     if payload.mistral_model is not None: settings.mistral_model = payload.mistral_model
     if payload.gemini_model is not None: settings.gemini_model = payload.gemini_model
+    if payload.mistral_article_model is not None: settings.mistral_article_model = payload.mistral_article_model
+    if payload.gemini_article_model is not None: settings.gemini_article_model = payload.gemini_article_model
+    if payload.mistral_discover_model is not None: settings.mistral_discover_model = payload.mistral_discover_model
+    if payload.gemini_discover_model is not None: settings.gemini_discover_model = payload.gemini_discover_model
+    if payload.mistral_podcast_model is not None: settings.mistral_podcast_model = payload.mistral_podcast_model
+    if payload.gemini_podcast_model is not None: settings.gemini_podcast_model = payload.gemini_podcast_model
     if payload.synthesis_fallback_provider is not None: settings.synthesis_fallback_provider = payload.synthesis_fallback_provider
     if payload.vectorization_fallback_provider is not None: settings.vectorization_fallback_provider = payload.vectorization_fallback_provider
     if payload.mistral_embed_model is not None: settings.mistral_embed_model = payload.mistral_embed_model

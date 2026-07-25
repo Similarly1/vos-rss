@@ -9,8 +9,9 @@ from app.config import settings
 router = APIRouter(prefix="/api/articles", tags=["Articles"])
 
 class SummarizeRequest(BaseModel):
+    provider: Optional[str] = None
     api_key: Optional[str] = None
-    model: Optional[str] = "mistral-small-latest"
+    model: Optional[str] = None
 
 @router.get("")
 @router.get("/")
@@ -70,11 +71,19 @@ async def summarize_article(article_id: int, payload: SummarizeRequest):
     if not article:
         raise HTTPException(status_code=404, detail="Article introuvable")
 
-    api_key = payload.api_key or settings.mistral_api_key
-    if not api_key:
+    provider = (payload.provider or settings.synthesis_provider or "mistral").lower()
+    
+    m_key = payload.api_key or (settings.gemini_api_key if provider == "gemini" else settings.mistral_api_key)
+    if not m_key and provider != "gemini":
+        m_key = settings.mistral_api_key or settings.gemini_api_key
+        if settings.gemini_api_key and not settings.mistral_api_key:
+            provider = "gemini"
+            m_key = settings.gemini_api_key
+
+    if not m_key:
         raise HTTPException(
             status_code=400, 
-            detail="Clé API Mistral requise. Veuillez la renseigner dans les Paramètres de l'application."
+            detail="Clé API requise pour la synthèse. Veuillez la renseigner dans les Paramètres."
         )
 
     clean_content = article["content"] or article["title"]
@@ -99,32 +108,49 @@ async def summarize_article(article_id: int, payload: SummarizeRequest):
     """
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.mistral.ai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": payload.model or "mistral-small-latest",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "response_format": {"type": "json_object"}
-                },
-                timeout=30.0
-            )
-
-        if response.status_code != 200:
-            err_data = response.json()
-            raise HTTPException(status_code=response.status_code, detail=err_data.get("message", "Erreur lors de l'appel Mistral AI."))
-
-        res_data = response.json()
-        ai_message = res_data["choices"][0]["message"]["content"]
-
         import json
+        if provider == "gemini":
+            chosen_model = payload.model if payload.model and payload.model != "mistral-small-latest" else (settings.gemini_article_model or settings.gemini_model)
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{chosen_model}:generateContent?key={m_key}",
+                    headers={"Content-Type": "application/json"},
+                    json={
+                        "system_instruction": {"parts": [{"text": system_prompt}]},
+                        "contents": [{"parts": [{"text": user_prompt}]}],
+                        "generationConfig": {"responseMimeType": "application/json"}
+                    },
+                    timeout=30.0
+                )
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=f"Erreur Gemini: {response.text}")
+            res_data = response.json()
+            ai_message = res_data["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            chosen_model = payload.model if payload.model and payload.model != "mistral-small-latest" else (settings.mistral_article_model or settings.mistral_model)
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.mistral.ai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {m_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": chosen_model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        "response_format": {"type": "json_object"}
+                    },
+                    timeout=30.0
+                )
+            if response.status_code != 200:
+                err_data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
+                raise HTTPException(status_code=response.status_code, detail=err_data.get("message", f"Erreur Mistral: {response.text}"))
+            res_data = response.json()
+            ai_message = res_data["choices"][0]["message"]["content"]
+
         parsed_summary = json.loads(ai_message)
         return {"status": "success", "data": parsed_summary}
 
@@ -137,5 +163,7 @@ async def summarize_article(article_id: int, payload: SummarizeRequest):
                 "topic": "Actualité"
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

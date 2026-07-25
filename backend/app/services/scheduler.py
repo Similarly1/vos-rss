@@ -243,6 +243,9 @@ async def start_podcast_scheduler_loop():
                             tone=prog.get("tone", "journal_matinal"),
                             voice_key=prog.get("voice", "Marie - Neutral"),
                             theme=prog.get("theme", ""),
+                            provider=prog.get("provider"),
+                            mistral_model=prog.get("mistral_model"),
+                            gemini_model=prog.get("gemini_model"),
                             api_key=key
                         )
                         prog["last_run"] = current_date_str

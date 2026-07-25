@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { mistralApiKey, currentView } from '../stores/appState.js';
+  import { mistralApiKey, geminiApiKey, synthesisProvider, selectedMistralPodcastModel, selectedGeminiPodcastModel, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice } from '../stores/audioStore.js';
 
   // Recipe configuration options (for immediate generation)
@@ -221,8 +221,8 @@
   }
 
   async function handleGeneratePodcast() {
-    if (!$mistralApiKey) {
-      alert("Veuillez d'abord renseigner votre clé API Mistral dans les Paramètres (icône ⚙️).");
+    if (!$mistralApiKey && !$geminiApiKey) {
+      alert("Veuillez d'abord renseigner une clé API (Mistral AI ou Gemini) dans les Paramètres (icône ⚙️).");
       $currentView = 'settings';
       return;
     }
@@ -233,7 +233,7 @@
 
     try {
       setTimeout(() => {
-        if (isGenerating) progressStep = `2/3 : Rédaction du script multi-émotions par Mistral AI...`;
+        if (isGenerating) progressStep = `2/3 : Rédaction du script multi-émotions par IA...`;
       }, 2500);
 
       setTimeout(() => {
@@ -250,7 +250,10 @@
           tone: tone,
           voice: voiceKey,
           theme: themeInput,
-          api_key: $mistralApiKey
+          provider: $synthesisProvider,
+          mistral_model: $selectedMistralPodcastModel,
+          gemini_model: $selectedGeminiPodcastModel,
+          api_key: $mistralApiKey || $geminiApiKey
         })
       });
 

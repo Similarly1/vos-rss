@@ -22,6 +22,13 @@ export const selectedMistralModel = writable('mistral-small-latest');
 export const geminiApiKey = writable('');
 export const selectedGeminiModel = writable('gemini-1.5-flash');
 
+export const selectedMistralArticleModel = writable('mistral-small-latest');
+export const selectedGeminiArticleModel = writable('gemini-1.5-flash');
+export const selectedMistralDiscoverModel = writable('mistral-small-latest');
+export const selectedGeminiDiscoverModel = writable('gemini-1.5-flash');
+export const selectedMistralPodcastModel = writable('mistral-large-latest');
+export const selectedGeminiPodcastModel = writable('gemini-1.5-pro');
+
 export const synthesisProvider = writable('mistral');
 export const vectorizationProvider = writable('mistral');
 export const synthesisFallbackProvider = writable('gemini');
@@ -53,6 +60,12 @@ export async function fetchVpsSettings() {
       if (data.vectorization_provider) vectorizationProvider.set(data.vectorization_provider);
       if (data.mistral_model) selectedMistralModel.set(data.mistral_model);
       if (data.gemini_model) selectedGeminiModel.set(data.gemini_model);
+      if (data.mistral_article_model) selectedMistralArticleModel.set(data.mistral_article_model);
+      if (data.gemini_article_model) selectedGeminiArticleModel.set(data.gemini_article_model);
+      if (data.mistral_discover_model) selectedMistralDiscoverModel.set(data.mistral_discover_model);
+      if (data.gemini_discover_model) selectedGeminiDiscoverModel.set(data.gemini_discover_model);
+      if (data.mistral_podcast_model) selectedMistralPodcastModel.set(data.mistral_podcast_model);
+      if (data.gemini_podcast_model) selectedGeminiPodcastModel.set(data.gemini_podcast_model);
       if (data.synthesis_fallback_provider) synthesisFallbackProvider.set(data.synthesis_fallback_provider);
       if (data.vectorization_fallback_provider) vectorizationFallbackProvider.set(data.vectorization_fallback_provider);
       if (data.mistral_embed_model) mistralEmbedModel.set(data.mistral_embed_model);
@@ -70,11 +83,26 @@ export async function fetchVpsSettings() {
   return null;
 }
 
-export async function saveSettings(mistralKey, mistralModel, geminiKey, geminiModel, synthProv, vectProv, synthFallback, vectFallback, mistralEmbed, geminiEmbed, refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14) {
+export async function saveSettings(
+  mistralKey, mistralModel, 
+  geminiKey, geminiModel,
+  mistralArticleModel, geminiArticleModel,
+  mistralDiscoverModel, geminiDiscoverModel,
+  mistralPodcastModel, geminiPodcastModel,
+  synthProv, vectProv, synthFallback, vectFallback, mistralEmbed, geminiEmbed, 
+  refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14
+) {
   mistralApiKey.set(mistralKey);
   selectedMistralModel.set(mistralModel);
   geminiApiKey.set(geminiKey);
   selectedGeminiModel.set(geminiModel);
+  selectedMistralArticleModel.set(mistralArticleModel);
+  selectedGeminiArticleModel.set(geminiArticleModel);
+  selectedMistralDiscoverModel.set(mistralDiscoverModel);
+  selectedGeminiDiscoverModel.set(geminiDiscoverModel);
+  selectedMistralPodcastModel.set(mistralPodcastModel);
+  selectedGeminiPodcastModel.set(geminiPodcastModel);
+
   synthesisProvider.set(synthProv);
   vectorizationProvider.set(vectProv);
   synthesisFallbackProvider.set(synthFallback);
@@ -98,6 +126,12 @@ export async function saveSettings(mistralKey, mistralModel, geminiKey, geminiMo
         vectorization_provider: vectProv,
         mistral_model: mistralModel,
         gemini_model: geminiModel,
+        mistral_article_model: mistralArticleModel,
+        gemini_article_model: geminiArticleModel,
+        mistral_discover_model: mistralDiscoverModel,
+        gemini_discover_model: geminiDiscoverModel,
+        mistral_podcast_model: mistralPodcastModel,
+        gemini_podcast_model: geminiPodcastModel,
         synthesis_fallback_provider: synthFallback,
         vectorization_fallback_provider: vectFallback,
         mistral_embed_model: mistralEmbed,

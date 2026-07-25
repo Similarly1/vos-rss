@@ -1,6 +1,6 @@
 <script>
   import { onMount, tick } from 'svelte';
-  import { mistralApiKey, selectedMistralModel, currentView } from '../stores/appState.js';
+  import { mistralApiKey, geminiApiKey, synthesisProvider, selectedMistralDiscoverModel, selectedGeminiDiscoverModel, currentView } from '../stores/appState.js';
   import { playTrack, selectedVoice, sanitizeTextForSpeech } from '../stores/audioStore.js';
 
   // Mode: 'events' (Strict same event) vs 'themes' (Broad thematic digest)
@@ -119,7 +119,7 @@
   }
 
   async function autoSynthesizeClusters(clustersList) {
-    if (!$mistralApiKey) return;
+    if (!$mistralApiKey && !$geminiApiKey) return;
 
     for (const cluster of clustersList.slice(0, 8)) {
       const cId = cluster.cluster_id;
@@ -129,13 +129,18 @@
       synthLoading = { ...synthLoading };
 
       try {
+        const activeProvider = $synthesisProvider || ($mistralApiKey ? 'mistral' : 'gemini');
+        const activeKey = activeProvider === 'gemini' ? $geminiApiKey : $mistralApiKey;
+        const activeModel = activeProvider === 'gemini' ? $selectedGeminiDiscoverModel : $selectedMistralDiscoverModel;
+
         const res = await fetch('/api/clustering/synthesize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             articles: cluster.articles,
-            api_key: $mistralApiKey,
-            model: $selectedMistralModel
+            provider: activeProvider,
+            api_key: activeKey,
+            model: activeModel
           })
         });
 

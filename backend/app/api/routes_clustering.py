@@ -17,7 +17,8 @@ class VectorizeRequest(BaseModel):
 class SynthesizeRequest(BaseModel):
     articles: List[dict]
     api_key: Optional[str] = None
-    model: Optional[str] = "mistral-small-latest"
+    provider: Optional[str] = None
+    model: Optional[str] = None
 
 class PrecomputeRequest(BaseModel):
     api_key: Optional[str] = None
@@ -109,13 +110,18 @@ async def create_synthesis(payload: SynthesizeRequest):
             detail="Clé API Mistral ou Gemini requise pour générer la synthèse. Veuillez la renseigner dans les Paramètres."
         )
 
+    prov = (payload.provider or settings.synthesis_provider or ("gemini" if not m_key and g_key else "mistral")).lower()
+    m_model = payload.model if (payload.model and payload.model != "mistral-small-latest") else settings.mistral_discover_model
+    g_model = payload.model if (payload.model and payload.model != "mistral-small-latest") else settings.gemini_discover_model
+
     try:
         synthesis = await synthesize_cluster(
             payload.articles,
             mistral_key=m_key,
             gemini_key=g_key,
-            provider="gemini" if not m_key and g_key else "mistral",
-            mistral_model=payload.model or "mistral-small-latest"
+            provider=prov,
+            mistral_model=m_model,
+            gemini_model=g_model
         )
         return {"status": "success", "data": synthesis}
     except Exception as e:

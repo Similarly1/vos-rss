@@ -7,7 +7,7 @@
   export let imgClass = 'w-full h-full object-cover';
   export let containerClass = 'w-full h-full relative overflow-hidden';
   export let loading = 'lazy';
-  export let defaultPosition = 'center 38%'; // Smart eye-level default (~38% from top)
+  export let defaultPosition = 'center 12%'; // Top-focused framing to keep eyes & head fully in frame
 
   let isLoaded = false;
   let isError = false;
@@ -41,17 +41,17 @@
           const crop = result.topCrop;
           const centerX = Math.round(((crop.x + crop.width / 2) / imgElement.naturalWidth) * 100);
           
-          // Target eye level (approx 33% down the detected face box instead of geometric center)
-          const eyeY = crop.y + (crop.height * 0.33);
+          // Target top of head / eye line (15% down the crop box)
+          const eyeY = crop.y + (crop.height * 0.15);
           let centerY = Math.round((eyeY / imgElement.naturalHeight) * 100);
           
-          // Clamp centerY between 30% and 45% so top of head is never cut off at top border
-          centerY = Math.max(30, Math.min(45, centerY));
+          // Clamp centerY between 5% and 20% so head & eyes are positioned in upper viewport area
+          centerY = Math.max(5, Math.min(20, centerY));
           
           objectPosition = `${centerX}% ${centerY}%`;
         }
       } catch (err) {
-        // Fallback gracefully to eye-level alignment 'center 38%' if CORS prevents canvas inspection
+        // Fallback gracefully to upper-third alignment 'center 12%' if CORS prevents canvas inspection
         objectPosition = defaultPosition;
       }
     }
@@ -77,7 +77,7 @@
     </div>
   {/if}
 
-  <!-- Progressive Image with Eye-Level SmartCrop & Blur-Up -->
+  <!-- Progressive Image with Top-Third Eye-Level SmartCrop & Blur-Up -->
   {#if currentSrc}
     <img
       bind:this={imgElement}

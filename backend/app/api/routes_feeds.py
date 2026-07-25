@@ -310,7 +310,7 @@ async def test_langsearch_key(payload: KeyTestRequest):
     try:
         async with httpx.AsyncClient() as client:
             res = await client.post(
-                "https://api.langsearch.com/v1/search",
+                "https://api.langsearch.com/v1/web-search",
                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
                 json={"query": "test actualites", "summary": False, "count": 1},
                 timeout=10.0

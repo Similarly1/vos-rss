@@ -35,7 +35,7 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
     try:
         async with httpx.AsyncClient() as client:
             res = await client.post(
-                "https://api.langsearch.com/v1/search",
+                "https://api.langsearch.com/v1/web-search",
                 headers={
                     "Authorization": f"Bearer {key}",
                     "Content-Type": "application/json"
@@ -44,7 +44,7 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
                     "query": search_query,
                     "freshness": "oneMonth",
                     "summary": False,
-                    "count": 12
+                    "count": 10
                 },
                 timeout=12.0
             )
@@ -112,10 +112,18 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
     # Fetch user's existing subscribed feed URLs
     existing_feeds = get_all_feeds()
     subscribed_urls = set()
-    for category in existing_feeds.values():
-        for f in category:
-            subscribed_urls.add(f.get("url", "").lower())
-            subscribed_urls.add(f.get("site_url", "").lower())
+    feeds_items = []
+    if isinstance(existing_feeds, dict):
+        for category in existing_feeds.values():
+            if isinstance(category, list):
+                feeds_items.extend(category)
+    elif isinstance(existing_feeds, list):
+        feeds_items = existing_feeds
+
+    for f in feeds_items:
+        if isinstance(f, dict):
+            if f.get("url"): subscribed_urls.add(f.get("url", "").lower())
+            if f.get("site_url"): subscribed_urls.add(f.get("site_url", "").lower())
 
     # Limit to top candidate URLs for parallel RSS discovery
     target_candidates = candidate_urls[:8]

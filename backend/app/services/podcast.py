@@ -12,6 +12,38 @@ from app.services.audio import generate_podcast_audio, generate_audio_bytes_for_
 
 DEFAULT_PODCAST_COVER = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80"
 
+def sanitize_script_for_tts(text: str) -> str:
+    if not text:
+        return ""
+    # 1. Remove bracketed text like [Votre Nom], [Nom du présentateur], [Musique], [Rires], etc.
+    text = re.sub(r"\[([^\]]+)\]", "", text)
+    # 2. Remove parenthetical stage directions like (musique dynamique)
+    text = re.sub(r"\((musique|rires|pause|transition|jingle|sourire|silence)[^\)]*\)", "", text, flags=re.IGNORECASE)
+    # 3. Clean up repetitive intro phrases
+    text = re.sub(r"revue\s+de\s+presse\s+Vos\s+Revue\s+de\s+Presse", "revue de presse Vos", text, flags=re.IGNORECASE)
+    text = re.sub(r"revue\s+de\s+presse\s+Vos\s+Revue\s+de\s+presse", "revue de presse Vos", text, flags=re.IGNORECASE)
+    # 4. Normalize spaces and floating punctuation
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\s+([,\.\?!;:])", r"\1", text)
+    return text.strip()
+
+def clean_podcast_title(raw_title: str) -> str:
+    if not raw_title:
+        return f"Vos : Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
+    
+    t = raw_title.strip()
+    t = t.strip('"\'')
+    # Clean redundant prefixes/suffixes
+    t = re.sub(r"^\s*Vos\s+Revue\s+de\s+Presse\s*\(Revue\s+de\s+presse\)\s*-?\s*", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"^\s*Vos\s+Revue\s+de\s+Presse\s*-?\s*", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"^\s*Revue\s+de\s+presse\s*-?\s*", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\s*\(Revue\s+de\s+presse\)\s*$", "", t, flags=re.IGNORECASE)
+    t = t.strip(" :-")
+    
+    if not t:
+        return f"Vos : Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
+    return f"Vos : {t}"
+
 def get_app_setting(key: str, default: str = "") -> str:
     try:
         conn = get_db_connection()
@@ -154,15 +186,17 @@ async def generate_podcast_show(
     theme_note = f" (Focus thématique : {theme})" if theme and theme.strip() else ""
 
     system_prompt = (
-        "Tu es le producteur et présentateur vedette du podcast d'actualités 'Vos Revue de Presse'."
-        f"Tu dois rédiger un script d'émission de radio captivant{theme_note} en français, entièrement rédigé pour être lu à haute voix par une synthèse vocale. "
-        f"Style souhaité : {tone_instruction}\n"
-        "Règles d'écriture :\n"
-        "- Commence par une introduction accueillante et accrocheuse ('Bonjour et bienvenue dans votre revue de presse Vos...').\n"
-        "- Enchaîne naturellement les sujets avec de belles transitions radio.\n"
-        "- Cite les médias sources de façon fluide ('Selon Le Temps...', 'D'après une enquête de Mediapart...').\n"
-        "- Termine par une conclusion synthétique et chaleureuse.\n"
-        "- Rédige le texte en français fluide, sans annotations de mise en scène (pas de [Musique], [Rires] ou d'emojis)."
+        "Tu es un journaliste radio chevronné et le présentateur principal de l'émission d'actualités 'Vos'. "
+        f"Ton rôle est de rédiger un script d'émission d'actualités radio d'une qualité professionnelle irréprochable{theme_note}.\n"
+        f"Style d'antenne souhaité : {tone_instruction}\n\n"
+        "CONSIGNES STRICTES POUR LA SYNTHÈSE VOCALE (TTS) :\n"
+        "1. INTERDICTION ABSOLUE des crochets et des textes de remplacement. Ne jamais écrire [Votre Nom], [Nom du présentateur], [Musique], [Rires], etc. Le texte sera directement lu à voix haute par un synthétiseur vocal.\n"
+        "2. N'utilise aucun nom de présentateur fictif ou générique entre crochets. Si tu te présentes en intro, dis simplement 'Bonjour et bienvenue dans Vos, votre revue de presse quotidienne.' sans mentionner de nom propre d'animateur.\n"
+        "3. Ne répète jamais inutilement le nom de l'émission (Évite absolument 'votre revue de presse Vos Revue de Presse').\n"
+        "4. Rédige un français naturel, captivant, vivant et dynamique, fluide à la lecture audio.\n"
+        "5. Les transitions entre chaque sujet doivent être naturelles et journalistiques (ex: 'Du côté de la technologie...', 'En Europe...', 'Autre fait marquant aujourd'hui...').\n"
+        "6. Cite clairement et naturellement les médias sources (ex: 'Selon une enquête du Monde...', 'D'après les informations de TechCrunch...').\n"
+        "7. Évite les phrases moralisatrices clichés en conclusion. Reste sobre, professionnel et chaleureux ('Merci d'avoir suivi cette édition de Vos, et à très vite pour la suite de l'actualité.')."
     )
 
     user_prompt = f"""
@@ -170,10 +204,10 @@ async def generate_podcast_show(
 
     {all_topics_text}
 
-    Génère le script complet du podcast au format JSON suivant :
+    Rédige le script intégral du podcast au format JSON suivant :
     {{
-      "show_title": "Titre d'émission accrocheur incluant les mots-clés principaux et (Revue de presse)",
-      "script": "Script radio intégral rédigé en français..."
+      "show_title": "Titre clair et percutant résumant les sujets phares de l'édition (sans ajouter '(Revue de presse)' au début ou à la fin)",
+      "script": "Script radio complet rédigé en français..."
     }}
     Réponds uniquement au format JSON valide.
     """
@@ -255,11 +289,11 @@ async def generate_podcast_show(
                 "script": "Bonjour, suite à une erreur technique de l'intelligence artificielle, l'émission n'a pas pu être générée."
             }
 
-    show_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
-    if "(Revue de presse)" not in show_title and "Revue de presse" not in show_title:
-        show_title = f"{show_title} (Revue de presse)"
+    raw_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
+    show_title = clean_podcast_title(raw_title)
 
-    full_script = script_data.get("script", "")
+    raw_script = script_data.get("script", "")
+    full_script = sanitize_script_for_tts(raw_script)
     
     # Audio generation is still dependent on voxtral TTS API, we assume it's working with any text.
     audio_filename = await generate_podcast_audio(full_script, voice_key=voice_key, api_key=m_key)

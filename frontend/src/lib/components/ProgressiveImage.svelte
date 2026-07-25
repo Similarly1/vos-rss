@@ -7,7 +7,7 @@
   export let imgClass = 'w-full h-full object-cover';
   export let containerClass = 'w-full h-full relative overflow-hidden';
   export let loading = 'lazy';
-  export let defaultPosition = 'center 12%'; // Top-focused framing to keep eyes & head fully in frame
+  export let defaultPosition = 'center 28%'; // Golden ratio alignment (~28% from top) for eyes + mouth visibility above title overlays
 
   let isLoaded = false;
   let isError = false;
@@ -41,17 +41,17 @@
           const crop = result.topCrop;
           const centerX = Math.round(((crop.x + crop.width / 2) / imgElement.naturalWidth) * 100);
           
-          // Target top of head / eye line (15% down the crop box)
-          const eyeY = crop.y + (crop.height * 0.15);
-          let centerY = Math.round((eyeY / imgElement.naturalHeight) * 100);
+          // Target mid-face (eyes + mouth area, 38% down the detected face crop box)
+          const faceMidY = crop.y + (crop.height * 0.38);
+          let centerY = Math.round((faceMidY / imgElement.naturalHeight) * 100);
           
-          // Clamp centerY between 5% and 20% so head & eyes are positioned in upper viewport area
-          centerY = Math.max(5, Math.min(20, centerY));
+          // Clamp centerY between 18% and 35% so face (eyes + mouth) stays in upper half above bottom title banner
+          centerY = Math.max(18, Math.min(35, centerY));
           
           objectPosition = `${centerX}% ${centerY}%`;
         }
       } catch (err) {
-        // Fallback gracefully to upper-third alignment 'center 12%' if CORS prevents canvas inspection
+        // Fallback gracefully to golden ratio alignment 'center 28%' if CORS prevents canvas inspection
         objectPosition = defaultPosition;
       }
     }
@@ -77,7 +77,7 @@
     </div>
   {/if}
 
-  <!-- Progressive Image with Top-Third Eye-Level SmartCrop & Blur-Up -->
+  <!-- Progressive Image with Golden-Ratio SmartCrop & Blur-Up -->
   {#if currentSrc}
     <img
       bind:this={imgElement}

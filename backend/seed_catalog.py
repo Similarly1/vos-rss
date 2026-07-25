@@ -36,30 +36,30 @@ SEED_FEEDS = [
         "tags": ["#suisse", "#presse", "#économie"]
     },
     {
-        "url": "https://www.24heures.ch/rss",
-        "site_url": "https://www.24heures.ch",
-        "title": "24 Heures (Vaud)",
-        "description": "Le grand journal vaudois d'information régionale et internationale.",
-        "icon_url": "https://www.google.com/s2/favicons?domain=24heures.ch&sz=128",
-        "category": "Suisse",
-        "language": "fr",
-        "country": "CH",
-        "is_full_text": False,
-        "is_verified": True,
-        "tags": ["#suisse", "#vaud", "#presse"]
-    },
-    {
-        "url": "https://www.swissinfo.ch/fre/rss",
-        "site_url": "https://www.swissinfo.ch",
-        "title": "SWI swissinfo.ch (Français)",
-        "description": "Plateforme d'information internationale de la Société suisse de radiodiffusion et télévision (SSR).",
-        "icon_url": "https://www.google.com/s2/favicons?domain=swissinfo.ch&sz=128",
+        "url": "https://latele.ch/feed",
+        "site_url": "https://latele.ch",
+        "title": "La Télé (Vaud & Fribourg)",
+        "description": "La télévision régionale de Suisse romande couvrant l'actualité vaudoise et fribourgeoise.",
+        "icon_url": "https://www.google.com/s2/favicons?domain=latele.ch&sz=128",
         "category": "Suisse",
         "language": "fr",
         "country": "CH",
         "is_full_text": True,
         "is_verified": True,
-        "tags": ["#suisse", "#monde", "#info"]
+        "tags": ["#suisse", "#vaud", "#fribourg", "#média"]
+    },
+    {
+        "url": "https://www.blick.ch/fr/rss.xml",
+        "site_url": "https://www.blick.ch/fr",
+        "title": "Blick (Suisse)",
+        "description": "L'actualité suisse et internationale traitée en direct par le média Blick en français.",
+        "icon_url": "https://www.google.com/s2/favicons?domain=blick.ch&sz=128",
+        "category": "Suisse",
+        "language": "fr",
+        "country": "CH",
+        "is_full_text": True,
+        "is_verified": True,
+        "tags": ["#suisse", "#actualité", "#presse"]
     },
     {
         "url": "https://www.heidi.news/feed",
@@ -302,7 +302,7 @@ SEED_FEEDS = [
 
     # ⛪ CHRÉTIEN
     {
-        "url": "https://www.la-croix.com/RSS/UNIVERS.xml",
+        "url": "https://www.la-croix.com/feeds/rss/site.xml",
         "site_url": "https://www.la-croix.com",
         "title": "La Croix",
         "description": "Grand quotidien catholique français traitant de l'actualité générale, religieuse et spirituelle.",
@@ -341,7 +341,7 @@ SEED_FEEDS = [
         "tags": ["#chrétien", "#évangélique", "#actualité"]
     },
     {
-        "url": "https://www.reformes.ch/feed.xml",
+        "url": "https://www.reformes.ch/rss.xml",
         "site_url": "https://www.reformes.ch",
         "title": "Réformés.ch (Suisse)",
         "description": "Le journal des Églises réformées de Suisse romande (Vaud, Genève, Neuchâtel, Berne-Jura-Neuchâtel).",

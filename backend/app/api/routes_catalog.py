@@ -65,6 +65,8 @@ async def discover_feed(payload: DiscoverRequest):
 
     return res
 
+from app.services.rss import robust_parse_feed, extract_main_image_url
+
 @router.get("/preview")
 async def preview_feed(url: str = Query(..., description="Feed RSS URL to preview")):
     """
@@ -75,49 +77,32 @@ async def preview_feed(url: str = Query(..., description="Feed RSS URL to previe
         raise HTTPException(status_code=400, detail="URL requise.")
 
     try:
-        async with httpx.AsyncClient(headers={"User-Agent": "VosRSS/2.0"}, timeout=10.0) as client:
-            r = await client.get(clean_url)
-            if r.status_code != 200:
-                raise HTTPException(status_code=400, detail=f"Erreur HTTP {r.status_code} lors du chargement du flux.")
+        parsed, final_url = robust_parse_feed(clean_url)
+        if not parsed or not parsed.entries:
+            raise HTTPException(status_code=400, detail="Impossible de lire ce flux RSS (Format invalide, indisponible ou URL incorrecte).")
+
+        articles = []
+        for entry in parsed.entries[:3]:
+            summary = entry.get("summary", entry.get("description", ""))
+            img_url = extract_main_image_url(entry, summary)
             
-            parsed = feedparser.parse(r.text)
-            if not parsed.entries:
-                raise HTTPException(status_code=400, detail="Le flux ne contient aucun article disponible.")
+            import re
+            summary_clean = re.sub(r'<[^>]+>', '', summary)[:180] + ("..." if len(summary) > 180 else "")
 
-            articles = []
-            for entry in parsed.entries[:3]:
-                # Extract image if present
-                img_url = None
-                if entry.get("media_content"):
-                    for m in entry["media_content"]:
-                        if m.get("medium") == "image" or "image" in m.get("type", ""):
-                            img_url = m.get("url")
-                            break
-                if not img_url and entry.get("enclosures"):
-                    for enc in entry["enclosures"]:
-                        if "image" in enc.get("type", ""):
-                            img_url = enc.get("href")
-                            break
+            articles.append({
+                "title": entry.get("title", "Sans titre"),
+                "link": entry.get("link", "#"),
+                "published": entry.get("published", entry.get("updated", "")),
+                "summary": summary_clean,
+                "image_url": img_url
+            })
 
-                summary = entry.get("summary", entry.get("description", ""))
-                # Strip HTML tags for clean summary snippet
-                import re
-                summary_clean = re.sub(r'<[^>]+>', '', summary)[:180] + ("..." if len(summary) > 180 else "")
-
-                articles.append({
-                    "title": entry.get("title", "Sans titre"),
-                    "link": entry.get("link", "#"),
-                    "published": entry.get("published", entry.get("updated", "")),
-                    "summary": summary_clean,
-                    "image_url": img_url
-                })
-
-            return {
-                "title": parsed.feed.get("title", "Flux RSS"),
-                "description": parsed.feed.get("description", ""),
-                "articles": articles
-            }
+        return {
+            "title": parsed.feed.get("title", "Flux RSS"),
+            "description": parsed.feed.get("description", ""),
+            "articles": articles
+        }
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Impossible d'afficher l'aperçu du flux : {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Impossible d'afficher l'aperçu du flux : {str(e)}")

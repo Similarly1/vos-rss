@@ -21,14 +21,39 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
 
     user_query = query.strip()
     if not user_query:
-        return {"status": "error", "message": "Veuillez préciser un mot-clé ou une région (ex: Vaud, Toulouse, Bretagne)."}
+        return {"status": "error", "message": "Veuillez préciser un mot-clé ou un sujet (ex: Vaud, cybersécurité, santé)."}
 
-    # Format search query for local news focus if not already specified
+    # --- Smart query construction ---
+    # Detect if the query looks like a geographic location (local media search)
+    # or a topic/theme (subject-based RSS search)
     lower_q = user_query.lower()
-    if not any(k in lower_q for k in ["journal", "presse", "actualit", "médias", "media", "news"]):
-        search_query = f"journal local actualites {user_query}"
-    else:
+
+    GEO_INDICATORS = [
+        # Explicit French-speaking cantons & cities
+        "vaud", "valais", "genève", "neuchâtel", "fribourg", "berne", "jura",
+        "zurich", "bâle", "lausanne", "sion", "delémont",
+        # French regions & cities (sample)
+        "bretagne", "normandie", "occitanie", "alsace", "lyon", "toulouse",
+        "bordeaux", "marseille", "strasbourg", "nantes", "grenoble", "rennes",
+        "lille", "montpellier", "nice",
+        # Generic geo-media keywords
+        "canton", "région", "ville", "département", "province", "local",
+    ]
+
+    MEDIA_KEYWORDS = ["journal", "presse", "actualit", "médias", "media", "news"]
+
+    is_geo_query = any(k in lower_q for k in GEO_INDICATORS)
+    has_media_keyword = any(k in lower_q for k in MEDIA_KEYWORDS)
+
+    if has_media_keyword:
+        # User already specified media context — use as-is
         search_query = user_query
+    elif is_geo_query:
+        # Geographic query → find local news sources with RSS
+        search_query = f"journal actualités presse {user_query} RSS feed"
+    else:
+        # Topic/theme query → find blogs and specialized sites with RSS on this subject
+        search_query = f"{user_query} blog magazine actualités RSS feed"
 
     candidate_urls = []
     
@@ -47,7 +72,7 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
                     "summary": False,
                     "count": 10
                 },
-                timeout=12.0
+                timeout=8.0
             )
 
             # 2nd attempt fallback if 500 error occurs
@@ -63,7 +88,7 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
                         "summary": False,
                         "count": 10
                     },
-                    timeout=12.0
+                    timeout=8.0
                 )
 
             if res.status_code != 200:
@@ -143,7 +168,7 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
             if f.get("site_url"): subscribed_urls.add(f.get("site_url", "").lower())
 
     # Limit to top candidate URLs for parallel RSS discovery
-    target_candidates = candidate_urls[:8]
+    target_candidates = candidate_urls[:6]
     tasks = [discover_rss_feed(site_url) for site_url in target_candidates]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -165,7 +190,7 @@ async def search_local_news_feeds(query: str, langsearch_key: str = None) -> Dic
                 "site_url": res.get("site_url") or site_url,
                 "description": res.get("description", ""),
                 "favicon": res.get("icon_url") or f"https://www.google.com/s2/favicons?domain={urllib.parse.urlparse(site_url).netloc}&sz=128",
-                "tags": res.get("tags", ["#local"]),
+                "tags": res.get("tags", []),
                 "preview_articles": res.get("preview_articles", []),
                 "already_subscribed": is_subscribed
             })

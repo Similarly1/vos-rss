@@ -12,8 +12,10 @@
   let loadingCatalog = false;
   let loadingMore = false;
 
+  // Mode: 'catalog' | 'web'
+  let searchMode = 'catalog';
+
   // Local News Search state (LangSearch API)
-  let localQuery = '';
   let searchingLocal = false;
   let localNewsResults = [];
   let localNewsError = null;
@@ -36,9 +38,9 @@
   let previewError = null;
 
   // Subscription state maps
-  let subscribingMap = {}; // { [url]: bool }
-  let subscribedSuccessMap = {}; // { [url]: bool }
-  let errorMap = {}; // { [url]: string }
+  let subscribingMap = {};
+  let subscribedSuccessMap = {};
+  let errorMap = {};
 
   const categories = ['Tous', 'Suisse', 'Monde', 'Technologie', 'Chrétien', 'Science', 'Général'];
   const languages = [
@@ -49,9 +51,21 @@
     { code: 'es', label: '🇪🇸 Espagnol' }
   ];
 
-  $: alreadySubscribedUrls = $feedsList.map(f => (f.url || '').toLowerCase());
+  const localSuggestions = [
+    '🇨🇭 Vaud', '🇫🇷 Lyon', '🇫🇷 Bretagne',
+    '🤖 Intelligence artificielle', '🔒 Cybersécurité', '🌍 Climat',
+    '🚀 Espace', '💰 Finance', '🎮 Gaming',
+    '🏥 Santé', '⚽ Sport', '🎵 Musique',
+    '📷 Photographie', '🧪 Science', '🏛️ Politique'
+  ];
 
-  // Debounce search timer
+  $: alreadySubscribedUrls = $feedsList.map(f => (f.url || '').toLowerCase());
+  $: isWebMode = searchMode === 'web';
+  $: isUrlMode = searchMode === 'catalog' && isUrlCandidate(searchQuery);
+  $: searchPlaceholder = isWebMode
+    ? 'Chercher par sujet, région, thème… (ex : cybersécurité, Vaud, climat)'
+    : 'Rechercher un sujet, un site ou coller un lien RSS…';
+
   let searchTimeout = null;
 
   onMount(() => {
@@ -62,51 +76,31 @@
   async function loadTags() {
     try {
       const res = await fetch('/api/catalog/tags');
-      if (res.ok) {
-        availableTags = await res.json();
-      }
+      if (res.ok) availableTags = await res.json();
     } catch (e) {
       console.error('Erreur chargement tags catalog:', e);
     }
   }
 
   async function loadCatalog(reset = true) {
-    if (reset) {
-      currentOffset = 0;
-      loadingCatalog = true;
-    } else {
-      loadingMore = true;
-    }
+    if (reset) { currentOffset = 0; loadingCatalog = true; }
+    else loadingMore = true;
 
     try {
       const params = new URLSearchParams();
-      if (searchQuery.trim() && !isUrlCandidate(searchQuery.trim())) {
-        params.append('q', searchQuery.trim());
-      }
-      if (selectedCategory !== 'Tous') {
-        params.append('category', selectedCategory);
-      }
-      if (selectedTag !== 'Tous') {
-        params.append('tag', selectedTag);
-      }
-      if (selectedLanguageFilter !== 'Tous') {
-        params.append('language', selectedLanguageFilter);
-      }
+      if (searchQuery.trim() && !isUrlCandidate(searchQuery.trim())) params.append('q', searchQuery.trim());
+      if (selectedCategory !== 'Tous') params.append('category', selectedCategory);
+      if (selectedTag !== 'Tous') params.append('tag', selectedTag);
+      if (selectedLanguageFilter !== 'Tous') params.append('language', selectedLanguageFilter);
       params.append('limit', limit.toString());
       params.append('offset', currentOffset.toString());
 
       const res = await fetch(`/api/catalog?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        const newFeeds = data.feeds || [];
         totalFeedsCount = data.total || 0;
         hasMoreFeeds = data.has_more || false;
-
-        if (reset) {
-          catalogFeeds = newFeeds;
-        } else {
-          catalogFeeds = [...catalogFeeds, ...newFeeds];
-        }
+        catalogFeeds = reset ? (data.feeds || []) : [...catalogFeeds, ...(data.feeds || [])];
       }
     } catch (e) {
       console.error('Erreur chargement catalogue:', e);
@@ -117,10 +111,7 @@
   }
 
   function loadMoreFeeds() {
-    if (hasMoreFeeds && !loadingMore) {
-      currentOffset += limit;
-      loadCatalog(false);
-    }
+    if (hasMoreFeeds && !loadingMore) { currentOffset += limit; loadCatalog(false); }
   }
 
   function isUrlCandidate(str) {
@@ -128,14 +119,59 @@
     return s.startsWith('http://') || s.startsWith('https://') || (s.includes('.') && !s.includes(' ') && s.length > 4);
   }
 
+  // Unified input handler — delegates based on mode
   function handleSearchInput() {
+    if (isWebMode) return; // web mode fires on Enter / action only
     discoveredFeedResult = null;
     discoveryError = null;
     clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => loadCatalog(true), 300);
+  }
 
-    searchTimeout = setTimeout(() => {
+  // Unified Enter / action
+  function handleKeydown(e) {
+    if (e.key !== 'Enter') return;
+    if (isWebMode) {
+      triggerWebSearch();
+    } else if (isUrlCandidate(searchQuery)) {
+      triggerAutoDiscovery();
+    } else {
       loadCatalog(true);
-    }, 250);
+    }
+  }
+
+  function handleActionClick() {
+    if (isWebMode) triggerWebSearch();
+    else if (isUrlCandidate(searchQuery)) triggerAutoDiscovery();
+  }
+
+  async function triggerWebSearch(queryOverride = null) {
+    const q = (queryOverride ?? searchQuery).trim();
+    if (!q) return;
+    if (queryOverride !== null) searchQuery = queryOverride;
+
+    searchingLocal = true;
+    localNewsError = null;
+    localNewsResults = [];
+
+    try {
+      const res = await fetch('/api/catalog/search-local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q, api_key: $langsearchApiKey })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        localNewsResults = data.data || [];
+        if (!localNewsResults.length) localNewsError = `Aucun média local détecté pour "${q}".`;
+      } else {
+        localNewsError = data.detail || data.message || 'Échec de la recherche.';
+      }
+    } catch {
+      localNewsError = 'Erreur réseau.';
+    } finally {
+      searchingLocal = false;
+    }
   }
 
   async function triggerAutoDiscovery() {
@@ -150,48 +186,43 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: searchQuery.trim(), auto_save: false })
       });
-
       const data = await res.json();
-      if (res.ok) {
-        discoveredFeedResult = data;
-      } else {
-        discoveryError = data.detail || "Impossible d'auto-détecter un flux RSS sur ce domaine.";
-      }
-    } catch (err) {
-      discoveryError = "Erreur de connexion lors de l'auto-détection.";
+      if (res.ok) discoveredFeedResult = data;
+      else discoveryError = data.detail || "Impossible de détecter un flux RSS sur ce domaine.";
+    } catch {
+      discoveryError = "Erreur de connexion.";
     } finally {
       discoveringFeed = false;
     }
   }
 
-  function handleKeydown(e) {
-    if (e.key === 'Enter') {
-      if (isUrlCandidate(searchQuery)) {
-        triggerAutoDiscovery();
-      } else {
-        loadCatalog(true);
-      }
+  function toggleMode() {
+    if (searchMode === 'catalog') {
+      searchMode = 'web';
+      searchQuery = '';
+      discoveredFeedResult = null;
+      discoveryError = null;
+    } else {
+      searchMode = 'catalog';
+      localNewsResults = [];
+      localNewsError = null;
+      searchQuery = '';
+      loadCatalog(true);
     }
+  }
+
+  function selectSuggestion(pill) {
+    const q = pill.replace(/^[^\s]+\s*/, '');
+    triggerWebSearch(q);
   }
 
   function selectTag(tagName) {
-    if (selectedTag === tagName) {
-      selectedTag = 'Tous';
-    } else {
-      selectedTag = tagName;
-    }
+    selectedTag = selectedTag === tagName ? 'Tous' : tagName;
     loadCatalog(true);
   }
 
-  function selectCategory(cat) {
-    selectedCategory = cat;
-    loadCatalog(true);
-  }
-
-  function selectLanguage(langCode) {
-    selectedLanguageFilter = langCode;
-    loadCatalog(true);
-  }
+  function selectCategory(cat) { selectedCategory = cat; loadCatalog(true); }
+  function selectLanguage(langCode) { selectedLanguageFilter = langCode; loadCatalog(true); }
 
   async function subscribeToFeed(feedUrl, category = 'Général', language = 'fr') {
     subscribingMap[feedUrl] = true;
@@ -202,15 +233,9 @@
       const res = await fetch('/api/feeds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: feedUrl,
-          category: category || 'Général',
-          language: language || 'fr'
-        })
+        body: JSON.stringify({ url: feedUrl, category: category || 'Général', language: language || 'fr' })
       });
-
       const result = await res.json();
-
       if (res.ok) {
         subscribedSuccessMap[feedUrl] = true;
         subscribedSuccessMap = { ...subscribedSuccessMap };
@@ -219,48 +244,11 @@
       } else {
         errorMap[feedUrl] = result.detail || "Erreur lors de l'abonnement.";
       }
-    } catch (err) {
+    } catch {
       errorMap[feedUrl] = "Erreur de connexion.";
     } finally {
       subscribingMap[feedUrl] = false;
       subscribingMap = { ...subscribingMap };
-    }
-  }
-
-  async function handleSearchLocalNews(queryToSearch = null) {
-    if (queryToSearch !== null) {
-      localQuery = queryToSearch;
-    }
-    const targetQ = (localQuery || '').trim();
-    if (!targetQ) return;
-
-    searchingLocal = true;
-    localNewsError = null;
-    localNewsResults = [];
-
-    try {
-      const res = await fetch('/api/catalog/search-local', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: targetQ,
-          api_key: $langsearchApiKey
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        localNewsResults = data.data || [];
-        if (localNewsResults.length === 0) {
-          localNewsError = `Aucun média local avec flux RSS détecté pour "${targetQ}".`;
-        }
-      } else {
-        localNewsError = data.detail || data.message || "Échec de la recherche de médias locaux.";
-      }
-    } catch (err) {
-      localNewsError = "Erreur réseau lors de la recherche des médias locaux.";
-    } finally {
-      searchingLocal = false;
     }
   }
 
@@ -273,13 +261,10 @@
     try {
       const res = await fetch(`/api/catalog/preview?url=${encodeURIComponent(feed.url)}`);
       const data = await res.json();
-      if (res.ok) {
-        previewArticles = data.articles || [];
-      } else {
-        previewError = data.detail || "Impossible de charger l'aperçu.";
-      }
-    } catch (e) {
-      previewError = "Erreur de connexion lors du chargement de l'aperçu.";
+      if (res.ok) previewArticles = data.articles || [];
+      else previewError = data.detail || "Impossible de charger l'aperçu.";
+    } catch {
+      previewError = "Erreur de connexion.";
     } finally {
       previewLoading = false;
     }
@@ -293,7 +278,6 @@
     if (country === 'ES') return '🇪🇸';
     if (country === 'DE') return '🇩🇪';
     if (country === 'VA') return '🇻🇦';
-    
     if (lang === 'fr') return '🇫🇷';
     if (lang === 'en') return '🇬🇧';
     if (lang === 'de') return '🇩🇪';
@@ -302,525 +286,436 @@
   }
 </script>
 
-<div class="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-dark-bg p-6 md:p-10 space-y-8">
-  <div class="max-w-6xl mx-auto space-y-8">
-    
-    <!-- Header -->
-    <div class="space-y-3">
-      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-sky-100 dark:bg-slate-800 text-sky-800 dark:text-sky-300 rounded-full text-xs font-bold border border-sky-200 dark:border-slate-700">
-        <span>✨ Catalogue & Auto-Détection Web</span>
-      </div>
-      <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Catalogue des flux RSS</h1>
-      <p class="text-sm text-gray-500 dark:text-dark-muted max-w-2xl">
-        Explorez plus de 150+ médias certifiés et répertoires d'annuaires ou tapez l'adresse d'un site web (ex: <span class="font-mono text-primary-600 dark:text-primary-400">lemonde.fr</span>) pour détecter automatiquement son flux RSS.
+<!-- ═══════════════════════════════════════════════ MAIN LAYOUT ══ -->
+<div class="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-dark-bg">
+  <div class="max-w-5xl mx-auto px-6 md:px-10 py-10 space-y-8">
+
+    <!-- ── Header ── -->
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Sources</h1>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Explorez le catalogue ou saisissez une URL pour détecter un flux RSS.
       </p>
     </div>
 
-    <!-- LOCAL NEWS SEARCH CARD (LangSearch API) -->
-    <div class="bg-gradient-to-r from-emerald-500/10 via-sky-500/10 to-purple-500/10 p-5 md:p-6 rounded-3xl border border-emerald-500/20 dark:border-emerald-500/30 shadow-sm space-y-4">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h2 class="text-base font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
-            <span>📍 Recherche de Médias Locaux & Régionaux</span>
-            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-emerald-500 text-white rounded-full">LangSearch Web API</span>
-          </h2>
-          <p class="text-xs text-gray-600 dark:text-gray-300 mt-1">
-            Trouvez les journaux et sites d'actualité locaux de votre canton, ville ou région (ex: Vaud, Toulouse, Bretagne) et abonnez-vous en 1 clic.
-          </p>
-        </div>
-      </div>
+    <!-- ── Unified Search Block ── -->
+    <div class="space-y-2.5">
 
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+      <!-- Search bar row -->
+      <div class="flex items-center gap-2">
+        <!-- Input -->
         <div class="relative flex-1">
-          <input 
-            type="text"
-            placeholder="Saisissez une région, ville ou canton (ex: Vaud, Neuchâtel, Lyon, Bretagne)..."
-            bind:value={localQuery}
-            on:keydown={(e) => e.key === 'Enter' && handleSearchLocalNews()}
-            class="w-full bg-white dark:bg-dark-card text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-2xl py-2.5 px-4 text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-gray-400"
-          />
-        </div>
-        <button 
-          on:click={() => handleSearchLocalNews()}
-          disabled={searchingLocal}
-          class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
-        >
-          {#if searchingLocal}
-            <svg class="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-            <span>Recherche...</span>
+          <!-- Icon: magnifier (catalog) or pin (web) -->
+          {#if isWebMode}
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm pointer-events-none select-none">📍</span>
           {:else}
-            <span>🔍 Chercher les médias locaux</span>
+            <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
           {/if}
-        </button>
-      </div>
-
-      <!-- Quick Region Suggestions -->
-      <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-        <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 shrink-0">Exemples :</span>
-        {#each ['🇨🇭 Vaud', '🇨🇭 Valais', '🇨🇭 Neuchâtel', '🇨🇭 Genève', '🇨🇭 Fribourg', '🇫🇷 Lyon', '🇫🇷 Toulouse', '🇫🇷 Bretagne'] as pill}
-          <button 
-            on:click={() => handleSearchLocalNews(pill.replace(/^[^\s]+\s*/, ''))}
-            class="px-2.5 py-1 bg-white/80 dark:bg-dark-card/80 hover:bg-white dark:hover:bg-dark-card border border-emerald-500/20 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-semibold shrink-0 transition-all shadow-2xs"
-          >
-            {pill}
-          </button>
-        {/each}
-      </div>
-
-      <!-- Error / Notice Banner -->
-      {#if localNewsError}
-        <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-xs font-medium text-amber-600 dark:text-amber-400">
-          ⚠️ {localNewsError}
-        </div>
-      {/if}
-
-      <!-- Results Grid -->
-      {#if localNewsResults && localNewsResults.length > 0}
-        <div class="pt-3 border-t border-emerald-500/20 space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-extrabold text-emerald-600 dark:text-emerald-400">
-              {localNewsResults.length} médias locaux trouvés avec flux RSS :
-            </span>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {#each localNewsResults as item}
-              <div class="p-4 bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-800 shadow-2xs flex flex-col justify-between space-y-3">
-                <div class="flex items-start gap-3">
-                  <img src={item.favicon} alt="" class="w-8 h-8 rounded-lg object-cover shrink-0 mt-0.5" on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=' + item.site_url} />
-                  <div class="flex-1 min-w-0">
-                    <h3 class="font-bold text-xs text-gray-900 dark:text-white truncate">{item.title}</h3>
-                    <a href={item.site_url} target="_blank" rel="noopener noreferrer" class="text-[11px] text-gray-400 hover:text-primary-500 truncate block">
-                      {item.site_url}
-                    </a>
-                    {#if item.description}
-                      <p class="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
-                        {item.description}
-                      </p>
-                    {/if}
-                  </div>
-                </div>
-
-                <div class="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
-                  <div class="flex flex-wrap gap-1">
-                    {#each (item.tags || []) as t}
-                      <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">{t}</span>
-                    {/each}
-                  </div>
-
-                  {#if item.already_subscribed || subscribedSuccessMap[item.feed_url]}
-                    <span class="text-xs font-bold text-emerald-500 flex items-center gap-1">
-                      ✓ Abonné
-                    </span>
-                  {:else}
-                    <button 
-                      on:click={() => subscribeToFeed(item.feed_url, 'Général', 'fr')}
-                      disabled={subscribingMap[item.feed_url]}
-                      class="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all disabled:opacity-50 flex items-center gap-1"
-                    >
-                      {#if subscribingMap[item.feed_url]}
-                        <span>...</span>
-                      {:else}
-                        <span>➕ Ajouter</span>
-                      {/if}
-                    </button>
-                  {/if}
-                </div>
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Search & Auto-Discovery Bar -->
-    <div class="bg-white dark:bg-dark-card p-4 md:p-5 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-4">
-      
-      <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-        <!-- Search Input -->
-        <div class="relative flex-1">
-          <svg class="w-5 h-5 absolute left-4 top-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
-          <input 
-            type="text" 
-            placeholder="Rechercher par mot-clé ou saisir une URL/domaine (ex: krebsonsecurity.com)..." 
+          <input
+            type="text"
+            placeholder={searchPlaceholder}
             bind:value={searchQuery}
             on:input={handleSearchInput}
             on:keydown={handleKeydown}
-            class="w-full bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
+            class="w-full bg-white dark:bg-dark-card text-gray-900 dark:text-white border rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500
+              {isWebMode
+                ? 'border-primary-300 dark:border-primary-700 focus:ring-primary-500 focus:border-transparent'
+                : 'border-gray-200 dark:border-gray-700 focus:ring-primary-500 focus:border-transparent'}"
           />
         </div>
 
-        <!-- Action Button (Auto-Discovery or Search) -->
-        {#if isUrlCandidate(searchQuery)}
-          <button
-            on:click={triggerAutoDiscovery}
-            disabled={discoveringFeed}
-            class="px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
-          >
-            {#if discoveringFeed}
-              <svg class="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-              <span>Détection RSS...</span>
-            {:else}
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-              <span>Détecter le flux RSS</span>
-            {/if}
-          </button>
-        {/if}
-
-        <!-- Dropdown Filters -->
-        <div class="flex items-center gap-2.5 shrink-0">
-          <select 
+        <!-- Catalog-only filters (hidden in web mode) -->
+        {#if !isWebMode}
+          <select
             bind:value={selectedCategory}
             on:change={() => selectCategory(selectedCategory)}
-            class="bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-3.5 text-xs font-semibold focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            class="bg-white dark:bg-dark-card text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 px-3 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
           >
             {#each categories as cat}
-              <option value={cat}>{cat === 'Tous' ? 'Toutes catégories' : cat}</option>
+              <option value={cat}>{cat === 'Tous' ? 'Catégorie' : cat}</option>
             {/each}
           </select>
 
-          <select 
+          <select
             bind:value={selectedLanguageFilter}
             on:change={() => selectLanguage(selectedLanguageFilter)}
-            class="bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-3.5 text-xs font-semibold focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            class="bg-white dark:bg-dark-card text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 px-3 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
           >
             {#each languages as lang}
               <option value={lang.code}>{lang.label}</option>
             {/each}
           </select>
+        {/if}
+
+        <!-- Action button: shown when URL detected OR in web mode -->
+        {#if isWebMode || isUrlMode}
+          <button
+            on:click={handleActionClick}
+            disabled={discoveringFeed || searchingLocal}
+            class="px-4 py-2.5 font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50
+              {isWebMode ? 'bg-primary-500 hover:bg-primary-600 text-white' : 'bg-primary-500 hover:bg-primary-600 text-white'}"
+          >
+            {#if discoveringFeed || searchingLocal}
+              <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              {isWebMode ? 'Recherche…' : 'Détection…'}
+            {:else if isWebMode}
+              Chercher
+            {:else}
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              Détecter
+            {/if}
+          </button>
+        {/if}
+
+        <!-- Mode toggle -->
+        <div class="flex items-center gap-1.5 select-none shrink-0" title="Recherche de médias et contenus via LangSearch">
+          <button
+            role="switch"
+            aria-checked={isWebMode}
+            on:click={toggleMode}
+            style="width:32px;height:18px;"
+            class="relative rounded-full transition-colors duration-200 focus:outline-none cursor-pointer {isWebMode ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}"
+          >
+            <span
+              style="width:14px;height:14px;"
+              class="absolute top-0.5 left-0.5 rounded-full bg-white shadow transition-transform duration-200 {isWebMode ? 'translate-x-3.5' : 'translate-x-0'}"
+            />
+          </button>
+          <span class="text-xs text-gray-500 dark:text-gray-400 cursor-pointer" on:click={toggleMode}>Recherche web</span>
         </div>
       </div>
 
-      <!-- Hashtags Pill Bar -->
-      {#if availableTags && availableTags.length > 0}
-        <div class="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-          <span class="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider shrink-0">Tags :</span>
-          
-          <button 
-            on:click={() => selectTag('Tous')}
-            class="px-3 py-1.5 text-xs rounded-xl font-bold transition-all shrink-0 border {selectedTag === 'Tous' ? 'bg-primary-500 text-white border-primary-500 shadow-sm' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}"
-          >
-            #Tous
-          </button>
-
-          {#each availableTags as tagObj}
-            <button 
-              on:click={() => selectTag(tagObj.name)}
-              class="px-3 py-1.5 text-xs rounded-xl font-bold transition-all shrink-0 border flex items-center gap-1.5 {selectedTag === tagObj.name ? 'bg-primary-500 text-white border-primary-500 shadow-sm' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}"
+      <!-- Sub-row: tags (catalog mode) OR region suggestions (web mode) -->
+      {#if isWebMode}
+        <!-- Region suggestions -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0">Explorer :</span>
+          {#each localSuggestions as pill}
+            <button
+              on:click={() => selectSuggestion(pill)}
+              class="px-2.5 py-1 text-xs bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-primary-400 hover:text-primary-500 rounded-lg font-medium transition-all"
             >
-              <span>{tagObj.name}</span>
-              <span class="text-[10px] opacity-80 px-1.5 py-0.5 rounded-full bg-black/10 dark:bg-white/15">{tagObj.count}</span>
+              {pill}
+            </button>
+          {/each}
+        </div>
+      {:else if availableTags && availableTags.length > 0}
+        <!-- Tag pills -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
+          <button
+            on:click={() => selectTag('Tous')}
+            class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all shrink-0 {selectedTag === 'Tous' ? 'bg-primary-500 text-white' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300'}"
+          >
+            Tous
+          </button>
+          {#each availableTags as tagObj}
+            <button
+              on:click={() => selectTag(tagObj.name)}
+              class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all shrink-0 flex items-center gap-1 {selectedTag === tagObj.name ? 'bg-primary-500 text-white' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300'}"
+            >
+              {tagObj.name}<span class="opacity-50 text-[10px]">{tagObj.count}</span>
             </button>
           {/each}
         </div>
       {/if}
-
     </div>
 
-    <!-- Auto-Discovery Results Alert -->
+    <!-- ══════════ RESULTS AREA ══════════ -->
+
+    <!-- Auto-discovery feedback -->
     {#if discoveringFeed}
-      <div class="p-6 bg-primary-50/50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800/80 rounded-3xl flex items-center gap-4 animate-pulse">
-        <svg class="w-6 h-6 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-        <div>
-          <h4 class="font-extrabold text-sm text-gray-900 dark:text-white">Analyse du site web en cours...</h4>
-          <p class="text-xs text-gray-500 dark:text-gray-400">Recherche des balises XML RSS/Atom et test des chemins d'accès standards.</p>
-        </div>
+      <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <svg class="w-4 h-4 animate-spin text-primary-500 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        Analyse du site en cours…
       </div>
     {:else if discoveryError}
-      <div class="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/80 rounded-2xl flex items-center justify-between text-xs text-rose-600 dark:text-rose-400 font-semibold">
+      <div class="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 rounded-xl flex items-center justify-between text-sm text-rose-600 dark:text-rose-400">
         <span>⚠️ {discoveryError}</span>
-        <button on:click={() => discoveryError = null} class="underline text-rose-500 hover:text-rose-700">Fermer</button>
+        <button on:click={() => discoveryError = null} class="text-rose-400 hover:text-rose-600 ml-3 transition-colors">✕</button>
       </div>
     {:else if discoveredFeedResult}
       {@const isAlreadySub = alreadySubscribedUrls.includes(discoveredFeedResult.feed_url.toLowerCase()) || subscribedSuccessMap[discoveredFeedResult.feed_url]}
-      
-      <div class="p-6 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-3xl space-y-4 shadow-sm">
-        <div class="flex items-start justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <img src={discoveredFeedResult.icon_url} alt="Icon" class="w-10 h-10 rounded-xl bg-white p-1 border border-emerald-200 dark:border-emerald-800 object-contain" />
-            <div>
-              <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 rounded-full text-[10px] font-bold">
-                ⚡ Flux RSS Détecté en Direct !
-              </div>
-              <h3 class="text-lg font-extrabold text-gray-900 dark:text-white leading-tight mt-1">{discoveredFeedResult.title}</h3>
-              <p class="text-xs text-gray-600 dark:text-gray-300">{discoveredFeedResult.description}</p>
-            </div>
-          </div>
-
-          <div class="shrink-0">
-            {#if isAlreadySub}
-              <span class="px-4 py-2 bg-emerald-500 text-white font-bold text-xs rounded-2xl inline-flex items-center gap-1">
-                ✓ Abonné
-              </span>
-            {:else}
-              <button 
-                on:click={() => subscribeToFeed(discoveredFeedResult.feed_url, 'Général', 'fr')}
-                disabled={subscribingMap[discoveredFeedResult.feed_url]}
-                class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all flex items-center gap-1.5"
-              >
-                + S'abonner à ce flux
-              </button>
+      <div class="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 min-w-0">
+          <img src={discoveredFeedResult.icon_url} alt="" class="w-9 h-9 rounded-lg bg-white border border-emerald-100 dark:border-emerald-800 object-contain shrink-0 p-1" />
+          <div class="min-w-0">
+            <div class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-0.5">Flux RSS détecté</div>
+            <h3 class="font-bold text-sm text-gray-900 dark:text-white truncate">{discoveredFeedResult.title}</h3>
+            {#if discoveredFeedResult.description}
+              <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{discoveredFeedResult.description}</p>
             {/if}
           </div>
         </div>
-
-        {#if discoveredFeedResult.preview_articles && discoveredFeedResult.preview_articles.length > 0}
-          <div class="pt-3 border-t border-emerald-200/60 dark:border-emerald-800/60 space-y-2">
-            <span class="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Derniers articles publiés :</span>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {#each discoveredFeedResult.preview_articles as art}
-                <a href={art.link} target="_blank" rel="noopener noreferrer" class="p-3 bg-white dark:bg-dark-card rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-xs font-semibold text-gray-800 dark:text-gray-200 hover:text-primary-500 transition-colors line-clamp-2">
-                  • {art.title}
-                </a>
-              {/each}
-            </div>
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    <!-- Catalog Feeds Grid -->
-    <div>
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
-          <span>Catalogue de médias</span>
-          <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-            {catalogFeeds.length} sur {totalFeedsCount}
-          </span>
-        </h2>
-
-        {#if loadingCatalog}
-          <span class="text-xs text-primary-500 font-bold animate-pulse">Chargement du catalogue...</span>
+        {#if isAlreadySub}
+          <span class="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-semibold text-xs rounded-lg shrink-0">✓ Abonné</span>
+        {:else}
+          <button
+            on:click={() => subscribeToFeed(discoveredFeedResult.feed_url, 'Général', 'fr')}
+            disabled={subscribingMap[discoveredFeedResult.feed_url]}
+            class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-lg shadow-sm transition-all shrink-0 disabled:opacity-50"
+          >+ S'abonner</button>
         {/if}
       </div>
 
-      {#if catalogFeeds.length === 0 && !loadingCatalog}
-        <div class="text-center py-16 bg-white dark:bg-dark-card rounded-3xl border border-gray-100 dark:border-gray-800 space-y-3">
-          <div class="text-4xl">🔍</div>
-          <h3 class="text-base font-extrabold text-gray-900 dark:text-white">Aucun flux ne correspond à votre recherche</h3>
-          <p class="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-            Essayez de modifier les filtres ou tapez le nom de domaine complet d'un site dans la barre ci-dessus pour lancer l'auto-détection.
-          </p>
-        </div>
-      {:else}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {#each catalogFeeds as feed}
-            {@const isAlreadySubscribed = alreadySubscribedUrls.includes((feed.url || '').toLowerCase()) || subscribedSuccessMap[feed.url]}
-
-            <div class="bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-5">
-              
-              <div class="space-y-3">
-                <!-- Header Flags & Badges -->
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <img 
-                      src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.site_url || feed.url}&sz=128`} 
-                      alt="Favicon"
-                      class="w-6 h-6 rounded-md object-contain bg-gray-100 dark:bg-gray-800 p-0.5" 
-                      on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=rss.com&sz=128'}
-                    />
-                    <span class="text-sm font-bold">{getCountryFlag(feed.country, feed.language)}</span>
-                  </div>
-
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
-                      {feed.category || 'Général'}
-                    </span>
-
-                    {#if feed.is_full_text}
-                      <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/80" title="Flux 100% natif complet">
-                        ✨ Natif
-                      </span>
-                    {:else}
-                      <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80" title="Articles complets via Vos">
-                        📄 Scrapé
-                      </span>
-                    {/if}
-                  </div>
-                </div>
-
-                <!-- Feed Title & Description -->
-                <h3 class="font-extrabold text-base text-gray-900 dark:text-white leading-snug">
-                  {feed.title}
-                </h3>
-
-                <p class="text-xs text-gray-500 dark:text-dark-muted leading-relaxed line-clamp-3">
-                  {feed.description || "Aucune description disponible pour ce flux."}
-                </p>
-
-                <!-- Tags Badges -->
-                {#if feed.tags && feed.tags.length > 0}
-                  <div class="flex flex-wrap gap-1.5 pt-1">
-                    {#each feed.tags as tag}
-                      <button 
-                        on:click={() => selectTag(tag)}
-                        class="text-[11px] font-extrabold text-sky-800 dark:text-sky-300 bg-sky-100 dark:bg-slate-800 border border-sky-200 dark:border-slate-700 hover:bg-sky-200 dark:hover:bg-slate-700 px-2.5 py-1 rounded-lg transition-all"
-                      >
-                        {tag}
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-
-              <!-- Footer Actions -->
-              <div class="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-2">
-                <div class="flex items-center gap-2">
-                  <button 
-                    on:click={() => openPreview(feed)}
-                    class="px-3.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-200 dark:border-gray-700 transition-all flex items-center justify-center gap-1.5 shrink-0"
-                    title="Prévisualiser les 3 derniers articles"
-                  >
-                    👁️ Aperçu
-                  </button>
-
-                  {#if isAlreadySubscribed}
-                    <div class="flex-1 py-2.5 px-4 bg-emerald-500/10 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 border border-emerald-500/30 dark:border-emerald-800/80">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                      <span>Abonné</span>
-                    </div>
-                  {:else}
-                    <button 
-                      on:click={() => subscribeToFeed(feed.url, feed.category, feed.language)}
-                      disabled={subscribingMap[feed.url]}
-                      class="flex-1 py-2.5 px-4 bg-primary-500 hover:bg-primary-600 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    >
-                      {#if subscribingMap[feed.url]}
-                        <svg class="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                        <span>Abonnement...</span>
-                      {:else}
-                        <span>+ S'abonner</span>
-                      {/if}
-                    </button>
-                  {/if}
-                </div>
-
-                {#if errorMap[feed.url]}
-                  <p class="text-[11px] text-rose-500 text-center font-medium">{errorMap[feed.url]}</p>
-                {/if}
-              </div>
-
-            </div>
+      {#if discoveredFeedResult.preview_articles?.length > 0}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {#each discoveredFeedResult.preview_articles as art}
+            <a href={art.link} target="_blank" rel="noopener noreferrer"
+              class="p-3 bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 text-xs text-gray-700 dark:text-gray-300 hover:text-primary-500 transition-colors line-clamp-2 leading-relaxed"
+            >{art.title}</a>
           {/each}
         </div>
-
-        <!-- Load More Pagination Button -->
-        {#if hasMoreFeeds}
-          <div class="pt-8 flex justify-center">
-            <button
-              on:click={loadMoreFeeds}
-              disabled={loadingMore}
-              class="px-8 py-3.5 bg-white dark:bg-dark-card hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-800 dark:text-white font-extrabold text-xs rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              {#if loadingMore}
-                <svg class="w-4 h-4 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                <span>Chargement des flux suivants...</span>
-              {:else}
-                <span>Charger plus de médias ({totalFeedsCount - catalogFeeds.length} restants)</span>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-              {/if}
-            </button>
-          </div>
-        {/if}
       {/if}
-    </div>
+    {/if}
 
-  </div>
-</div>
-
-<!-- Article Preview Modal -->
-{#if previewFeedObj}
-  <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 rounded-3xl max-w-2xl w-full p-6 md:p-8 space-y-6 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-      
-      <!-- Modal Header -->
-      <div class="flex items-start justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
-        <div class="flex items-center gap-3">
-          <img 
-            src={previewFeedObj.icon_url || `https://www.google.com/s2/favicons?domain=${previewFeedObj.site_url || previewFeedObj.url}&sz=128`} 
-            alt="Icon" 
-            class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 p-1 object-contain"
-          />
-          <div>
-            <h3 class="text-lg font-extrabold text-gray-900 dark:text-white leading-tight">{previewFeedObj.title}</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Aperçu en direct des 3 derniers articles</p>
-          </div>
+    <!-- Web search results -->
+    {#if isWebMode}
+      {#if searchingLocal}
+        <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <svg class="w-4 h-4 animate-spin text-primary-500 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          Recherche de médias locaux…
         </div>
-
-        <button 
-          on:click={() => previewFeedObj = null}
-          class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-        >
-          ✕
-        </button>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="flex-1 overflow-y-auto space-y-4 pr-1">
-        {#if previewLoading}
-          <div class="text-center py-12 space-y-3">
-            <svg class="w-8 h-8 animate-spin text-primary-500 mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-            <p class="text-xs font-bold text-gray-500">Chargement des articles en direct...</p>
+      {:else if localNewsError}
+        <div class="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-600 dark:text-amber-400">
+          ⚠️ {localNewsError}
+        </div>
+      {:else if localNewsResults.length > 0}
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">{localNewsResults.length} médias locaux trouvés</span>
+            <button on:click={() => { localNewsResults = []; searchQuery = ''; }} class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">Effacer</button>
           </div>
-        {:else if previewError}
-          <div class="p-4 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs rounded-2xl font-bold text-center">
-            ⚠️ {previewError}
-          </div>
-        {:else if previewArticles.length === 0}
-          <div class="text-center py-8 text-xs text-gray-500">
-            Aucun article trouvé dans le flux XML.
-          </div>
-        {:else}
-          <div class="space-y-4">
-            {#each previewArticles as art}
-              <div class="p-4 bg-gray-50 dark:bg-dark-bg rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
-                <div class="flex items-start justify-between gap-3">
-                  <h4 class="font-extrabold text-sm text-gray-900 dark:text-white leading-snug">
-                    <a href={art.link} target="_blank" rel="noopener noreferrer" class="hover:text-primary-500 transition-colors">
-                      {art.title}
-                    </a>
-                  </h4>
-                  {#if art.published}
-                    <span class="text-[10px] font-semibold text-gray-400 shrink-0">{art.published.slice(0, 16)}</span>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {#each localNewsResults as item}
+              <div class="bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-xl p-4 flex items-center gap-3">
+                <img src={item.favicon} alt="" class="w-8 h-8 rounded-lg object-cover shrink-0"
+                  on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=' + item.site_url}
+                />
+                <div class="flex-1 min-w-0">
+                  <h3 class="font-semibold text-sm text-gray-900 dark:text-white truncate">{item.title}</h3>
+                  {#if item.description}
+                    <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">{item.description}</p>
                   {/if}
                 </div>
-
-                {#if art.summary}
-                  <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3">
-                    {art.summary}
-                  </p>
+                {#if item.already_subscribed || subscribedSuccessMap[item.feed_url]}
+                  <span class="text-xs font-semibold text-emerald-500 shrink-0">✓</span>
+                {:else}
+                  <button
+                    on:click={() => subscribeToFeed(item.feed_url, 'Général', 'fr')}
+                    disabled={subscribingMap[item.feed_url]}
+                    class="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-xs rounded-lg transition-all shrink-0 disabled:opacity-50"
+                  >{subscribingMap[item.feed_url] ? '…' : '+ Ajouter'}</button>
                 {/if}
               </div>
             {/each}
           </div>
+        </div>
+      {/if}
+    {/if}
+
+    <!-- ── Catalog Section (hidden in web mode) ── -->
+    {#if !isWebMode}
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            Catalogue
+            {#if !loadingCatalog}
+              <span class="ml-1.5 text-gray-400 dark:text-gray-500 font-normal">{catalogFeeds.length} / {totalFeedsCount}</span>
+            {/if}
+          </h2>
+          {#if loadingCatalog}
+            <span class="text-xs text-gray-400 dark:text-gray-500 animate-pulse">Chargement…</span>
+          {/if}
+        </div>
+
+        {#if catalogFeeds.length === 0 && !loadingCatalog}
+          <div class="py-16 text-center space-y-2">
+            <div class="text-3xl">🔍</div>
+            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Aucun résultat</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500">Modifiez les filtres ou entrez un domaine pour l'auto-détection.</p>
+          </div>
+        {:else}
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {#each catalogFeeds as feed}
+              {@const isAlreadySubscribed = alreadySubscribedUrls.includes((feed.url || '').toLowerCase()) || subscribedSuccessMap[feed.url]}
+
+              <div class="group bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-xl p-4 hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm transition-all flex flex-col gap-3">
+
+                <!-- Feed header -->
+                <div class="flex items-start gap-3">
+                  <img
+                    src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.site_url || feed.url}&sz=128`}
+                    alt=""
+                    class="w-9 h-9 rounded-lg object-contain bg-gray-100 dark:bg-gray-800 p-0.5 shrink-0"
+                    on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=rss.com&sz=128'}
+                  />
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white leading-snug line-clamp-2">
+                      {feed.title}
+                    </h3>
+                    <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span class="text-[10px] text-gray-400">{getCountryFlag(feed.country, feed.language)}</span>
+                      <span class="text-[10px] text-gray-400 uppercase tracking-wide">{feed.category || 'Général'}</span>
+                      {#if feed.is_full_text}
+                        <span class="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">· Natif</span>
+                      {:else}
+                        <span class="text-[10px] font-medium text-indigo-500 dark:text-indigo-400">· Scrapé</span>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Description -->
+                {#if feed.description}
+                  <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">
+                    {feed.description}
+                  </p>
+                {/if}
+
+                <!-- Tags -->
+                {#if feed.tags && feed.tags.length > 0}
+                  <div class="flex flex-wrap gap-1">
+                    {#each feed.tags.slice(0, 3) as tag}
+                      <button
+                        on:click={() => selectTag(tag)}
+                        class="text-[10px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-2 py-0.5 rounded-md transition-all"
+                      >#{tag}</button>
+                    {/each}
+                  </div>
+                {/if}
+
+                <!-- Actions -->
+                <div class="flex items-center gap-2 pt-1 border-t border-gray-50 dark:border-gray-800/60 mt-auto">
+                  <button
+                    on:click={() => openPreview(feed)}
+                    class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                    title="Aperçu des articles"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                  </button>
+
+                  <div class="flex-1"/>
+
+                  {#if isAlreadySubscribed}
+                    <span class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg border border-emerald-100 dark:border-emerald-800/60">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                      Abonné
+                    </span>
+                  {:else}
+                    <button
+                      on:click={() => subscribeToFeed(feed.url, feed.category, feed.language)}
+                      disabled={subscribingMap[feed.url]}
+                      class="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-xs rounded-lg shadow-sm transition-all flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {#if subscribingMap[feed.url]}
+                        <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      {/if}
+                      + S'abonner
+                    </button>
+                  {/if}
+
+                  {#if errorMap[feed.url]}
+                    <p class="text-[10px] text-rose-500">{errorMap[feed.url]}</p>
+                  {/if}
+                </div>
+
+              </div>
+            {/each}
+          </div>
+
+          {#if hasMoreFeeds}
+            <div class="pt-4 flex justify-center">
+              <button
+                on:click={loadMoreFeeds}
+                disabled={loadingMore}
+                class="px-6 py-2.5 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold text-sm rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {#if loadingMore}
+                  <svg class="w-4 h-4 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  Chargement…
+                {:else}
+                  Voir plus <span class="text-gray-400 font-normal ml-1">({totalFeedsCount - catalogFeeds.length} restants)</span>
+                {/if}
+              </button>
+            </div>
+          {/if}
+        {/if}
+      </div>
+    {/if}
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ PREVIEW MODAL ══ -->
+{#if previewFeedObj}
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" on:click|self={() => previewFeedObj = null}>
+    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 rounded-2xl max-w-xl w-full shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
+
+      <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+        <img
+          src={previewFeedObj.icon_url || `https://www.google.com/s2/favicons?domain=${previewFeedObj.site_url || previewFeedObj.url}&sz=128`}
+          alt=""
+          class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 object-contain p-0.5 shrink-0"
+        />
+        <div class="flex-1 min-w-0">
+          <h3 class="font-bold text-sm text-gray-900 dark:text-white truncate">{previewFeedObj.title}</h3>
+          <p class="text-xs text-gray-400">Derniers articles</p>
+        </div>
+        <button
+          on:click={() => previewFeedObj = null}
+          class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:text-gray-800 dark:hover:text-white text-xs transition-colors"
+        >✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        {#if previewLoading}
+          <div class="py-10 flex items-center justify-center gap-2 text-sm text-gray-400">
+            <svg class="w-4 h-4 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            Chargement…
+          </div>
+        {:else if previewError}
+          <div class="p-3 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs rounded-xl text-center">⚠️ {previewError}</div>
+        {:else if previewArticles.length === 0}
+          <div class="py-8 text-center text-xs text-gray-400">Aucun article disponible.</div>
+        {:else}
+          {#each previewArticles as art}
+            <div class="p-3 bg-gray-50 dark:bg-dark-bg rounded-xl border border-gray-100 dark:border-gray-800 space-y-1">
+              <div class="flex items-start justify-between gap-2">
+                <a href={art.link} target="_blank" rel="noopener noreferrer"
+                  class="font-semibold text-sm text-gray-900 dark:text-white hover:text-primary-500 transition-colors leading-snug line-clamp-2"
+                >{art.title}</a>
+                {#if art.published}
+                  <span class="text-[10px] text-gray-400 shrink-0">{art.published.slice(0, 10)}</span>
+                {/if}
+              </div>
+              {#if art.summary}
+                <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-3">{art.summary}</p>
+              {/if}
+            </div>
+          {/each}
         {/if}
       </div>
 
-      <!-- Modal Footer -->
-      <div class="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-3">
-        <button 
+      <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-100 dark:border-gray-800">
+        <button
           on:click={() => previewFeedObj = null}
-          class="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-2xl hover:bg-gray-200 transition-colors"
-        >
-          Fermer
-        </button>
+          class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        >Fermer</button>
 
         {#if alreadySubscribedUrls.includes((previewFeedObj.url || '').toLowerCase()) || subscribedSuccessMap[previewFeedObj.url]}
-          <span class="px-5 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 font-bold text-xs rounded-2xl border border-emerald-200 dark:border-emerald-800">
-            ✓ Déjà abonné
-          </span>
+          <span class="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 font-semibold text-sm rounded-lg border border-emerald-100 dark:border-emerald-800">✓ Abonné</span>
         {:else}
-          <button 
-            on:click={() => {
-              subscribeToFeed(previewFeedObj.url, previewFeedObj.category, previewFeedObj.language);
-              previewFeedObj = null;
-            }}
-            class="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-extrabold text-xs rounded-2xl shadow-sm transition-all"
-          >
-            + S'abonner à ce flux
-          </button>
+          <button
+            on:click={() => { subscribeToFeed(previewFeedObj.url, previewFeedObj.category, previewFeedObj.language); previewFeedObj = null; }}
+            class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-sm rounded-lg shadow-sm transition-all"
+          >+ S'abonner</button>
         {/if}
       </div>
 

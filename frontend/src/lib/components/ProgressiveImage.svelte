@@ -7,11 +7,12 @@
   export let imgClass = 'w-full h-full object-cover';
   export let containerClass = 'w-full h-full relative overflow-hidden';
   export let loading = 'lazy';
+  export let defaultPosition = 'center 38%'; // Smart eye-level default (~38% from top)
 
   let isLoaded = false;
   let isError = false;
   let currentSrc = src;
-  let objectPosition = 'center 22%'; // Default smart fallback (focus on upper third for faces)
+  let objectPosition = defaultPosition;
   let imgElement = null;
 
   $: if (src) {
@@ -19,7 +20,7 @@
       currentSrc = src;
       isLoaded = false;
       isError = false;
-      objectPosition = 'center 22%';
+      objectPosition = defaultPosition;
     }
   }
 
@@ -32,18 +33,26 @@
         const result = await smartcrop.crop(imgElement, {
           width: 400,
           height: 250,
-          minScale: 1.0
+          minScale: 1.0,
+          ruleOfThirds: true
         });
 
         if (result && result.topCrop) {
           const crop = result.topCrop;
           const centerX = Math.round(((crop.x + crop.width / 2) / imgElement.naturalWidth) * 100);
-          const centerY = Math.round(((crop.y + crop.height / 2) / imgElement.naturalHeight) * 100);
+          
+          // Target eye level (approx 33% down the detected face box instead of geometric center)
+          const eyeY = crop.y + (crop.height * 0.33);
+          let centerY = Math.round((eyeY / imgElement.naturalHeight) * 100);
+          
+          // Clamp centerY between 30% and 45% so top of head is never cut off at top border
+          centerY = Math.max(30, Math.min(45, centerY));
+          
           objectPosition = `${centerX}% ${centerY}%`;
         }
       } catch (err) {
-        // Fallback gracefully to upper-third alignment 'center 22%' if CORS prevents canvas inspection
-        objectPosition = 'center 22%';
+        // Fallback gracefully to eye-level alignment 'center 38%' if CORS prevents canvas inspection
+        objectPosition = defaultPosition;
       }
     }
   }
@@ -52,7 +61,7 @@
     if (!isError && fallbackSrc && currentSrc !== fallbackSrc) {
       isError = true;
       currentSrc = fallbackSrc;
-      objectPosition = 'center 22%';
+      objectPosition = defaultPosition;
     } else {
       isError = true;
       isLoaded = true;
@@ -68,7 +77,7 @@
     </div>
   {/if}
 
-  <!-- Progressive Image with SmartCrop & Blur-Up -->
+  <!-- Progressive Image with Eye-Level SmartCrop & Blur-Up -->
   {#if currentSrc}
     <img
       bind:this={imgElement}

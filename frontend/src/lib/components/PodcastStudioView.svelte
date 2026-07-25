@@ -269,15 +269,15 @@
         }
       }
 
-      if (res.ok) {
+      if (res.ok && contentType.includes('application/json') && data.podcast) {
+        currentPodcast = data.podcast;
+        showScript = false;
+        playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
         await fetchHistory();
-        const pod = data.podcast || (data.id ? data : null) || (podcastHistory.length > 0 ? podcastHistory[0] : null);
-        if (pod) {
-          currentPodcast = pod;
-          showScript = false;
-          playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
-        }
         errorMsg = "";
+      } else if (res.redirected || (res.ok && !contentType.includes('application/json'))) {
+        console.warn("Redirection YunoHost SSO détectée sur /api/podcast/generate.");
+        errorMsg = "Redirection YunoHost SSO détectée sur /api/podcast/generate. Mettez à jour vos_rss.conf sur votre VPS avec 'location ^~ /api/podcast/generate' et 'access_by_lua_block { return; }'.";
       } else if (res.status === 504 || res.status === 502) {
         console.warn("Nginx Timeout (504/502) détecté. Tentative de récupération dans l'historique...");
         await new Promise(r => setTimeout(r, 2000));

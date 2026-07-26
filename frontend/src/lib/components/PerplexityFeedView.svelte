@@ -55,6 +55,18 @@
     return feeds.size;
   }
 
+  function cleanTextBoilerplate(str) {
+    if (!str) return '';
+    // Strip HTML tags and their inner content for scripts, styles, headers, navs, footers
+    let text = str.replace(/<(script|style|header|nav|footer|form|svg)[^>]*>[\s\S]*?<\/\1>/gi, ' ');
+    // Strip header navigation noise strings
+    text = text.replace(/(?:BBC Homepage|Skip to content|Accessibility Help|Your account|Search BBC|More menu|Close menu)[\s\S]*?(?:News|Sport|Weather|Sounds)/gi, ' ');
+    // Strip remaining HTML tags
+    text = text.replace(/<[^>]+>/g, ' ');
+    // Collapse spaces
+    return text.replace(/\s+/g, ' ').trim();
+  }
+
   function getClusterTitle(cluster) {
     const cId = cluster.cluster_id;
     if (syntheses[cId] && syntheses[cId].synthesis_title) {
@@ -63,7 +75,7 @@
     if (cluster.precomputed_synthesis && cluster.precomputed_synthesis.synthesis_title) {
       return cluster.precomputed_synthesis.synthesis_title;
     }
-    return cluster.topic_title;
+    return cleanTextBoilerplate(cluster.topic_title);
   }
 
   function getTeaserSentence(cluster) {
@@ -74,8 +86,8 @@
       return parts.slice(0, 2).join('. ') + (parts.length > 2 ? '.' : '');
     }
     const raw = cluster.articles[0]?.content || cluster.articles[0]?.title || '';
-    const clean = raw.replace(/<[^>]+>/g, '').trim();
-    return clean.slice(0, 160) + '...';
+    const clean = cleanTextBoilerplate(raw);
+    return clean.slice(0, 180) + (clean.length > 180 ? '...' : '');
   }
 
   function getCategoryFallbackImage(category) {
@@ -107,7 +119,7 @@
         });
         syntheses = { ...syntheses };
 
-        // Only synthesize remaining clusters in background if missing
+        // Auto-synthesize top clusters in background
         autoSynthesizeClusters(clusters);
       }
     } catch (err) {
@@ -124,9 +136,7 @@
   }
 
   async function autoSynthesizeClusters(clustersList) {
-    if (!$mistralApiKey && !$geminiApiKey) return;
-
-    for (const cluster of clustersList.slice(0, 8)) {
+    for (const cluster of clustersList.slice(0, 10)) {
       const cId = cluster.cluster_id;
       if (syntheses[cId] || cluster.precomputed_synthesis || synthLoading[cId]) continue;
 
@@ -144,7 +154,7 @@
           body: JSON.stringify({
             articles: cluster.articles,
             provider: activeProvider,
-            api_key: activeKey,
+            api_key: activeKey || null,
             model: activeModel
           })
         });

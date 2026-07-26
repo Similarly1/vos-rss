@@ -127,8 +127,20 @@ def extract_main_image_url(entry, content: str) -> str:
 
     return None
 
+def clean_html_boilerplate(html_str: str) -> str:
+    if not html_str:
+        return ""
+    # Strip script, style, header, nav, footer, form, svg tags and their content
+    text = re.sub(r'<(script|style|header|nav|footer|form|svg)[^>]*>.*?</\1>', ' ', html_str, flags=re.DOTALL | re.IGNORECASE)
+    # Strip header navigation noise strings like 'BBC HomepageSkip to content...'
+    text = re.sub(r'(?:BBC Homepage|Skip to content|Accessibility Help|Your account|Search BBC|More menu|Close menu).*?(?:News|Sport|Weather|Sounds)', ' ', text, flags=re.IGNORECASE)
+    # Strip all remaining HTML tags
+    text = re.sub(r'<[^>]+>', ' ', text)
+    # Collapse whitespace
+    return re.sub(r'\s+', ' ', text).strip()
+
 def extract_full_article_content(article_url: str, fallback_content: str) -> tuple[str, bool, bool]:
-    clean_fallback = re.sub(r'<[^>]+>', ' ', fallback_content or '').strip()
+    clean_fallback = clean_html_boilerplate(fallback_content)
     
     is_paywalled = False
     is_full_text_available = True

@@ -202,24 +202,24 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
     ])
 
     system_prompt = (
-        "Tu es un journaliste et analyste d'actualités internationales pour l'application 'Vos'. "
-        "Ton objectif est de croiser les informations issues de médias rédigés en différentes langues "
+        "Tu es un journaliste et analyste d'actualités internationales pour l'application francophone 'Vos'. "
+        "Ton objectif est de croiser les informations issues de médias rédigés en n'importe quelle langue (anglais, allemand, espagnol, etc.) "
         "qui traitent du MÊME sujet ou événement précis pour rédiger une synthèse globale unifiée, neutre, captivante, complète et sans doublons. "
-        "CONSIGNE CAPITALE : Rédige IMPÉRATIVEMENT le titre (synthesis_title) ET la synthèse (summary) STRICTEMENT EN FRANÇAIS."
+        "CONSIGNE CAPITALE ABSOLUE : Tu dois TOUJOURS traduire et rédiger IMPÉRATIVEMENT le titre (synthesis_title), le résumé (summary) ET les points clés (key_takeaways) STRICTEMENT ET 100% EN FRANÇAIS, quelle que soit la langue des articles sources d'origine."
     )
 
     user_prompt = f"""
-    Voici les articles recensés sur ce sujet en plusieurs langues :
+    Voici les articles recensés sur ce sujet en différentes langues :
     {articles_text}
 
-    Rédige une synthèse croisée précise au format JSON suivant :
+    Rédige une synthèse croisée précise entièrement traduite et structurée en français au format JSON suivant :
     {{
       "synthesis_title": "Titre synthétique, captivant et 100% en français résumant l'événement",
-      "summary": "Résumé journalistique structuré et captivant de l'événement en français...",
+      "summary": "Résumé journalistique structuré et captivant de l'événement entièrement rédigé en français...",
       "key_takeaways": [
-        "Point clé 1...",
-        "Point clé 2...",
-        "Point clé 3..."
+        "Point clé 1 en français...",
+        "Point clé 2 en français...",
+        "Point clé 3 en français..."
       ]
     }}
     Réponds uniquement au format JSON valide.

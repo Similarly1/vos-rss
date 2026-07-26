@@ -67,6 +67,18 @@
     return text.replace(/\s+/g, ' ').trim();
   }
 
+  function renderMarkdownHtml(text) {
+    if (!text) return '';
+    let html = text;
+    // Format bold headers & titles (**Text**) with clean styling
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-black text-cyan-200 bg-cyan-950/50 px-1.5 py-0.5 rounded border border-cyan-800/40">$1</strong>');
+    // Format italic text (*Text*)
+    html = html.replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>');
+    // Format paragraph breaks
+    const paragraphs = html.split(/\n\s*\n/);
+    return paragraphs.map(p => `<p class="leading-relaxed mb-3">${p.trim()}</p>`).join('');
+  }
+
   function getClusterTitle(cluster) {
     const cId = cluster.cluster_id;
     if (syntheses[cId] && syntheses[cId].synthesis_title) {
@@ -485,18 +497,19 @@
             </div>
           {:else if activeSynth}
             <div class="space-y-4">
-              <p class="text-base text-gray-200 leading-relaxed font-sans">
-                {activeSynth.summary}
-              </p>
+              <div class="text-base text-gray-200 leading-relaxed font-sans space-y-3">
+                {@html renderMarkdownHtml(activeSynth.summary)}
+              </div>
 
-              {#if activeSynth.key_points && activeSynth.key_points.length > 0}
-                <div class="space-y-2 pt-3 border-t border-gray-800">
-                  <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Points clés à retenir :</span>
-                  <ul class="space-y-2 text-xs text-gray-300">
-                    {#each activeSynth.key_points as point}
-                      <li class="flex items-start gap-2">
-                        <span class="text-cyan-400 font-bold text-base">•</span>
-                        <span class="leading-snug">{point}</span>
+              {#if (activeSynth.key_takeaways && activeSynth.key_takeaways.length > 0) || (activeSynth.key_points && activeSynth.key_points.length > 0)}
+                {@const takeaways = activeSynth.key_takeaways || activeSynth.key_points}
+                <div class="space-y-2 pt-4 border-t border-gray-800">
+                  <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider block mb-2">Points clés à retenir :</span>
+                  <ul class="space-y-2.5 text-xs sm:text-sm text-gray-300">
+                    {#each takeaways as point}
+                      <li class="flex items-start gap-2.5 bg-gray-950/60 p-2.5 rounded-xl border border-gray-800/80">
+                        <span class="text-cyan-400 font-bold text-base mt-0.5">•</span>
+                        <span class="leading-snug">{@html renderMarkdownHtml(point)}</span>
                       </li>
                     {/each}
                   </ul>

@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentView, isMobile, selectedItemId, setupAutoRefresh } from './lib/stores/appState.js';
+  import { currentView, isMobile, selectedItemId, setupAutoRefresh, showNotifications } from './lib/stores/appState.js';
   import Sidebar from './lib/components/Sidebar.svelte';
   import ArticleList from './lib/components/ArticleList.svelte';
   import ReaderView from './lib/components/ReaderView.svelte';
@@ -13,6 +13,11 @@
   import SettingsView from './lib/components/SettingsView.svelte';
   import AddFeedModal from './lib/components/AddFeedModal.svelte';
   import FeedManagerModal from './lib/components/FeedManagerModal.svelte';
+  import StatisticsView from './lib/components/StatisticsView.svelte';
+  import OnboardingWizardModal from './lib/components/OnboardingWizardModal.svelte';
+  import NotificationPanel from './lib/components/NotificationPanel.svelte';
+  
+  let showOnboarding = false; // Could be controlled by a store later
 
   onMount(() => {
     setupAutoRefresh();
@@ -43,6 +48,8 @@
         <SynthesisView />
       {:else if $currentView === 'settings'}
         <SettingsView />
+      {:else if $currentView === 'stats'}
+        <StatisticsView />
       {:else}
         <ArticleList />
         <ReaderView />
@@ -60,6 +67,8 @@
         <SynthesisView />
       {:else if $currentView === 'settings'}
         <SettingsView />
+      {:else if $currentView === 'stats'}
+        <StatisticsView />
       {:else}
         <div class="flex-1 w-full flex flex-col h-full overflow-hidden pb-16">
           {#if $selectedItemId}
@@ -85,6 +94,14 @@
   <!-- Modals -->
   <AddFeedModal />
   <FeedManagerModal />
+  
+  {#if showOnboarding}
+    <OnboardingWizardModal />
+  {/if}
+
+  {#if $showNotifications}
+    <NotificationPanel />
+  {/if}
 
 </main>
 

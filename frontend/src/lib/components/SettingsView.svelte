@@ -9,9 +9,13 @@
     selectedMistralPodcastModel, selectedGeminiPodcastModel,
     synthesisProvider, vectorizationProvider, synthesisFallbackProvider, vectorizationFallbackProvider, mistralEmbedModel, geminiEmbedModel,
     refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, 
-    saveSettings, runArticlesCleanup, fetchVpsSettings 
+    saveSettings, runArticlesCleanup, fetchVpsSettings,
+    userTheme, setAppTheme, visibleNavTabs
   } from '../stores/appState.js';
   import { selectedVoice, saveVoiceSetting } from '../stores/audioStore.js';
+
+  let settingsMode = 'debutant'; // 'debutant' | 'expert'
+  let activeTab = 'apparence'; // 'apparence' | 'api' | 'aide' | 'danger'
 
   let mistralKeyInput = $mistralApiKey;
   let mistralModelInput = $selectedMistralModel;
@@ -211,15 +215,29 @@
         <p class="text-sm text-gray-500">Intelligence Artificielle, Modèles par Fonctionnalité & Stockage</p>
       </div>
     </div>
-    <div>
+    <div class="flex items-center gap-4">
+      <div class="bg-gray-200 dark:bg-gray-800 rounded-xl p-1 flex items-center">
+        <button on:click={() => settingsMode = 'debutant'} class="px-4 py-1.5 text-xs font-bold rounded-lg transition-all {settingsMode === 'debutant' ? 'bg-white dark:bg-dark-card text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">Débutant</button>
+        <button on:click={() => settingsMode = 'expert'} class="px-4 py-1.5 text-xs font-bold rounded-lg transition-all {settingsMode === 'expert' ? 'bg-white dark:bg-dark-card text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">Expert</button>
+      </div>
       <button 
         type="button" 
         on:click={handleSave}
         disabled={isSavingEnv}
         class="px-5 py-2.5 text-sm font-semibold text-white bg-primary-500 hover:bg-primary-600 rounded-xl shadow-sm transition-all disabled:opacity-50"
       >
-        {isSavingEnv ? 'Enregistrement...' : 'Enregistrer les modifications'}
+        {isSavingEnv ? 'Enregistrement...' : 'Enregistrer'}
       </button>
+    </div>
+  </div>
+
+  <!-- Internal Tabs -->
+  <div class="px-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-dark-bg/50">
+    <div class="flex gap-6 overflow-x-auto scrollbar-hide">
+      <button on:click={() => activeTab = 'apparence'} class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'apparence' ? 'border-primary-500 text-primary-500' : 'border-transparent text-gray-500 hover:text-gray-700'}">🎨 Apparence & Navigation</button>
+      <button on:click={() => activeTab = 'api'} class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'api' ? 'border-primary-500 text-primary-500' : 'border-transparent text-gray-500 hover:text-gray-700'}">🔑 Clés API & Modèles</button>
+      <button on:click={() => activeTab = 'aide'} class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'aide' ? 'border-primary-500 text-primary-500' : 'border-transparent text-gray-500 hover:text-gray-700'}">📖 Aide & Tutoriels</button>
+      <button on:click={() => activeTab = 'danger'} class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'danger' ? 'border-rose-500 text-rose-500' : 'border-transparent text-gray-500 hover:text-rose-400'}">⚠️ Zone de Danger</button>
     </div>
   </div>
 
@@ -233,6 +251,52 @@
         </div>
       {/if}
 
+      {#if activeTab === 'apparence'}
+      <!-- Section: Apparence & Navigation -->
+      <section class="bg-white dark:bg-dark-card rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
+        <h3 class="text-lg font-bold mb-6 border-b border-gray-100 dark:border-gray-800 pb-4 text-primary-500">🎨 Apparence & Navigation</h3>
+        <div class="space-y-6">
+          <p class="text-sm text-gray-500">Configuration de l'interface et personnalisation des onglets.</p>
+          
+          <div class="bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Thème de l'application</label>
+            <div class="flex items-center gap-4">
+              <button on:click={() => setAppTheme('light')} class="px-4 py-2 text-sm font-medium rounded-xl border {$userTheme === 'light' ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-gray-200 dark:border-gray-700'}">Clair</button>
+              <button on:click={() => setAppTheme('dark')} class="px-4 py-2 text-sm font-medium rounded-xl border {$userTheme === 'dark' ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-gray-200 dark:border-gray-700'}">Sombre</button>
+              <button on:click={() => setAppTheme('auto')} class="px-4 py-2 text-sm font-medium rounded-xl border {$userTheme === 'auto' ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-gray-200 dark:border-gray-700'}">Système</button>
+            </div>
+          </div>
+
+          <div class="bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Onglets Visibles (Menu)</label>
+            <div class="grid grid-cols-2 gap-3">
+              {#each [
+                { id: 'podcast', label: '🎙️ Studio Podcast' },
+                { id: 'perplexity', label: '⚡ Fil Perplexity' },
+                { id: 'feeds', label: '📰 Flux & Articles' },
+                { id: 'synthesis', label: '🧪 Synthèses IA' },
+                { id: 'discover', label: '🧭 Catalogue' },
+                { id: 'stats', label: '📊 Statistiques' },
+                { id: 'settings', label: '⚙️ Paramètres' }
+              ] as tab}
+                <label class="flex items-center gap-3 p-3 bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-primary-300 transition-colors">
+                  <input type="checkbox" checked={$visibleNavTabs.includes(tab.id)} on:change={(e) => {
+                    if (e.target.checked) {
+                      $visibleNavTabs = [...$visibleNavTabs, tab.id];
+                    } else {
+                      $visibleNavTabs = $visibleNavTabs.filter(id => id !== tab.id);
+                    }
+                  }} class="w-4 h-4 accent-primary-500" />
+                  <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{tab.label}</span>
+                </label>
+              {/each}
+            </div>
+          </div>
+        </div>
+      </section>
+      {/if}
+
+      {#if activeTab === 'api'}
       <!-- Section: Intelligence Artificielle & Fournisseurs -->
       <section class="bg-white dark:bg-dark-card rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
         <h3 class="text-lg font-bold mb-6 border-b border-gray-100 dark:border-gray-800 pb-4 text-primary-500">🧠 Choix des Modèles IA par Fonctionnalité</h3>
@@ -254,6 +318,7 @@
               </div>
 
               <div class="pt-2 space-y-3">
+                {#if settingsMode === 'expert'}
                 <div>
                   <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">📰 Résumés d'articles (Mistral)</label>
                   <select bind:value={mistralArticleInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-primary-500">
@@ -293,6 +358,7 @@
                     <option value="mistral-large-latest">Mistral Large</option>
                   </select>
                 </div>
+                {/if}
               </div>
 
               <button on:click={testMistralConnection} disabled={isTestingMistral} class="text-xs font-semibold px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 rounded-lg w-full mt-2">
@@ -319,6 +385,7 @@
               </div>
 
               <div class="pt-2 space-y-3">
+                {#if settingsMode === 'expert'}
                 <div>
                   <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">📰 Résumés d'articles (Gemini)</label>
                   <select bind:value={geminiArticleInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-primary-500">
@@ -356,6 +423,7 @@
                     <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                   </select>
                 </div>
+                {/if}
               </div>
 
               <button on:click={testGeminiConnection} disabled={isTestingGemini} class="text-xs font-semibold px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 rounded-lg w-full mt-2">
@@ -468,7 +536,17 @@
           </div>
         </div>
       </section>
+      {/if}
 
+      {#if activeTab === 'aide'}
+      <!-- Section: Aide & Tutoriels -->
+      <section class="bg-white dark:bg-dark-card rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
+        <h3 class="text-lg font-bold mb-6 border-b border-gray-100 dark:border-gray-800 pb-4 text-primary-500">📖 Aide & Tutoriels</h3>
+        <p class="text-sm text-gray-500">Guides explicatifs pour l'utilisation de la plateforme.</p>
+      </section>
+      {/if}
+
+      {#if activeTab === 'danger'}
       <!-- Section: Préférences de Flux & Application -->
       <section class="bg-white dark:bg-dark-card rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
         <h3 class="text-lg font-bold mb-6 border-b border-gray-100 dark:border-gray-800 pb-4 text-primary-500">📰 Flux, Articles & Stockage</h3>
@@ -532,6 +610,7 @@
           <input type="checkbox" bind:checked={fullTextInput} class="w-5 h-5 accent-primary-500 rounded cursor-pointer" />
         </div>
       </section>
+      {/if}
 
     </div>
   </div>

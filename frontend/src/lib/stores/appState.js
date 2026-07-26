@@ -12,9 +12,32 @@ export const selectedItemId = writable(null);
 // Modals
 export const showAddFeedModal = writable(false);
 export const showFeedManagerModal = writable(false);
+export const showNotifications = writable(false);
 
 // Refreshing state indicator
 export const isRefreshingFeeds = writable(false);
+
+// Theme state
+export const userTheme = writable('auto'); // 'light' | 'dark' | 'auto'
+
+export function setAppTheme(theme) {
+  userTheme.set(theme);
+  if (typeof window !== 'undefined') {
+    const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }
+}
+
+// Navigation state
+export const visibleNavTabs = writable(['podcast', 'perplexity', 'feeds', 'synthesis', 'discover', 'stats', 'settings']);
+
+// Notification state
+export const notificationsList = writable([]);
+export const unreadNotificationsCount = writable(0);
 
 // Settings state
 export const mistralApiKey = writable('');

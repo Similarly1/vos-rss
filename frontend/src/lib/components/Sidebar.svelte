@@ -1,5 +1,5 @@
 <script>
-  import { currentView, showAddFeedModal, showFeedManagerModal } from '../stores/appState.js';
+  import { currentView, showAddFeedModal, showFeedManagerModal, visibleNavTabs, unreadNotificationsCount, showNotifications } from '../stores/appState.js';
 </script>
 
 <aside class="w-64 h-full bg-white dark:bg-dark-card border-r border-gray-200 dark:border-gray-800 flex flex-col p-4">
@@ -27,34 +27,52 @@
   </div>
 
   <nav class="space-y-1.5 flex-1">
+    {#if $visibleNavTabs.includes('podcast')}
     <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'podcast' ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'podcast'}>
       <span>🎙️</span>
       <span class="flex-1 font-bold">Studio Podcast</span>
       <span class="text-[9px] bg-purple-500 text-white font-black px-1.5 py-0.5 rounded-full uppercase">Émission</span>
     </button>
+    {/if}
 
+    {#if $visibleNavTabs.includes('perplexity')}
     <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'perplexity' ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'perplexity'}>
       <span>⚡</span>
       <span class="flex-1">Fil Perplexity</span>
     </button>
+    {/if}
 
+    {#if $visibleNavTabs.includes('feeds')}
     <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'feeds' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'feeds'}>
       <span>📰</span>
       <span>Flux & Articles</span>
     </button>
+    {/if}
 
+    {#if $visibleNavTabs.includes('synthesis')}
     <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'synthesis' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'synthesis'}>
       <span>🧪</span>
       <span>Synthèses IA</span>
     </button>
+    {/if}
 
+    {#if $visibleNavTabs.includes('discover')}
     <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'discover' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'discover'}>
       <span>🧭</span>
       <span>Catalogue</span>
     </button>
+    {/if}
+
+    {#if $visibleNavTabs.includes('stats')}
+    <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'stats' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'stats'}>
+      <span>📊</span>
+      <span>Statistiques</span>
+    </button>
+    {/if}
   </nav>
 
   <div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-800">
+    {#if $visibleNavTabs.includes('settings')}
     <button 
       class="w-full text-left px-4 py-2 rounded-lg {$currentView === 'settings' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'} flex items-center gap-2 text-xs"
       on:click={() => $currentView = 'settings'}
@@ -64,6 +82,20 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
       </svg>
       Paramètres
+    </button>
+    {/if}
+
+    <button 
+      class="w-full mt-2 text-left px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 flex items-center justify-between text-xs transition-colors"
+      on:click={() => $showNotifications = true}
+    >
+      <div class="flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+        Notifications
+      </div>
+      {#if $unreadNotificationsCount > 0}
+        <span class="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{$unreadNotificationsCount}</span>
+      {/if}
     </button>
   </div>
 </aside>

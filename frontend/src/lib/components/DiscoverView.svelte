@@ -42,7 +42,11 @@
   let subscribedSuccessMap = {};
   let errorMap = {};
 
-  const categories = ['Tous', 'Suisse', 'Monde', 'Technologie', 'Chrétien', 'Science', 'Général'];
+  // Focus of the day state
+  let focusFeed = null;
+  let loadingFocus = false;
+
+  const categories = ['Tous', 'Actualités', 'Technologie', 'Culture', 'Science', 'Économie', 'Suisse', 'Monde', 'Chrétien', 'Général'];
   const languages = [
     { code: 'Tous', label: 'Toutes les langues' },
     { code: 'fr', label: '🇫🇷 Français' },
@@ -59,6 +63,13 @@
     '📷 Photographie', '🧪 Science', '🏛️ Politique'
   ];
 
+  $: groupedCatalogFeeds = catalogFeeds.reduce((acc, feed) => {
+    const cat = feed.category || 'Général';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(feed);
+    return acc;
+  }, {});
+
   $: alreadySubscribedUrls = $feedsList.map(f => (f.url || '').toLowerCase());
   $: isWebMode = searchMode === 'web';
   $: isUrlMode = searchMode === 'catalog' && isUrlCandidate(searchQuery);
@@ -69,9 +80,24 @@
   let searchTimeout = null;
 
   onMount(() => {
+    loadFocusOfTheDay();
     loadTags();
     loadCatalog(true);
   });
+
+  async function loadFocusOfTheDay() {
+    loadingFocus = true;
+    try {
+      const res = await fetch('/api/catalog/focus-of-the-day');
+      if (res.ok) {
+        focusFeed = await res.json();
+      }
+    } catch (e) {
+      console.error("Erreur chargement Focus du jour:", e);
+    } finally {
+      loadingFocus = false;
+    }
+  }
 
   async function loadTags() {
     try {
@@ -287,8 +313,62 @@
 </script>
 
 <!-- ═══════════════════════════════════════════════ MAIN LAYOUT ══ -->
-<div class="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-dark-bg">
-  <div class="max-w-5xl mx-auto px-6 md:px-10 py-10 space-y-8">
+<div class="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-dark-bg scroll-smooth">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-10 space-y-8">
+
+    <!-- ── Focus du Jour (Hero Banner) ── -->
+    {#if focusFeed}
+      {@const isSubbedFocus = alreadySubscribedUrls.includes((focusFeed.url || '').toLowerCase()) || subscribedSuccessMap[focusFeed.url]}
+      <div class="relative w-full rounded-2xl overflow-hidden shadow-xl group">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent z-10"></div>
+        <img 
+          src={focusFeed.icon_url || "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop"} 
+          alt={focusFeed.title} 
+          class="w-full h-56 md:h-64 object-cover group-hover:scale-105 transition-transform duration-700" 
+          on:error={(e) => e.target.src = "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop"}
+        />
+        <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 z-20 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div class="space-y-1.5 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="inline-block px-2.5 py-1 text-xs font-bold bg-primary-500 text-white rounded-lg uppercase tracking-wider shadow-sm">🌟 Focus du jour</span>
+              {#if focusFeed.category}
+                <span class="inline-block px-2.5 py-0.5 text-[10px] font-bold bg-white/20 backdrop-blur-md text-white rounded-md uppercase tracking-wider">{focusFeed.category}</span>
+              {/if}
+            </div>
+            <h2 class="text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-sm">{focusFeed.title}</h2>
+            <p class="text-xs md:text-sm text-gray-200 line-clamp-2 max-w-2xl leading-relaxed">
+              {focusFeed.enriched_description || focusFeed.description || "Découvrez ce flux incontournable sélectionné aujourd'hui pour votre veille d'actualité."}
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2.5 shrink-0">
+            <button 
+              on:click={() => openPreview(focusFeed)} 
+              class="px-4 py-2.5 min-h-[44px] bg-black/40 hover:bg-black/60 text-white font-medium text-xs rounded-xl backdrop-blur-md border border-white/20 transition-all flex items-center justify-center gap-1.5"
+            >
+              👁️ Aperçu
+            </button>
+
+            {#if isSubbedFocus}
+              <span class="px-5 py-2.5 min-h-[44px] bg-emerald-500/90 text-white font-bold text-xs md:text-sm rounded-xl shadow-lg flex items-center justify-center gap-1.5">
+                ✓ Abonné
+              </span>
+            {:else}
+              <button 
+                on:click={() => subscribeToFeed(focusFeed.url, focusFeed.category, focusFeed.language)} 
+                disabled={subscribingMap[focusFeed.url]}
+                class="px-5 py-2.5 min-h-[44px] bg-white hover:bg-gray-100 text-gray-900 font-bold text-xs md:text-sm rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {#if subscribingMap[focusFeed.url]}
+                  <svg class="w-4 h-4 animate-spin text-gray-900" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                {/if}
+                + S'abonner
+              </button>
+            {/if}
+          </div>
+        </div>
+      </div>
+    {/if}
 
     <!-- ── Header ── -->
     <div>
@@ -537,96 +617,104 @@
             <p class="text-xs text-gray-400 dark:text-gray-500">Modifiez les filtres ou entrez un domaine pour l'auto-détection.</p>
           </div>
         {:else}
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {#each catalogFeeds as feed}
-              {@const isAlreadySubscribed = alreadySubscribedUrls.includes((feed.url || '').toLowerCase()) || subscribedSuccessMap[feed.url]}
+          {#each Object.entries(groupedCatalogFeeds) as [categoryName, categoryFeeds]}
+            <div class="mt-8 mb-4">
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                <span class="w-2 h-6 bg-primary-500 rounded-full"></span>
+                {categoryName}
+                <span class="text-xs text-gray-400 font-normal ml-2">({categoryFeeds.length})</span>
+              </h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {#each categoryFeeds as feed}
+                {@const isAlreadySubscribed = alreadySubscribedUrls.includes((feed.url || '').toLowerCase()) || subscribedSuccessMap[feed.url]}
 
-              <div class="group bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-xl p-4 hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm transition-all flex flex-col gap-3">
-
-                <!-- Feed header -->
-                <div class="flex items-start gap-3">
-                  <img
-                    src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.site_url || feed.url}&sz=128`}
-                    alt=""
-                    class="w-9 h-9 rounded-lg object-contain bg-gray-100 dark:bg-gray-800 p-0.5 shrink-0"
-                    on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=rss.com&sz=128'}
-                  />
-                  <div class="flex-1 min-w-0">
-                    <h3 class="font-semibold text-sm text-gray-900 dark:text-white leading-snug line-clamp-2">
-                      {feed.title}
-                    </h3>
-                    <div class="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <span class="text-[10px] text-gray-400">{getCountryFlag(feed.country, feed.language)}</span>
-                      <span class="text-[10px] text-gray-400 uppercase tracking-wide">{feed.category || 'Général'}</span>
-                      {#if feed.is_full_text}
-                        <span class="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">· Natif</span>
-                      {:else}
-                        <span class="text-[10px] font-medium text-indigo-500 dark:text-indigo-400">· Scrapé</span>
-                      {/if}
+                <div class="group bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-xl p-4 hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm transition-all flex flex-col gap-3 relative">
+                  
+                  <!-- Tooltip explicatif (visible au hover via une classe ou un title global, ici sur le titre) -->
+                  <!-- Feed header -->
+                  <div class="flex items-start gap-3">
+                    <img
+                      src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.site_url || feed.url}&sz=128`}
+                      alt=""
+                      class="w-10 h-10 md:w-9 md:h-9 rounded-lg object-contain bg-gray-100 dark:bg-gray-800 p-0.5 shrink-0"
+                      on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=rss.com&sz=128'}
+                    />
+                    <div class="flex-1 min-w-0">
+                      <h3 class="font-semibold text-sm md:text-[15px] text-gray-900 dark:text-white leading-snug line-clamp-2" title={feed.description || feed.title}>
+                        {feed.title}
+                      </h3>
+                      <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span class="text-[10px] md:text-[11px] text-gray-400">{getCountryFlag(feed.country, feed.language)}</span>
+                        <span class="text-[10px] md:text-[11px] text-gray-400 uppercase tracking-wide">{feed.category || 'Général'}</span>
+                        {#if feed.is_full_text}
+                          <span class="text-[10px] md:text-[11px] font-medium text-emerald-600 dark:text-emerald-400">· Natif</span>
+                        {:else}
+                          <span class="text-[10px] md:text-[11px] font-medium text-indigo-500 dark:text-indigo-400">· Scrapé</span>
+                        {/if}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Description -->
-                {#if feed.description}
-                  <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">
-                    {feed.description}
+                  <!-- Description enrichie / Présentation 1-2 phrases -->
+                  <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-3">
+                    {feed.description || `Flux d'actualité et de veille d'information spécialisé en ${feed.category || 'Général'}.`}
                   </p>
-                {/if}
 
-                <!-- Tags -->
-                {#if feed.tags && feed.tags.length > 0}
-                  <div class="flex flex-wrap gap-1">
-                    {#each feed.tags.slice(0, 3) as tag}
-                      <button
-                        on:click={() => selectTag(tag)}
-                        class="text-[10px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-2 py-0.5 rounded-md transition-all"
-                      >#{tag}</button>
-                    {/each}
-                  </div>
-                {/if}
+                  <!-- Tags -->
+                  {#if feed.tags && feed.tags.length > 0}
+                    <div class="flex flex-wrap gap-1.5">
+                      {#each feed.tags.slice(0, 3) as tag}
+                        <button
+                          on:click={() => selectTag(tag)}
+                          class="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-2 py-1 rounded-md transition-all min-h-[32px] min-w-[32px] flex items-center"
+                        >#{tag.replace(/^#+/, '')}</button>
+                      {/each}
+                    </div>
+                  {/if}
 
-                <!-- Actions -->
-                <div class="flex items-center gap-2 pt-1 border-t border-gray-50 dark:border-gray-800/60 mt-auto">
-                  <button
-                    on:click={() => openPreview(feed)}
-                    class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
-                    title="Aperçu des articles"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                    </svg>
-                  </button>
-
-                  <div class="flex-1"/>
-
-                  {#if isAlreadySubscribed}
-                    <span class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg border border-emerald-100 dark:border-emerald-800/60">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                      Abonné
-                    </span>
-                  {:else}
+                  <!-- Actions -->
+                  <div class="flex items-center gap-3 pt-2 border-t border-gray-50 dark:border-gray-800/60 mt-auto">
                     <button
-                      on:click={() => subscribeToFeed(feed.url, feed.category, feed.language)}
-                      disabled={subscribingMap[feed.url]}
-                      class="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-xs rounded-lg shadow-sm transition-all flex items-center gap-1 disabled:opacity-50"
+                      on:click={() => openPreview(feed)}
+                      class="p-2 md:p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      title="Aperçu des articles"
                     >
-                      {#if subscribingMap[feed.url]}
-                        <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                      {/if}
-                      + S'abonner
+                      <svg class="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                      </svg>
                     </button>
-                  {/if}
 
-                  {#if errorMap[feed.url]}
-                    <p class="text-[10px] text-rose-500">{errorMap[feed.url]}</p>
-                  {/if}
+                    <div class="flex-1"/>
+
+                    {#if isAlreadySubscribed}
+                      <span class="inline-flex items-center gap-1 px-3 py-2 md:py-1.5 text-xs md:text-sm font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl md:rounded-lg border border-emerald-100 dark:border-emerald-800/60 min-h-[44px] md:min-h-0 flex items-center">
+                        <svg class="w-4 h-4 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        Abonné
+                      </span>
+                    {:else}
+                      <button
+                        on:click={() => subscribeToFeed(feed.url, feed.category, feed.language)}
+                        disabled={subscribingMap[feed.url]}
+                        class="px-4 py-2 md:py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-xs md:text-sm rounded-xl md:rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
+                      >
+                        {#if subscribingMap[feed.url]}
+                          <svg class="w-4 h-4 md:w-3.5 md:h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        {/if}
+                        + S'abonner
+                      </button>
+                    {/if}
+
+                    {#if errorMap[feed.url]}
+                      <p class="text-[10px] text-rose-500 absolute bottom-[-16px]">{errorMap[feed.url]}</p>
+                    {/if}
+                  </div>
+
                 </div>
-
-              </div>
-            {/each}
-          </div>
+              {/each}
+            </div>
+          {/each}
 
           {#if hasMoreFeeds}
             <div class="pt-4 flex justify-center">

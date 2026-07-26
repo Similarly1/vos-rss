@@ -23,7 +23,12 @@ export function playTrack(title, audioUrl, feedTitle = 'Vos Podcast') {
   if (cleanUrl.startsWith('http:') && typeof window !== 'undefined' && window.location.protocol === 'https:') {
     cleanUrl = cleanUrl.replace(/^http:/, 'https:');
   }
-  currentTrack.set({ title, audioUrl: cleanUrl, feedTitle });
+  // Connect to SSE stream-tts endpoint if requested
+  if (cleanUrl.includes('/api/audio/stream-tts')) {
+    currentTrack.set({ title, audioUrl: cleanUrl, feedTitle, isStream: true });
+  } else {
+    currentTrack.set({ title, audioUrl: cleanUrl, feedTitle, isStream: false });
+  }
   isPlaying.set(true);
 }
 

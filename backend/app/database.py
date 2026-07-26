@@ -160,6 +160,7 @@ def init_db():
         site_url TEXT,
         title TEXT NOT NULL,
         description TEXT,
+        enriched_description TEXT,
         icon_url TEXT,
         category TEXT DEFAULT 'Général',
         language TEXT DEFAULT 'fr',
@@ -201,6 +202,29 @@ def init_db():
         ''')
     except Exception as e:
         print(f"[Migration note] catalog_feeds_fts: {e}")
+
+    # 9. User Stats table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_stats (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        listening_seconds INTEGER DEFAULT 0,
+        articles_read_count INTEGER DEFAULT 0,
+        articles_listened_count INTEGER DEFAULT 0,
+        podcasts_generated_count INTEGER DEFAULT 0,
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+    cursor.execute('INSERT OR IGNORE INTO user_stats (id) VALUES (1)')
+
+    # Auto-migration for catalog_feeds columns
+    try:
+        cursor.execute("PRAGMA table_info(catalog_feeds)")
+        cf_cols = [row["name"] for row in cursor.fetchall()]
+        if cf_cols:
+            if "enriched_description" not in cf_cols:
+                cursor.execute("ALTER TABLE catalog_feeds ADD COLUMN enriched_description TEXT")
+    except Exception as e:
+        print(f"[Migration note] catalog_feeds columns check: {e}")
 
     # 8. sqlite-vec virtual tables
     if HAS_SQLITE_VEC:

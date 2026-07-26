@@ -84,6 +84,31 @@ async def discover_feed(payload: DiscoverRequest):
 
     return res
 
+@router.get("/focus-of-the-day")
+def get_focus_of_the_day():
+    """
+    Retourne un flux recommandé quotidien de manière déterministe.
+    """
+    from app.services.catalog import fetch_focus_of_the_day
+    feed = fetch_focus_of_the_day()
+    if not feed:
+        raise HTTPException(status_code=404, detail="Aucun flux disponible.")
+    return feed
+
+class EnrichFeedRequest(BaseModel):
+    feed_id: int
+
+@router.post("/enrich-feed")
+async def enrich_feed(payload: EnrichFeedRequest):
+    """
+    Enrichit la description d'un flux via scraping ou LLM.
+    """
+    from app.services.catalog import enrich_feed_description
+    res = await enrich_feed_description(payload.feed_id)
+    if res.get("status") == "error":
+        raise HTTPException(status_code=400, detail=res.get("message"))
+    return res
+
 from app.services.rss import robust_parse_feed, extract_main_image_url
 
 @router.get("/preview")

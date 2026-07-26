@@ -1,7 +1,48 @@
 import re
 import sqlite3
+import datetime
+import httpx
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 from typing import List, Dict, Any, Optional
 from app.database import get_db_connection
+
+CATEGORY_FR_MAP = {
+    'news': 'Actualités',
+    'technologie': 'Technologie',
+    'tech': 'Technologie',
+    'technology': 'Technologie',
+    'cyber security': 'Technologie',
+    'programming': 'Technologie',
+    'web development': 'Technologie',
+    'science': 'Science',
+    'space': 'Science',
+    'environment': 'Science',
+    'business': 'Économie',
+    'economy': 'Économie',
+    'finance': 'Économie',
+    'startups': 'Économie',
+    'culture': 'Culture',
+    'entertainment': 'Culture',
+    'society': 'Société',
+    'sports': 'Sport',
+    'sport': 'Sport',
+    'gaming': 'Jeux Vidéo',
+    'health': 'Santé',
+    'politics': 'Politique',
+    'world': 'Monde',
+    'général': 'Général',
+    'general': 'Général',
+    'suisse': 'Suisse',
+}
+
+def normalize_category(cat: str) -> str:
+    if not cat:
+        return 'Général'
+    clean = cat.strip().lower()
+    return CATEGORY_FR_MAP.get(clean, cat.strip().capitalize())
 
 def slugify(text: str) -> str:
     """Converts string into clean URL-friendly slug, e.g. '#Cybersécurité' -> 'cybersecurite'."""
@@ -190,7 +231,15 @@ def search_catalog(
     for row in paged_rows:
         feed_dict = dict(row)
         feed_id = feed_dict['id']
+        feed_dict['category'] = normalize_category(feed_dict.get('category'))
         
+        desc = (feed_dict.get('enriched_description') or feed_dict.get('description') or '').strip()
+        if not desc:
+            cat = feed_dict['category'] or 'Général'
+            title = feed_dict.get('title', 'Ce média')
+            desc = f"Fil d'actualité et de veille d'information couvrant les sujets majeurs en {cat}."
+        feed_dict['description'] = desc
+
         # Fetch tags for this feed
         cursor.execute("""
             SELECT t.name, t.slug 
@@ -199,7 +248,9 @@ def search_catalog(
             WHERE cft.catalog_feed_id = ?
         """, (feed_id,))
         tags_rows = cursor.fetchall()
-        feed_dict['tags'] = [t['name'] for t in tags_rows]
+
+        # Clean tags (strip leading # so UI controls hashtag formatting nicely)
+        feed_dict['tags'] = [t['name'].lstrip('#') for t in tags_rows if t['name'].lstrip('#')]
         feed_dict['is_full_text'] = bool(feed_dict.get('is_full_text', 1))
         feed_dict['is_verified'] = bool(feed_dict.get('is_verified', 1))
         results.append(feed_dict)
@@ -226,3 +277,116 @@ def get_all_tags() -> List[Dict[str, Any]]:
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+def fetch_focus_of_the_day() -> Optional[Dict[str, Any]]:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM catalog_feeds WHERE is_verified = 1 ORDER BY id")
+    rows = cursor.fetchall()
+    if not rows:
+        cursor.execute("SELECT * FROM catalog_feeds ORDER BY id")
+        rows = cursor.fetchall()
+    conn.close()
+    
+    if not rows:
+        return None
+        
+    day_index = datetime.date.today().toordinal()
+    selected = dict(rows[day_index % len(rows)])
+    selected['category'] = normalize_category(selected.get('category'))
+    selected['is_full_text'] = bool(selected.get('is_full_text', 1))
+    selected['is_verified'] = bool(selected.get('is_verified', 1))
+    return selected
+
+async def enrich_feed_description(feed_id: int) -> Dict[str, Any]:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title, url, site_url, category, description, enriched_description FROM catalog_feeds WHERE id = ?", (feed_id,))
+    feed = cursor.fetchone()
+    
+    if not feed:
+        conn.close()
+        return {"status": "error", "message": "Flux introuvable."}
+        
+    target_url = feed['site_url'] or feed['url']
+    feed_title = feed['title'] or "Ce média"
+    feed_cat = normalize_category(feed['category'])
+    description = ""
+    
+    # ── Étape 1 : Scraping HTML Meta (description / og:description) ──
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(target_url)
+            if resp.status_code == 200:
+                if BeautifulSoup:
+                    soup = BeautifulSoup(resp.text, "html.parser")
+                    meta_desc = soup.find("meta", attrs={"name": "description"})
+                    if meta_desc and meta_desc.get("content"):
+                        description = meta_desc["content"].strip()
+                    if not description:
+                        og_desc = soup.find("meta", property="og:description")
+                        if og_desc and og_desc.get("content"):
+                            description = og_desc["content"].strip()
+                else:
+                    match = re.search(r'<meta[^>]+(?:name|property)=["\'](?:og:)?description["\'][^>]+content=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
+                    if not match:
+                        match = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:name|property)=["\'](?:og:)?description["\']', resp.text, re.IGNORECASE)
+                    if match:
+                        description = match.group(1).strip()
+    except Exception as e:
+        print(f"[Enrichment Scrape Note] {e}")
+        
+    # ── Étape 2 : Parse RSS & Génération LLM (Mistral / Gemini) sur les 5 derniers articles ──
+    import feedparser
+    parsed = None
+    try:
+        parsed = feedparser.parse(feed['url'])
+    except Exception as e:
+        print(f"[Enrichment Feedparser Note] {e}")
+
+    if not description and parsed and parsed.entries:
+        articles_context = []
+        for entry in parsed.entries[:5]:
+            title = entry.get('title', '')
+            summary = entry.get('summary', entry.get('description', ''))
+            clean_summary = re.sub(r'<[^>]+>', '', summary)[:120]
+            if title:
+                articles_context.append(f"- {title} : {clean_summary}")
+            
+        if articles_context:
+            prompt = f"Voici les 5 derniers articles de {feed_title} (thème {feed_cat}) :\n" + "\n".join(articles_context) + "\n\nPrésente ce média en 2 phrases synthétiques et attrayantes (sans utiliser 'ce flux' ou 'ces articles')."
+            
+            from app.config import settings
+            key = settings.mistral_api_key
+            if key:
+                try:
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        llm_res = await client.post(
+                            "https://api.mistral.ai/v1/chat/completions",
+                            json={
+                                "model": "mistral-small-latest",
+                                "messages": [{"role": "user", "content": prompt}]
+                            },
+                            headers={"Authorization": f"Bearer {key}"}
+                        )
+                        if llm_res.status_code == 200:
+                            description = llm_res.json()["choices"][0]["message"]["content"].strip()
+                except Exception as e:
+                    print(f"[Enrichment LLM Note] {e}")
+
+    # Fallback sur la description du canal RSS s'il en existe une propre
+    if not description and parsed and parsed.feed.get('description'):
+        raw_desc = re.sub(r'<[^>]+>', '', parsed.feed.get('description', '')).strip()
+        if len(raw_desc) > 15:
+            description = raw_desc[:250]
+
+    # Fallback spécifique personnalisé
+    if not description:
+        description = f"Source d'information éditée par {feed_title}, proposant des reportages et analyses sur les thèmes {feed_cat}."
+
+    if description:
+        cursor.execute("UPDATE catalog_feeds SET description = ?, enriched_description = ? WHERE id = ?", (description, description, feed_id))
+        conn.commit()
+        
+    conn.close()
+    return {"status": "success", "description": description}

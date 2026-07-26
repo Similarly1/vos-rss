@@ -1,24 +1,29 @@
 import base64
 import hashlib
 import json
+import re
 from typing import List, Dict, Optional
-from cryptography.fernet import Fernet
+
+try:
+    from cryptography.fernet import Fernet
+except ImportError:
+    Fernet = None
 
 from app.config import settings
 from app.database import get_db_connection
 
-# Generate a 32-byte url-safe base64-encoded key from the settings.secret_key
-# We hash it to ensure it's always exactly 32 bytes and then base64url encode it for Fernet.
 def get_fernet_key(secret: str) -> bytes:
     hasher = hashlib.sha256()
     hasher.update(secret.encode('utf-8'))
     return base64.urlsafe_b64encode(hasher.digest())
 
-try:
-    _fernet = Fernet(get_fernet_key(settings.secret_key))
-except Exception as e:
-    print(f"[Paywall Service] Failed to initialize Fernet: {e}")
-    _fernet = None
+_fernet = None
+if Fernet:
+    try:
+        _fernet = Fernet(get_fernet_key(settings.secret_key))
+    except Exception as e:
+        print(f"[Paywall Service] Failed to initialize Fernet: {e}")
+        _fernet = None
 
 def encrypt_cookie(cookie_str: str) -> str:
     if not cookie_str:

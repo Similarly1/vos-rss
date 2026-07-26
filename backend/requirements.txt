@@ -7,4 +7,6 @@ httpx
 feedparser
 gTTS
 beautifulsoup4
+cryptography
+
 

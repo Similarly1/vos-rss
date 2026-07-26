@@ -14,11 +14,11 @@ async def lifespan(app: FastAPI):
     # Initialize DB on startup
     init_db()
 
-    # Auto-seed & sync massive catalog database on startup
+    # Auto-seed & sync catalog database in background (non-blocking to ensure fast startup)
     try:
-        await seed_massive_catalog_async()
+        asyncio.create_task(seed_massive_catalog_async())
     except Exception as e:
-        print(f"[Auto-seed note] {e}")
+        print(f"[Auto-seed background note] {e}")
 
     # Start background podcast scheduler loop
     scheduler_task = asyncio.create_task(start_podcast_scheduler_loop())

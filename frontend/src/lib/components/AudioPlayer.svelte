@@ -109,6 +109,8 @@
   bind:this={audioElement}
   on:timeupdate={handleTimeUpdate}
   on:loadedmetadata={handleTimeUpdate}
+  on:durationchange={handleTimeUpdate}
+  on:progress={handleTimeUpdate}
   on:ended={() => $isPlaying = false}
 ></audio>
 

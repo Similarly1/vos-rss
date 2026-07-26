@@ -178,7 +178,7 @@
     audioLoadingState = { ...audioLoadingState };
 
     const cleanText = sanitizeTextForSpeech(summaryText || title);
-    const textToRead = `${title}. ${cleanText.slice(0, 350)}`;
+    const textToRead = `${title}. ${cleanText}`;
 
     try {
       const res = await fetch('/api/audio/generate', {
@@ -187,7 +187,7 @@
         body: JSON.stringify({
           text: textToRead,
           voice: $selectedVoice || 'marie',
-          api_key: $mistralApiKey
+          api_key: $mistralApiKey || null
         })
       });
 

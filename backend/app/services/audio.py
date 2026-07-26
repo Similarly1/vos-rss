@@ -40,7 +40,7 @@ def sanitize_text_for_speech(text) -> str:
 
     clean = re.sub(r'[*_#`~\[\]]', ' ', clean)
     clean = re.sub(r'\s+', ' ', clean).strip()
-    return clean[:1500]
+    return clean[:8000]
 
 OFFICIAL_MARIE_EMOTIONS = [
     {"id": "Marie - Dynamic", "name": "🎭 Marie - Dynamic Multi-Émotions (Adaptation automatique)"},

@@ -46,6 +46,10 @@
   let focusFeed = null;
   let loadingFocus = false;
 
+  // Recommendations state
+  let recommendations = [];
+  let loadingRecommendations = false;
+
   const categories = ['Tous', 'Actualités', 'Technologie', 'Culture', 'Science', 'Économie', 'Suisse', 'Monde', 'Chrétien', 'Général'];
   const languages = [
     { code: 'Tous', label: 'Toutes les langues' },
@@ -81,6 +85,7 @@
 
   onMount(() => {
     loadFocusOfTheDay();
+    loadRecommendations();
     loadTags();
     loadCatalog(true);
   });
@@ -96,6 +101,21 @@
       console.error("Erreur chargement Focus du jour:", e);
     } finally {
       loadingFocus = false;
+    }
+  }
+
+  async function loadRecommendations() {
+    loadingRecommendations = true;
+    try {
+      const res = await fetch('/api/catalog/recommendations?limit=6');
+      if (res.ok) {
+        const data = await res.json();
+        recommendations = Array.isArray(data) ? data : (data.recommendations || data.feeds || []);
+      }
+    } catch (e) {
+      console.error("Erreur chargement recommandations:", e);
+    } finally {
+      loadingRecommendations = false;
     }
   }
 
@@ -366,6 +386,89 @@
               </button>
             {/if}
           </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- ── Recommandations ── -->
+    {#if recommendations && recommendations.length > 0}
+      <div class="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+            <span class="text-2xl">💡</span> Recommandés pour vous
+          </h2>
+          <span class="hidden md:inline-block px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 text-xs font-bold">6 flux pour enrichir vos abonnements</span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {#each recommendations as rec}
+            {@const isAlreadySub = alreadySubscribedUrls.includes((rec.url || '').toLowerCase()) || subscribedSuccessMap[rec.url]}
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
+            <!-- svelte-ignore a11y-no-static-element-interactions -->
+            <div 
+              class="group relative bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-2xl p-5 hover:border-cyan-300 dark:hover:border-purple-500/50 shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 dark:hover:shadow-purple-500/10 transition-all duration-300 flex flex-col gap-4 cursor-pointer overflow-hidden transform hover:-translate-y-1"
+              on:click={() => openPreview(rec)}
+            >
+              <!-- Gradient glow effect on hover -->
+              <div class="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+
+              <div class="relative z-10 flex items-start gap-4">
+                <img
+                  src={rec.icon_url || `https://www.google.com/s2/favicons?domain=${rec.site_url || rec.url}&sz=128`}
+                  alt=""
+                  class="w-14 h-14 rounded-xl object-contain bg-gray-50 dark:bg-gray-800/80 p-1.5 shrink-0 shadow-sm border border-gray-100 dark:border-gray-700/50 group-hover:scale-105 transition-transform duration-300"
+                  on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=rss.com&sz=128'}
+                />
+                <div class="flex-1 min-w-0">
+                  <h3 class="font-extrabold text-base text-gray-900 dark:text-white leading-tight line-clamp-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-cyan-600 group-hover:to-purple-600 dark:group-hover:from-cyan-400 dark:group-hover:to-purple-400 transition-all">
+                    {rec.title}
+                  </h3>
+                  {#if rec.relevance_score || rec.score}
+                    <div class="mt-2 w-max inline-flex items-center px-2 py-0.5 rounded-md bg-gradient-to-r from-cyan-50 to-purple-50 dark:from-cyan-500/10 dark:to-purple-500/10 text-cyan-700 dark:text-cyan-300 text-[11px] font-black tracking-wide border border-cyan-100 dark:border-cyan-500/20 shadow-sm">
+                      🎯 {rec.relevance_score || rec.score}% de pertinence
+                    </div>
+                  {/if}
+                </div>
+              </div>
+
+              {#if rec.explanation}
+                <div class="relative z-10 px-3 py-2.5 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/50 dark:border-gray-700/30">
+                  <p class="text-[13px] font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600 dark:from-cyan-400 dark:to-purple-400 italic">
+                    « {rec.explanation} »
+                  </p>
+                </div>
+              {/if}
+
+              <p class="relative z-10 text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2 flex-1 font-medium">
+                {rec.enriched_description || rec.description || `Découvrez les actualités de ${rec.title}.`}
+              </p>
+              
+              <div class="relative z-10 mt-auto pt-4 border-t border-gray-100 dark:border-gray-800/60 flex items-center justify-between" on:click|stopPropagation>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-xs">{getCountryFlag(rec.country, rec.language)}</span>
+                  <span class="text-[10px] uppercase font-black tracking-wider text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">{rec.category || 'Recommandation'}</span>
+                </div>
+                
+                {#if isAlreadySub}
+                  <span class="inline-flex items-center gap-1.5 px-4 py-2 min-h-[38px] text-sm font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-100 dark:border-emerald-800/60 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    Abonné
+                  </span>
+                {:else}
+                  <button
+                    on:click={() => subscribeToFeed(rec.url, rec.category, rec.language)}
+                    disabled={subscribingMap[rec.url]}
+                    class="px-4 py-2 min-h-[38px] bg-gradient-to-r from-gray-900 to-gray-800 hover:from-black hover:to-gray-900 dark:from-white dark:to-gray-100 dark:hover:from-gray-100 dark:hover:to-gray-200 text-white dark:text-gray-900 font-bold text-sm rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
+                  >
+                    {#if subscribingMap[rec.url]}
+                      <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    {/if}
+                    + S'abonner
+                  </button>
+                {/if}
+              </div>
+            </div>
+          {/each}
         </div>
       </div>
     {/if}

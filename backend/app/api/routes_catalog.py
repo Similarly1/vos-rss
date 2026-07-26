@@ -33,6 +33,14 @@ def get_catalog_feeds(
     """
     return search_catalog(query=q, category=category, tag=tag, language=language, limit=limit, offset=offset)
 
+@router.get("/recommendations")
+def catalog_recommendations(limit: int = Query(6, ge=1, le=20, description="Nombre de recommandations")):
+    """
+    Retourne des recommandations de flux intelligentes basées sur les abonnements de l'utilisateur.
+    """
+    from app.services.recommendations import get_smart_feed_recommendations
+    return get_smart_feed_recommendations(limit=limit)
+
 @router.get("/tags")
 def get_catalog_tags():
     """

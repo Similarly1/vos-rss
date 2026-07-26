@@ -13,6 +13,12 @@ export const selectedItemId = writable(null);
 export const showAddFeedModal = writable(false);
 export const showFeedManagerModal = writable(false);
 export const showNotifications = writable(false);
+export const showMediaCredentialsModal = writable(false);
+
+// Media Subscriptions
+export const subscribedMediaCredentialsList = writable([]);
+export const hidePaywalledWithoutCookie = writable(true);
+
 
 // Refreshing state indicator
 export const isRefreshingFeeds = writable(false);

@@ -226,6 +226,29 @@ def init_db():
     except Exception as e:
         print(f"[Migration note] catalog_feeds columns check: {e}")
 
+    # 10. Media Credentials table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS media_credentials (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        domain TEXT UNIQUE NOT NULL,
+        media_name TEXT,
+        encrypted_cookie TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+
+    # Auto-migration for articles columns (paywall & full text)
+    try:
+        cursor.execute("PRAGMA table_info(articles)")
+        art_cols_pw = [row["name"] for row in cursor.fetchall()]
+        if art_cols_pw:
+            if "is_paywalled" not in art_cols_pw:
+                cursor.execute("ALTER TABLE articles ADD COLUMN is_paywalled INTEGER DEFAULT 0")
+            if "is_full_text_available" not in art_cols_pw:
+                cursor.execute("ALTER TABLE articles ADD COLUMN is_full_text_available INTEGER DEFAULT 1")
+    except Exception as e:
+        print(f"[Migration note] articles paywall columns check: {e}")
+
     # 8. sqlite-vec virtual tables
     if HAS_SQLITE_VEC:
         try:

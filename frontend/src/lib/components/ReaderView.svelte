@@ -1,5 +1,5 @@
 <script>
-  import { selectedItemId, articlesList, mistralApiKey, geminiApiKey, synthesisProvider, selectedMistralArticleModel, selectedGeminiArticleModel, currentView } from '../stores/appState.js';
+  import { selectedItemId, articlesList, mistralApiKey, geminiApiKey, synthesisProvider, selectedMistralArticleModel, selectedGeminiArticleModel, currentView, subscribedMediaCredentialsList } from '../stores/appState.js';
   import { playTrack, selectedVoice, sanitizeTextForSpeech } from '../stores/audioStore.js';
 
   $: selectedArticle = $articlesList.find(a => a.id === $selectedItemId);
@@ -119,6 +119,18 @@
         <div class="flex items-center gap-2 mb-2">
           <span class="text-primary-500 font-semibold text-xs uppercase tracking-wider">{selectedArticle.feed_title || 'Flux RSS'}</span>
           <span class="text-gray-300 dark:text-gray-700">•</span>
+          {#if selectedArticle.is_paywalled !== undefined}
+            {#if selectedArticle.is_paywalled}
+              {#if $subscribedMediaCredentialsList.some(cred => selectedArticle.url && selectedArticle.url.includes(cred.domain))}
+                <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] font-bold rounded">🔓 Intégral</span>
+              {:else}
+                <span class="px-2 py-0.5 bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 text-[10px] font-bold rounded">🔒 Réservé</span>
+              {/if}
+            {:else}
+              <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 text-[10px] font-bold rounded">🔓 Gratuit</span>
+            {/if}
+            <span class="text-gray-300 dark:text-gray-700">•</span>
+          {/if}
           <span class="text-xs text-gray-400">{selectedArticle.published_date ? new Date(selectedArticle.published_date).toLocaleString('fr-FR') : ''}</span>
         </div>
         <h1 class="text-2xl md:text-3xl font-extrabold leading-tight">{selectedArticle.title}</h1>

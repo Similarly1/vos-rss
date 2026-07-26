@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     podcast_feed_token: str = ""
     cors_origins: list[str] = ["*"]
     base_url: str = "http://127.0.0.1:8000"  # Can be overridden in .env (ex: BASE_URL=https://my-vps-domain.com)
+    secret_key: str = "YOUR_SUPER_SECRET_KEY_REPLACE_ME_IN_PRODUCTION!"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

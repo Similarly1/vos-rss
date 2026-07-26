@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentView, isMobile, selectedItemId, setupAutoRefresh, showNotifications } from './lib/stores/appState.js';
+  import { currentView, isMobile, selectedItemId, setupAutoRefresh, showNotifications, showMediaCredentialsModal } from './lib/stores/appState.js';
   import Sidebar from './lib/components/Sidebar.svelte';
   import ArticleList from './lib/components/ArticleList.svelte';
   import ReaderView from './lib/components/ReaderView.svelte';
@@ -16,6 +16,7 @@
   import StatisticsView from './lib/components/StatisticsView.svelte';
   import OnboardingWizardModal from './lib/components/OnboardingWizardModal.svelte';
   import NotificationPanel from './lib/components/NotificationPanel.svelte';
+  import MediaCredentialsModal from './lib/components/MediaCredentialsModal.svelte';
   
   let showOnboarding = false; // Could be controlled by a store later
 
@@ -101,6 +102,10 @@
 
   {#if $showNotifications}
     <NotificationPanel />
+  {/if}
+
+  {#if $showMediaCredentialsModal}
+    <MediaCredentialsModal />
   {/if}
 
 </main>

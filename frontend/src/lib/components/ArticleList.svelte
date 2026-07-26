@@ -1,6 +1,14 @@
 <script>
   import { onMount } from 'svelte';
-  import { selectedItemId, articlesList, fetchArticles, triggerFeedRefresh, isRefreshingFeeds, showAddFeedModal } from '../stores/appState.js';
+  import { selectedItemId, articlesList, fetchArticles, triggerFeedRefresh, isRefreshingFeeds, showAddFeedModal, subscribedMediaCredentialsList, hidePaywalledWithoutCookie } from '../stores/appState.js';
+
+  $: filteredArticles = $articlesList.filter(item => {
+    if ($hidePaywalledWithoutCookie && item.is_paywalled) {
+      const hasCookie = $subscribedMediaCredentialsList.some(cred => item.url && item.url.includes(cred.domain));
+      if (!hasCookie) return false;
+    }
+    return true;
+  });
 
   onMount(() => {
     fetchArticles();
@@ -9,7 +17,7 @@
 
 <div class="w-full lg:w-96 h-full bg-gray-50 dark:bg-dark-bg border-r border-gray-200 dark:border-gray-800 overflow-y-auto flex flex-col">
   <div class="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-dark-card sticky top-0 z-10 flex justify-between items-center">
-    <h2 class="text-xl font-bold">À lire ({$articlesList.length})</h2>
+    <h2 class="text-xl font-bold">À lire ({filteredArticles.length})</h2>
     
     <button 
       on:click={triggerFeedRefresh}
@@ -25,7 +33,7 @@
   </div>
   
   <div class="flex-1 overflow-y-auto p-2 space-y-2">
-    {#if $articlesList.length === 0}
+    {#if filteredArticles.length === 0}
       <div class="p-6 text-center text-sm text-gray-400 dark:text-dark-muted space-y-3">
         <p>Aucun article disponible pour le moment.</p>
         <button 
@@ -36,14 +44,27 @@
         </button>
       </div>
     {:else}
-      {#each $articlesList as item}
+      {#each filteredArticles as item}
         <button 
           class="w-full text-left p-4 rounded-xl transition-all {$selectedItemId === item.id ? 'bg-white dark:bg-dark-card shadow-sm border-l-4 border-primary-500' : 'hover:bg-white dark:hover:bg-dark-card border-l-4 border-transparent'}"
           on:click={() => $selectedItemId = item.id}
         >
           <div class="text-xs text-gray-500 dark:text-dark-muted mb-1 flex justify-between gap-2">
             <span class="truncate font-medium text-primary-500">{item.feed_title || 'RSS'}</span>
-            <span class="shrink-0">{item.published_date ? new Date(item.published_date).toLocaleDateString('fr-FR') : ''}</span>
+            <div class="flex items-center gap-2">
+              {#if item.is_paywalled !== undefined}
+                {#if item.is_paywalled}
+                  {#if $subscribedMediaCredentialsList.some(cred => item.url && item.url.includes(cred.domain))}
+                    <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] font-bold rounded" title="Débloqué avec votre abonnement">🔓 Intégral</span>
+                  {:else}
+                    <span class="px-1.5 py-0.5 bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 text-[10px] font-bold rounded" title="Réservé aux abonnés">🔒 Réservé</span>
+                  {/if}
+                {:else}
+                  <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 text-[10px] font-bold rounded">🔓 Gratuit</span>
+                {/if}
+              {/if}
+              <span class="shrink-0">{item.published_date ? new Date(item.published_date).toLocaleDateString('fr-FR') : ''}</span>
+            </div>
           </div>
           <h3 class="font-semibold text-sm line-clamp-2 leading-tight">{item.title}</h3>
         </button>

@@ -10,12 +10,13 @@
     synthesisProvider, vectorizationProvider, synthesisFallbackProvider, vectorizationFallbackProvider, mistralEmbedModel, geminiEmbedModel,
     refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, 
     saveSettings, runArticlesCleanup, fetchVpsSettings,
-    userTheme, setAppTheme, visibleNavTabs
+    userTheme, setAppTheme, visibleNavTabs,
+    showMediaCredentialsModal, subscribedMediaCredentialsList, hidePaywalledWithoutCookie
   } from '../stores/appState.js';
   import { selectedVoice, saveVoiceSetting } from '../stores/audioStore.js';
 
   let settingsMode = 'debutant'; // 'debutant' | 'expert'
-  let activeTab = 'apparence'; // 'apparence' | 'api' | 'aide' | 'danger'
+  let activeTab = 'apparence'; // 'apparence' | 'api' | 'abonnements' | 'aide' | 'danger'
 
   let mistralKeyInput = $mistralApiKey;
   let mistralModelInput = $selectedMistralModel;
@@ -236,6 +237,7 @@
     <div class="flex gap-6 overflow-x-auto scrollbar-hide">
       <button on:click={() => activeTab = 'apparence'} class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'apparence' ? 'border-primary-500 text-primary-500' : 'border-transparent text-gray-500 hover:text-gray-700'}">🎨 Apparence & Navigation</button>
       <button on:click={() => activeTab = 'api'} class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'api' ? 'border-primary-500 text-primary-500' : 'border-transparent text-gray-500 hover:text-gray-700'}">🔑 Clés API & Modèles</button>
+      <button on:click={() => activeTab = 'abonnements'} class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'abonnements' ? 'border-primary-500 text-primary-500' : 'border-transparent text-gray-500 hover:text-gray-700'}">🔑 Abonnements Médias</button>
       <button on:click={() => activeTab = 'aide'} class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'aide' ? 'border-primary-500 text-primary-500' : 'border-transparent text-gray-500 hover:text-gray-700'}">📖 Aide & Tutoriels</button>
       <button on:click={() => activeTab = 'danger'} class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'danger' ? 'border-rose-500 text-rose-500' : 'border-transparent text-gray-500 hover:text-rose-400'}">⚠️ Zone de Danger</button>
     </div>
@@ -543,6 +545,53 @@
       <section class="bg-white dark:bg-dark-card rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
         <h3 class="text-lg font-bold mb-6 border-b border-gray-100 dark:border-gray-800 pb-4 text-primary-500">📖 Aide & Tutoriels</h3>
         <p class="text-sm text-gray-500">Guides explicatifs pour l'utilisation de la plateforme.</p>
+      </section>
+      {/if}
+
+      {#if activeTab === 'abonnements'}
+      <!-- Section: Abonnements Médias Payants -->
+      <section class="bg-white dark:bg-dark-card rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
+        <div class="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <h3 class="text-lg font-bold text-primary-500">🔑 Abonnements Médias Payants</h3>
+          <button on:click={() => $showMediaCredentialsModal = true} class="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold rounded-xl text-sm transition-colors">
+            + Ajouter un accès
+          </button>
+        </div>
+        
+        <div class="space-y-6">
+          <p class="text-sm text-gray-500">Configurez vos cookies de session pour lire l'intégralité des articles payants (Le Monde, NZZ, etc.).</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {#if $subscribedMediaCredentialsList.length === 0}
+              <div class="col-span-full p-6 text-center border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl text-gray-400 text-sm">
+                🔴 Non configuré. Vous n'avez ajouté aucun cookie pour le moment.
+              </div>
+            {:else}
+              {#each $subscribedMediaCredentialsList as media}
+                <div class="p-4 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl flex justify-between items-center">
+                  <div>
+                    <h4 class="font-bold text-sm">{media.name}</h4>
+                    <p class="text-xs text-gray-500">{media.domain}</p>
+                  </div>
+                  <span class="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 100% Intégral
+                  </span>
+                </div>
+              {/each}
+            {/if}
+          </div>
+
+          <div class="mt-6 p-4 bg-gray-50 dark:bg-dark-bg rounded-2xl flex items-center justify-between border border-gray-200 dark:border-gray-700">
+            <div>
+              <span class="block text-sm font-semibold text-gray-800 dark:text-gray-200">Masquer automatiquement les articles payants sans abonnement</span>
+              <span class="text-xs text-gray-500">N'afficher que les articles gratuits ou pour lesquels vous avez fourni un cookie.</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" bind:checked={$hidePaywalledWithoutCookie} class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-500"></div>
+            </label>
+          </div>
+        </div>
       </section>
       {/if}
 

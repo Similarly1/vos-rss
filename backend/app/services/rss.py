@@ -22,6 +22,10 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 }
 
+from app.services.paywall import get_media_cookie, detect_paywall
+from urllib.parse import urlparse
+
+
 KNOWN_FEED_ALIASES = {
     "https://www.rts.ch/rss/info.xml": "https://www.rts.ch/info/toute-info/?format=rss/news",
     "http://www.rts.ch/rss/info.xml": "https://www.rts.ch/info/toute-info/?format=rss/news",
@@ -123,17 +127,26 @@ def extract_main_image_url(entry, content: str) -> str:
 
     return None
 
-def extract_full_article_content(article_url: str, fallback_content: str) -> str:
+def extract_full_article_content(article_url: str, fallback_content: str) -> tuple[str, bool, bool]:
     clean_fallback = re.sub(r'<[^>]+>', ' ', fallback_content or '').strip()
-    if len(clean_fallback) >= 450:
-        return fallback_content
+    
+    is_paywalled = False
+    is_full_text_available = True
 
     try:
+        domain = urlparse(article_url).netloc
+        domain = domain.replace("www.", "")
+        
+        cookie_str = get_media_cookie(domain)
+        headers = BROWSER_HEADERS.copy()
+        if cookie_str:
+            headers["Cookie"] = cookie_str
+
         res = httpx.get(
             article_url, 
             follow_redirects=True, 
             timeout=8.0, 
-            headers=BROWSER_HEADERS
+            headers=headers
         )
         if res.status_code == 200:
             html = res.text
@@ -144,14 +157,26 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> str
                 if len(txt) > 40 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner"]):
                     clean_paragraphs.append(txt)
 
+            scraped_text = ""
             if len(clean_paragraphs) >= 2:
                 scraped_text = "\n\n".join(clean_paragraphs)
+                
+            is_paywalled = detect_paywall(html, scraped_text)
+            
+            if is_paywalled:
+                is_full_text_available = False
+                # If we have a scraped text that is larger than the fallback, still use it
                 if len(scraped_text) > len(clean_fallback):
-                    return scraped_text
+                     return scraped_text, is_paywalled, is_full_text_available
+                return fallback_content, is_paywalled, is_full_text_available
+
+            if len(scraped_text) > len(clean_fallback):
+                return scraped_text, is_paywalled, is_full_text_available
     except Exception as e:
         print(f"[Scraper Fallback Note] Could not fetch full page for {article_url}: {e}")
 
-    return fallback_content
+    # If we didn't scrape anything better, use fallback content
+    return fallback_content, is_paywalled, is_full_text_available
 
 def clean_old_articles(retention_days: int = 14) -> dict:
     """
@@ -245,7 +270,7 @@ def parse_and_save_feed(url: str, category: str = "Général", language: str = N
         if "content" in entry and len(entry.content) > 0:
             raw_content = entry.content[0].get("value", raw_content)
 
-        full_content = extract_full_article_content(article_url, raw_content)
+        full_content, is_paywalled, is_full_text_available = extract_full_article_content(article_url, raw_content)
         image_url = extract_main_image_url(entry, full_content)
 
         pub_date_struct = entry.get("published_parsed") or entry.get("updated_parsed")
@@ -259,10 +284,10 @@ def parse_and_save_feed(url: str, category: str = "Général", language: str = N
         try:
             cursor.execute(
                 """
-                INSERT INTO articles (feed_id, title, content, url, published_date, image_url, language, is_full_text)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO articles (feed_id, title, content, url, published_date, image_url, language, is_full_text, is_paywalled, is_full_text_available)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (feed_id, article_title, full_content, article_url, pub_date, image_url, art_lang, 1)
+                (feed_id, article_title, full_content, article_url, pub_date, image_url, art_lang, 1, 1 if is_paywalled else 0, 1 if is_full_text_available else 0)
             )
             articles_added += 1
         except Exception:

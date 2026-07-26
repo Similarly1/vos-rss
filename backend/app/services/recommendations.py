@@ -25,20 +25,48 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
     """
     catalog_rows = cursor.execute(catalog_query).fetchall()
     
+    # Fetch active user media credentials (domains where user has an active session cookie)
+    user_cred_domains = set()
+    try:
+        cred_rows = cursor.execute("SELECT domain FROM media_credentials").fetchall()
+        for c in cred_rows:
+            if c['domain']:
+                user_cred_domains.add(c['domain'].lower().replace('www.', ''))
+    except Exception:
+        pass
+
+    PAYWALLED_DOMAINS = {
+        'nzz.ch', 'letemps.ch', 'lemonde.fr', 'mediapart.fr', 'nature.com', 
+        'lqj.ch', 'wsj.com', 'nytimes.com', 'ft.com', 'economist.com',
+        'lefigaro.fr', 'lesechos.fr'
+    }
+
+    def is_feed_paywalled(url: str, site_url: str) -> bool:
+        combined = f"{url or ''} {site_url or ''}".lower()
+        if 'next.ink/feed/feed' in combined or 'next.ink/feed/' in combined:
+            if 'next.ink/feed/free' not in combined:
+                return True
+        for p_dom in PAYWALLED_DOMAINS:
+            if p_dom in combined:
+                # Check if user has an active credential for this domain
+                if not any(u_dom in combined for u_dom in user_cred_domains):
+                    return True
+        return False
+
     if not user_feeds:
-        # Default recommendations
+        # Default recommendations (free access only)
         recs = []
         for row in catalog_rows:
-            if row['is_verified']:
+            if row['is_verified'] and not is_feed_paywalled(row['url'], row['site_url']):
                 rec = dict(row)
-                rec['explanation'] = "Recommandation populaire"
+                rec['explanation'] = "Recommandation populaire (Accès Libre)"
                 rec['tags'] = rec['tags'].split(',') if rec['tags'] else []
                 recs.append(rec)
                 if len(recs) == limit:
                     break
         conn.close()
         return recs
-    
+
     user_urls = {f['url'] for f in user_feeds}
     
     # Analyze user profile
@@ -67,6 +95,10 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
     candidates = []
     for row in catalog_rows:
         if row['url'] in user_urls:
+            continue
+            
+        # Exclude paywalled feeds if user doesn't have an active credential for them
+        if is_feed_paywalled(row['url'], row['site_url']):
             continue
             
         cat = row['category']
@@ -106,16 +138,17 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
     candidates.sort(key=lambda x: x['score'], reverse=True)
     best = candidates[:limit]
     
-    # Fallback if not enough candidates
+    # Fallback if not enough candidates (free access only)
     if len(best) < limit:
         for row in catalog_rows:
             if row['url'] not in user_urls and row['url'] not in [b['url'] for b in best]:
-                rec = dict(row)
-                rec['tags'] = row['tags'].split(',') if row['tags'] else []
-                rec['explanation'] = "Recommandation découverte"
-                best.append(rec)
-                if len(best) == limit:
-                    break
+                if not is_feed_paywalled(row['url'], row['site_url']):
+                    rec = dict(row)
+                    rec['tags'] = row['tags'].split(',') if row['tags'] else []
+                    rec['explanation'] = "Recommandation découverte (Accès Libre)"
+                    best.append(rec)
+                    if len(best) == limit:
+                        break
                     
     # Clean up response payload (remove score for API if we want, or keep it)
     for b in best:

@@ -46,6 +46,27 @@
   let focusFeed = null;
   let loadingFocus = false;
 
+  const THEME_HERO_WALLPAPERS = {
+    'Technologie': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80',
+    'Suisse': 'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?auto=format&fit=crop&w=1600&q=80',
+    'Science': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80',
+    'Actualités': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1600&q=80',
+    'Économie': 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1600&q=80',
+    'Culture': 'https://images.unsplash.com/photo-1460723237483-7a6dc9d0b212?auto=format&fit=crop&w=1600&q=80',
+    'Monde': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80',
+    'Chrétien': 'https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&w=1600&q=80',
+    'Général': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1600&q=80'
+  };
+
+  function getHeroBackgroundImage(feed) {
+    if (!feed) return THEME_HERO_WALLPAPERS['Général'];
+    if (feed.cover_image_url && !feed.cover_image_url.includes('favicons?domain=')) {
+      return feed.cover_image_url;
+    }
+    const cat = feed.category || 'Général';
+    return THEME_HERO_WALLPAPERS[cat] || THEME_HERO_WALLPAPERS['Général'];
+  }
+
   // Recommendations state
   let recommendations = [];
   let loadingRecommendations = false;
@@ -336,51 +357,74 @@
 <div class="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-dark-bg scroll-smooth">
   <div class="max-w-5xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-10 space-y-8">
 
-    <!-- ── Focus du Jour (Hero Banner) ── -->
+    <!-- ── Focus du Jour (Hero Banner HD) ── -->
     {#if focusFeed}
       {@const isSubbedFocus = alreadySubscribedUrls.includes((focusFeed.url || '').toLowerCase()) || subscribedSuccessMap[focusFeed.url]}
-      <div class="relative w-full rounded-2xl overflow-hidden shadow-xl group">
-        <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent z-10"></div>
+      {@const heroBg = getHeroBackgroundImage(focusFeed)}
+      <div class="relative w-full rounded-3xl overflow-hidden shadow-2xl group border border-gray-100 dark:border-gray-800/80">
+        <!-- Background HD Wallpaper with Gradient Overlay -->
+        <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-black/30 z-10"></div>
         <img 
-          src={focusFeed.icon_url || "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop"} 
+          src={heroBg} 
           alt={focusFeed.title} 
-          class="w-full h-56 md:h-64 object-cover group-hover:scale-105 transition-transform duration-700" 
-          on:error={(e) => e.target.src = "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop"}
+          class="w-full h-64 md:h-72 object-cover group-hover:scale-105 transition-transform duration-700" 
+          on:error={(e) => e.target.src = THEME_HERO_WALLPAPERS['Général']}
         />
-        <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 z-20 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div class="space-y-1.5 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="inline-block px-2.5 py-1 text-xs font-bold bg-primary-500 text-white rounded-lg uppercase tracking-wider shadow-sm">🌟 Focus du jour</span>
+        
+        <!-- Content on top of Background -->
+        <div class="absolute bottom-0 left-0 right-0 p-5 md:p-8 z-20 flex flex-col md:flex-row md:items-end justify-between gap-5">
+          <div class="space-y-3 min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full uppercase tracking-wider shadow-md">
+                🌟 Focus du jour
+              </span>
               {#if focusFeed.category}
-                <span class="inline-block px-2.5 py-0.5 text-[10px] font-bold bg-white/20 backdrop-blur-md text-white rounded-md uppercase tracking-wider">{focusFeed.category}</span>
+                <span class="inline-block px-3 py-1 text-[11px] font-extrabold bg-white/20 backdrop-blur-md text-white rounded-full uppercase tracking-wider border border-white/20">
+                  {focusFeed.category}
+                </span>
               {/if}
             </div>
-            <h2 class="text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-sm">{focusFeed.title}</h2>
-            <p class="text-xs md:text-sm text-gray-200 line-clamp-2 max-w-2xl leading-relaxed">
+
+            <!-- Crisp Logo Badge + Title -->
+            <div class="flex items-center gap-3.5 pt-1">
+              {#if focusFeed.icon_url}
+                <img 
+                  src={focusFeed.icon_url} 
+                  alt="" 
+                  class="w-12 h-12 md:w-14 md:h-14 rounded-2xl object-contain bg-white/95 dark:bg-gray-900/95 p-2 shadow-xl border border-white/20 shrink-0" 
+                  on:error={(e) => e.target.style.display = 'none'}
+                />
+              {/if}
+              <h2 class="text-xl md:text-3xl font-black text-white leading-tight drop-shadow-md">
+                {focusFeed.title}
+              </h2>
+            </div>
+
+            <p class="text-xs md:text-sm text-gray-200 line-clamp-2 max-w-2xl leading-relaxed font-medium">
               {focusFeed.enriched_description || focusFeed.description || "Découvrez ce flux incontournable sélectionné aujourd'hui pour votre veille d'actualité."}
             </p>
           </div>
 
-          <div class="flex items-center gap-2.5 shrink-0">
+          <div class="flex items-center gap-3 shrink-0">
             <button 
               on:click={() => openPreview(focusFeed)} 
-              class="px-4 py-2.5 min-h-[44px] bg-black/40 hover:bg-black/60 text-white font-medium text-xs rounded-xl backdrop-blur-md border border-white/20 transition-all flex items-center justify-center gap-1.5"
+              class="px-4 py-2.5 min-h-[44px] bg-black/50 hover:bg-black/70 text-white font-bold text-xs rounded-xl backdrop-blur-md border border-white/20 transition-all flex items-center justify-center gap-1.5 shadow-lg"
             >
               👁️ Aperçu
             </button>
 
             {#if isSubbedFocus}
-              <span class="px-5 py-2.5 min-h-[44px] bg-emerald-500/90 text-white font-bold text-xs md:text-sm rounded-xl shadow-lg flex items-center justify-center gap-1.5">
+              <span class="px-5 py-2.5 min-h-[44px] bg-emerald-500/90 text-white font-bold text-xs md:text-sm rounded-xl shadow-xl flex items-center justify-center gap-1.5 backdrop-blur-md border border-emerald-400/30">
                 ✓ Abonné
               </span>
             {:else}
               <button 
                 on:click={() => subscribeToFeed(focusFeed.url, focusFeed.category, focusFeed.language)} 
                 disabled={subscribingMap[focusFeed.url]}
-                class="px-5 py-2.5 min-h-[44px] bg-white hover:bg-gray-100 text-gray-900 font-bold text-xs md:text-sm rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                class="px-5 py-2.5 min-h-[44px] bg-white hover:bg-gray-100 text-gray-950 font-black text-xs md:text-sm rounded-xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {#if subscribingMap[focusFeed.url]}
-                  <svg class="w-4 h-4 animate-spin text-gray-900" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  <svg class="w-4 h-4 animate-spin text-gray-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                 {/if}
                 + S'abonner
               </button>

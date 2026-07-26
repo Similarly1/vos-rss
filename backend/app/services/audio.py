@@ -10,12 +10,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 AUDIO_DIR = BASE_DIR / "audio_cache"
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
-def sanitize_text_for_speech(text: str) -> str:
+def sanitize_text_for_speech(text) -> str:
     """
     Strips all URLs, domains, HTML tags, and RSS link noise before feeding to TTS engine.
+    Guarantees type safety even if input is a dict or list.
     """
     if not text:
         return ""
+
+    if isinstance(text, dict):
+        text = " ".join([str(v) for v in text.values()])
+    elif isinstance(text, list):
+        text = " ".join([str(x) for x in text])
+    elif not isinstance(text, str):
+        text = str(text)
 
     clean = re.sub(r'<[^>]+>', ' ', text)
     clean = re.sub(r'https?://[^\s>]+', '', clean, flags=re.IGNORECASE)
@@ -162,15 +170,23 @@ async def generate_audio_bytes_for_voice(text: str, voice_key: str = "Marie - Ne
         else:
             raise ValueError(f"Erreur API Mistral Voxtral ({response.status_code}): {response.text}")
 
-def split_script_into_emotion_segments(raw_text: str, default_voice: str = "Marie - Neutral") -> list[tuple[str, str]]:
+def split_script_into_emotion_segments(raw_text, default_voice: str = "Marie - Neutral") -> list[tuple[str, str]]:
     """
     Parses a script containing bracketed emotion markers like:
     [Marie - Neutral] Bonjour...
     [Marie - Angry] Amende record...
     Returns a list of (voice_key, text_segment) tuples.
+    Guarantees type safety even if raw_text is a dict or list.
     """
     if not raw_text:
         return [(default_voice, "")]
+
+    if isinstance(raw_text, dict):
+        raw_text = "\n\n".join([f"{k} : {v}" if isinstance(v, str) else str(v) for k, v in raw_text.items()])
+    elif isinstance(raw_text, list):
+        raw_text = "\n\n".join([str(x) for x in raw_text])
+    elif not isinstance(raw_text, str):
+        raw_text = str(raw_text)
 
     pattern = r'\[(Marie\s*-\s*[^\]]+)\]'
     parts = re.split(pattern, raw_text)

@@ -13,13 +13,20 @@ from app.services.audio import generate_podcast_audio, generate_audio_bytes_for_
 
 DEFAULT_PODCAST_COVER = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80"
 
-def format_script_html(script_text: str) -> str:
+def format_script_html(script_text) -> str:
     """
     Formats the raw podcast transcript into clean, readable HTML paragraphs and subheadings for AntennaPod.
     """
     if not script_text:
         return "<p>Aucune transcription disponible.</p>"
     
+    if isinstance(script_text, dict):
+        script_text = "\n\n".join([f"{k} : {v}" if isinstance(v, str) else str(v) for k, v in script_text.items()])
+    elif isinstance(script_text, list):
+        script_text = "\n\n".join([str(x) for x in script_text])
+    elif not isinstance(script_text, str):
+        script_text = str(script_text)
+
     lines = [line.strip() for line in script_text.split("\n") if line.strip()]
     html_parts = []
     
@@ -34,9 +41,17 @@ def format_script_html(script_text: str) -> str:
             
     return "\n".join(html_parts)
 
-def sanitize_script_for_tts(text: str) -> str:
+def sanitize_script_for_tts(text) -> str:
     if not text:
         return ""
+
+    if isinstance(text, dict):
+        text = "\n\n".join([f"{k} : {v}" if isinstance(v, str) else str(v) for k, v in text.items()])
+    elif isinstance(text, list):
+        text = "\n\n".join([str(x) for x in text])
+    elif not isinstance(text, str):
+        text = str(text)
+
     # 1. Remove bracketed text like [Votre Nom], [Nom du présentateur], [Musique], [Rires], etc.
     text = re.sub(r"\[([^\]]+)\]", "", text)
     # 2. Remove parenthetical stage directions like (musique dynamique)
@@ -49,10 +64,15 @@ def sanitize_script_for_tts(text: str) -> str:
     text = re.sub(r"\s+([,\.\?!;:])", r"\1", text)
     return text.strip()
 
-def clean_podcast_title(raw_title: str) -> str:
+def clean_podcast_title(raw_title) -> str:
     if not raw_title:
         return f"Vos : Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
-    
+
+    if isinstance(raw_title, (dict, list)):
+        raw_title = json.dumps(raw_title, ensure_ascii=False)
+    elif not isinstance(raw_title, str):
+        raw_title = str(raw_title)
+
     t = raw_title.strip()
     t = t.strip('"\'')
     # Clean redundant prefixes/suffixes
@@ -663,15 +683,43 @@ async def generate_podcast_show(
         else:
             raise ValueError(err_msg)
 
+    if isinstance(script_data, str):
+        try:
+            script_data = json.loads(script_data)
+        except Exception:
+            script_data = {"script": script_data}
+
+    if not isinstance(script_data, dict):
+        script_data = {"script": str(script_data)}
+
     raw_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
     show_title = clean_podcast_title(raw_title)
 
     key_points = script_data.get("key_points") or []
     if isinstance(key_points, str):
         key_points = [key_points]
+    elif isinstance(key_points, dict):
+        key_points = [f"{k}: {v}" for k, v in key_points.items()]
+    elif not isinstance(key_points, list):
+        key_points = [str(key_points)]
 
     raw_script = script_data.get("script", "")
-    
+    if isinstance(raw_script, dict):
+        parts = []
+        for k, v in raw_script.items():
+            if isinstance(v, dict):
+                v_str = "\n".join([f"{sub_k}: {sub_v}" for sub_k, sub_v in v.items()])
+            elif isinstance(v, list):
+                v_str = "\n".join([str(x) for x in v])
+            else:
+                v_str = str(v)
+            parts.append(v_str)
+        raw_script = "\n\n".join(parts)
+    elif isinstance(raw_script, list):
+        raw_script = "\n\n".join([str(x) for x in raw_script])
+    elif not isinstance(raw_script, str):
+        raw_script = str(raw_script)
+
     # Audio generation supports multi-emotion dynamic splitting if markers are present
     audio_filename = await generate_podcast_audio(raw_script, voice_key=voice_key, api_key=m_key)
     audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"

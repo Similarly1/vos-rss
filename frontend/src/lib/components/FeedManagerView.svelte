@@ -94,20 +94,41 @@
   let balanceCategories = [];
   let loadingBalance = false;
 
+  let subscribingAllPacks = false;
+
   async function openTriadModalForCategory(category) {
     triadCategory = category || (triadAlerts.length > 0 ? triadAlerts[0].category : 'Technologie');
     showTriadModal = true;
     try {
-      const res = await fetch(`/api/catalog?category=${encodeURIComponent(triadCategory)}&limit=10`);
+      const res = await fetch(`/api/catalog/triad-pack?category=${encodeURIComponent(triadCategory)}`);
       if (res.ok) {
         const data = await res.json();
-        const catalogList = data.feeds || [];
-        const userUrls = new Set($feedsList.map(f => f.url.toLowerCase()));
-        const candidates = catalogList.filter(f => !userUrls.has(f.url.toLowerCase()));
-        triadFeeds = candidates.slice(0, 3);
+        triadFeeds = data.pack_feeds || [];
+      } else {
+        const fallbackRes = await fetch(`/api/catalog?category=${encodeURIComponent(triadCategory)}&limit=3`);
+        if (fallbackRes.ok) {
+          const d = await fallbackRes.json();
+          triadFeeds = d.feeds || [];
+        }
       }
     } catch (e) {
       console.error("Erreur chargement triade:", e);
+    }
+  }
+
+  async function subscribeAllTriadFeeds() {
+    if (!triadFeeds || triadFeeds.length === 0) return;
+    subscribingAllPacks = true;
+    try {
+      for (const feed of triadFeeds) {
+        if (!subscribedTriadMap[feed.url]) {
+          await subscribeTriadFeed(feed);
+        }
+      }
+    } catch (e) {
+      console.error("Erreur abonnement pack triade:", e);
+    } finally {
+      subscribingAllPacks = false;
     }
   }
 
@@ -506,8 +527,21 @@
         {/if}
       </div>
 
-      <div class="pt-2 flex justify-end">
-        <button on:click={() => showTriadModal = false} class="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors">
+      <div class="pt-2 flex items-center justify-between gap-3 border-t border-gray-100 dark:border-gray-800/80">
+        {#if triadFeeds.length > 0}
+          <button
+            on:click={subscribeAllTriadFeeds}
+            disabled={subscribingAllPacks}
+            class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold text-sm rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {#if subscribingAllPacks}
+              <span>S'abonnement en cours...</span>
+            {:else}
+              <span>⚡ S'abonner aux 3 sources (1 clic)</span>
+            {/if}
+          </button>
+        {/if}
+        <button on:click={() => showTriadModal = false} class="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors ml-auto">
           Fermer
         </button>
       </div>
@@ -569,7 +603,14 @@
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
-              {#if cat.status !== 'balanced' && !cat.is_ignored}
+              {#if cat.status === 'missing' && !cat.is_ignored}
+                <button
+                  on:click={() => openTriadModalForCategory(cat.category)}
+                  class="px-3 py-1.5 bg-gradient-to-r from-primary-500 to-cyan-500 text-white font-bold text-xs rounded-xl hover:scale-[1.02] transition-all shadow-sm flex items-center gap-1"
+                >
+                  <span>✨ Activer (Pack 3 Sources)</span>
+                </button>
+              {:else if cat.status === 'incomplete' && !cat.is_ignored}
                 <button
                   on:click={() => openTriadModalForCategory(cat.category)}
                   class="px-3 py-1.5 bg-cyan-600 text-white font-bold text-xs rounded-xl hover:bg-cyan-700 transition-colors shadow-sm"

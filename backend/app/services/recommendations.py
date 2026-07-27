@@ -17,6 +17,7 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
     # 2. Fetch all catalog feeds with tags
     catalog_query = """
         SELECT cf.id, cf.url, cf.site_url, cf.title, cf.description, cf.icon_url, cf.category, cf.is_verified,
+               cf.is_jti_certified, cf.factuality_rating, cf.bias_rating, cf.media_type,
                GROUP_CONCAT(t.name) as tags
         FROM catalog_feeds cf
         LEFT JOIN catalog_feed_tags cft ON cf.id = cft.catalog_feed_id
@@ -25,7 +26,7 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
     """
     catalog_rows = cursor.execute(catalog_query).fetchall()
     
-    # Fetch active user media credentials (domains where user has an active session cookie)
+    # Fetch active user media credentials
     user_cred_domains = set()
     try:
         cred_rows = cursor.execute("SELECT domain FROM media_credentials").fetchall()
@@ -48,97 +49,51 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
                 return True
         for p_dom in PAYWALLED_DOMAINS:
             if p_dom in combined:
-                # Check if user has an active credential for this domain
                 if not any(u_dom in combined for u_dom in user_cred_domains):
                     return True
         return False
 
-    if not user_feeds:
-        # Default recommendations (free access only)
-        recs = []
-        for row in catalog_rows:
-            if row['is_verified'] and not is_feed_paywalled(row['url'], row['site_url']):
-                rec = dict(row)
-                rec['explanation'] = "Recommandation populaire (Accès Libre)"
-                rec['tags'] = rec['tags'].split(',') if rec['tags'] else []
-                recs.append(rec)
-                if len(recs) == limit:
-                    break
-        conn.close()
-        return recs
-
-    user_urls = {f['url'] for f in user_feeds}
+    user_urls = {f['url'] for f in user_feeds if f['url']}
+    user_cats = {f['category'] for f in user_feeds if f['category']}
     
-    # Analyze user profile
     user_tokens = set()
-    user_categories = {}
-    user_tags = {}
-    
-    # Map catalog info for user feeds
-    catalog_by_url = {row['url']: row for row in catalog_rows}
-    
+    user_tags = set()
     for f in user_feeds:
         user_tokens.update(tokenize(f['title']))
-        cat = f['category']
-        if cat:
-            user_categories[cat] = user_categories.get(cat, 0) + 1
+        if f['category']:
+            user_tags.add(f['category'].lower())
             
-        c_row = catalog_by_url.get(f['url'])
-        if c_row and c_row['tags']:
-            for t in c_row['tags'].split(','):
-                user_tags[t] = user_tags.get(t, 0) + 1
-                
-    top_user_category = max(user_categories.keys(), key=lambda k: user_categories[k]) if user_categories else "Général"
-    top_user_tag = max(user_tags.keys(), key=lambda k: user_tags[k]) if user_tags else None
-    
-    # Candidate scoring
     candidates = []
+    
     for row in catalog_rows:
         if row['url'] in user_urls:
             continue
             
-        # Exclude paywalled feeds if user doesn't have an active credential for them
         if is_feed_paywalled(row['url'], row['site_url']):
             continue
             
         cat = row['category']
-        tags_list = row['tags'].split(',') if row['tags'] else []
-        c_tags = set(tags_list)
+        c_tags = set(row['tags'].split(',')) if row['tags'] else set()
         c_tokens = tokenize(row['title']) | tokenize(row['description'])
         
-        # Semantic/Content score (0 to 60)
-        token_overlap = len(c_tokens & user_tokens)
-        token_score = min(token_overlap * 10, 40) # max 40 points for tokens
-        cat_score = 20 if cat in user_categories else 0
-        content_score = token_score + cat_score
+        cat_score = 40 if cat and cat in user_cats else 0
+        tag_overlap = len(user_tags.intersection({t.lower() for t in c_tags}))
+        tag_score = min(30, tag_overlap * 10)
+        token_overlap = len(user_tokens.intersection(c_tokens))
+        token_score = min(30, token_overlap * 5)
         
-        # Tags overlap score (0 to 40)
-        tag_overlap = len(c_tags & set(user_tags.keys()))
-        tag_score = min(tag_overlap * 20, 40)
-        
-        total_score = content_score + tag_score
+        total_score = cat_score + tag_score + token_score
         
         if total_score > 0:
             rec = dict(row)
-            rec['tags'] = tags_list
+            rec['tags'] = list(c_tags)
             rec['score'] = total_score
-            
-            # Generate explanation
-            if tag_overlap > 0 and top_user_tag in c_tags:
-                rec['explanation'] = f"{int((total_score / 100) * 99 + 1)}% de pertinence avec vos lectures '{top_user_tag.capitalize()}'"
-            elif cat_score > 0:
-                rec['explanation'] = f"Basé sur votre intérêt pour la catégorie {cat}"
-            else:
-                user_feed_names = [f['title'] for f in user_feeds[:2]]
-                rec['explanation'] = f"Basé sur vos abonnements {', '.join(user_feed_names)}"
-                
+            rec['explanation'] = f"Recommandé à {int(total_score)}% pour équilibrer vos abonnements"
             candidates.append(rec)
             
-    # Sort and take top N
     candidates.sort(key=lambda x: x['score'], reverse=True)
     best = candidates[:limit]
     
-    # Fallback if not enough candidates (free access only)
     if len(best) < limit:
         for row in catalog_rows:
             if row['url'] not in user_urls and row['url'] not in [b['url'] for b in best]:
@@ -150,10 +105,51 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
                     if len(best) == limit:
                         break
                     
-    # Clean up response payload (remove score for API if we want, or keep it)
     for b in best:
         if 'score' in b:
             del b['score']
             
     conn.close()
     return best
+
+def get_triad_pack_for_category(category: str) -> Dict[str, Any]:
+    """
+    Selects 3 distinct, complementary high-quality feeds for `category`
+    forming a balanced triad (1 Agence/Factuel, 1 Analyse, 1 Général/Régional).
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT cf.*
+        FROM catalog_feeds cf
+        WHERE LOWER(cf.category) = LOWER(?)
+        ORDER BY cf.is_verified DESC, cf.is_jti_certified DESC
+    """
+    rows = [dict(r) for r in cursor.execute(query, (category,)).fetchall()]
+
+    if not rows:
+        query_fallback = "SELECT cf.* FROM catalog_feeds cf ORDER BY cf.is_verified DESC, cf.is_jti_certified DESC LIMIT 10"
+        rows = [dict(r) for r in cursor.execute(query_fallback).fetchall()]
+
+    agencies = [r for r in rows if r.get('media_type') == 'Agence' or r.get('is_jti_certified')]
+    analysis = [r for r in rows if r.get('media_type') == 'Analyse']
+    
+    pack = []
+    if agencies:
+        pack.append(agencies[0])
+    if analysis and not any(p['id'] == analysis[0]['id'] for p in pack):
+        pack.append(analysis[0])
+    
+    for r in rows:
+        if len(pack) >= 3:
+            break
+        if not any(p['id'] == r['id'] for p in pack):
+            pack.append(r)
+
+    conn.close()
+
+    return {
+        "category": category,
+        "pack_feeds": pack
+    }

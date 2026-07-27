@@ -42,6 +42,14 @@ def catalog_recommendations(limit: int = Query(6, ge=1, le=20, description="Nomb
     from app.services.recommendations import get_smart_feed_recommendations
     return get_smart_feed_recommendations(limit=limit)
 
+@router.get("/triad-pack")
+def catalog_triad_pack(category: str = Query("Technologie", description="Catégorie demandée")):
+    """
+    Retourne un Pack 3 Sources équilibrées (Agence/Factuel, Analyse, Régional) pour la catégorie.
+    """
+    from app.services.recommendations import get_triad_pack_for_category
+    return get_triad_pack_for_category(category)
+
 @router.get("/tags")
 def get_catalog_tags():
     """

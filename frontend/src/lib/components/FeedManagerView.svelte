@@ -1,12 +1,21 @@
 <script>
   import { onMount } from 'svelte';
-  import { feedsList, fetchFeeds } from '../stores/appState.js';
+  import { feedsList, fetchFeeds, currentView } from '../stores/appState.js';
 
-  let hygieneScore = 82;
+  let hygieneScore = 85;
   let runningAudit = false;
-  
-  let mockActivity = Array.from({length: 14}, () => Math.floor(Math.random() * 50) + 10);
-  let maxActivity = Math.max(...mockActivity);
+  let auditData = null;
+
+  let inactiveFeeds = [];
+  let semanticDuplicates = [];
+  let triadAlerts = [];
+  let activity14d = {};
+  let categoryDistribution = {};
+
+  $: mockActivity = Object.values(activity14d).length > 0
+    ? Object.values(activity14d)
+    : Array.from({length: 14}, () => 0);
+  $: maxActivity = Math.max(...mockActivity, 1);
 
   let categoriesStats = [];
   $: {
@@ -16,16 +25,67 @@
       counts[cat] = (counts[cat] || 0) + 1;
     });
     categoriesStats = Object.entries(counts).map(([name, count]) => ({
-      name, count, percent: Math.round((count / $feedsList.length) * 100) || 0
+      name, count, percent: Math.round((count / ($feedsList.length || 1)) * 100) || 0
     })).sort((a, b) => b.count - a.count);
   }
 
   async function runAudit() {
     runningAudit = true;
-    setTimeout(() => {
-      hygieneScore = Math.min(100, hygieneScore + Math.floor(Math.random() * 10) + 2);
+    try {
+      const res = await fetch('/api/audit/health-check');
+      if (res.ok) {
+        auditData = await res.json();
+        hygieneScore = auditData.global_hygiene_score || 85;
+        inactiveFeeds = auditData.inactive_feeds || [];
+        semanticDuplicates = auditData.semantic_duplicates || [];
+        triadAlerts = auditData.alerts_rule_of_3 || [];
+        activity14d = auditData.activity_14_days || {};
+        categoryDistribution = auditData.category_distribution || {};
+      }
+    } catch (e) {
+      console.error("Erreur lors de l'audit des flux:", e);
+    } finally {
       runningAudit = false;
-    }, 2000);
+    }
+  }
+
+  async function handleCleanInactive() {
+    if (!inactiveFeeds || inactiveFeeds.length === 0) {
+      alert("Aucun flux inactif à nettoyer.");
+      return;
+    }
+    const ids = inactiveFeeds.map(f => f.id);
+    if (!confirm(`Voulez-vous supprimer les ${ids.length} flux inactifs ?`)) return;
+    
+    try {
+      const res = await fetch('/api/audit/clean-inactive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feed_ids: ids })
+      });
+      if (res.ok) {
+        await fetchFeeds();
+        await runAudit();
+      }
+    } catch (e) {
+      console.error("Erreur lors du nettoyage des flux inactifs:", e);
+    }
+  }
+
+  async function handleMergeDuplicates() {
+    if (!semanticDuplicates || semanticDuplicates.length === 0) {
+      alert("Aucun doublon sémantique à fusionner pour le moment.");
+      return;
+    }
+    const dup = semanticDuplicates[0];
+    if (confirm(`Fusionner et supprimer le flux doublon (ID: ${dup.feed_id}) ?`)) {
+      await deleteFeed(dup.feed_id);
+      await runAudit();
+    }
+  }
+
+  function handleCompleteTriad() {
+    currentView.set('discover');
   }
 
   async function deleteFeed(feedId) {
@@ -34,38 +94,43 @@
       const res = await fetch(`/api/feeds/${feedId}`, { method: 'DELETE' });
       if (res.ok) {
         await fetchFeeds();
+        await runAudit();
       }
     } catch (e) {
       console.error(e);
     }
   }
 
-  // Import/Export placeholders
   function importOPML() {
-    alert("Fonction d'import OPML à implémenter backend.");
+    currentView.set('discover');
   }
   
   function exportOPML() {
-    alert("Fonction d'export OPML à implémenter backend.");
+    window.open('/api/feeds/export-opml', '_blank');
   }
 
   function getHealthState(feed) {
-    // Mock health state
-    const rand = Math.random();
-    if (rand > 0.8) return { label: '🔴 Inactif', class: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' };
-    if (rand > 0.6) return { label: '🟡 Redondant', class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' };
+    const isInactive = inactiveFeeds.some(f => f.id === feed.id);
+    if (isInactive) return { label: '🔴 Inactif (>60j)', class: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' };
+    const isDup = semanticDuplicates.some(f => f.feed_id === feed.id);
+    if (isDup) return { label: '🟡 Redondant', class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' };
     return { label: '🟢 Actif', class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' };
   }
 
   function getBadges(feed) {
     const badges = [];
-    if (Math.random() > 0.5) badges.push('🛡️ Certifié JTI (RSF)');
-    if (Math.random() > 0.7) badges.push('⚖️ Factuel (MBFC)');
+    if (feed.is_jti_certified) badges.push('🛡️ Certifié JTI (RSF)');
+    if (feed.factuality_rating === 'High' || feed.factuality_rating === 'Very High') badges.push('⚖️ Factuel');
+    const bias = (feed.bias_rating || '').toLowerCase();
+    if (bias === 'left' || bias === 'gauche') badges.push('🔴 Gauche');
+    else if (bias === 'center' || bias === 'centre') badges.push('🌐 Centre');
+    else if (bias === 'right' || bias === 'droite') badges.push('🟠 Droite');
     return badges;
   }
 
   onMount(() => {
     if ($feedsList.length === 0) fetchFeeds();
+    runAudit();
   });
 </script>
 
@@ -158,24 +223,36 @@
         <div class="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold">
           <span class="text-xl">🔴</span> Flux inactifs
         </div>
-        <p class="text-sm text-gray-600 dark:text-gray-300 flex-1">3 flux n'ont rien publié depuis plus de 30 jours.</p>
-        <button class="w-full py-2 bg-white dark:bg-dark-card border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-bold text-sm rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors">Nettoyer (3)</button>
+        <p class="text-sm text-gray-600 dark:text-gray-300 flex-1">
+          {inactiveFeeds.length > 0 ? `${inactiveFeeds.length} flux n'ont rien publié depuis plus de 60 jours.` : 'Tous vos flux sont actifs et publient régulièrement.'}
+        </p>
+        <button on:click={handleCleanInactive} class="w-full py-2 bg-white dark:bg-dark-card border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-bold text-sm rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors">
+          Nettoyer ({inactiveFeeds.length})
+        </button>
       </div>
 
       <div class="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 p-5 rounded-2xl flex flex-col gap-3">
         <div class="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold">
           <span class="text-xl">🟡</span> Doublons sémantiques
         </div>
-        <p class="text-sm text-gray-600 dark:text-gray-300 flex-1">2 flux couvrent exactement le même spectre d'actualité.</p>
-        <button class="w-full py-2 bg-white dark:bg-dark-card border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 font-bold text-sm rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors">Fusionner</button>
+        <p class="text-sm text-gray-600 dark:text-gray-300 flex-1">
+          {semanticDuplicates.length > 0 ? `${semanticDuplicates.length} flux reprennent les mêmes dépêches sémantiques.` : 'Aucun doublon sémantique majeur détecté.'}
+        </p>
+        <button on:click={handleMergeDuplicates} class="w-full py-2 bg-white dark:bg-dark-card border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 font-bold text-sm rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors">
+          Fusionner ({semanticDuplicates.length})
+        </button>
       </div>
 
       <div class="bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-900/50 p-5 rounded-2xl flex flex-col gap-3">
         <div class="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 font-bold">
           <span class="text-xl">💡</span> Règle des 3 Sources
         </div>
-        <p class="text-sm text-gray-600 dark:text-gray-300 flex-1">La catégorie "IA" ne repose que sur une seule source.</p>
-        <button class="w-full py-2 bg-white dark:bg-dark-card border border-cyan-200 dark:border-cyan-800 text-cyan-600 dark:text-cyan-400 font-bold text-sm rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors">Compléter la Triade</button>
+        <p class="text-sm text-gray-600 dark:text-gray-300 flex-1">
+          {triadAlerts.length > 0 ? `Catégorie "${triadAlerts[0].category}" dépendant d'une source unique.` : 'Vos catégories disposent de plusieurs sources complémentaires.'}
+        </p>
+        <button on:click={handleCompleteTriad} class="w-full py-2 bg-white dark:bg-dark-card border border-cyan-200 dark:border-cyan-800 text-cyan-600 dark:text-cyan-400 font-bold text-sm rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors">
+          Compléter la Triade
+        </button>
       </div>
     </div>
 

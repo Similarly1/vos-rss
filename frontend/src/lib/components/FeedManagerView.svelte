@@ -84,8 +84,48 @@
     }
   }
 
-  function handleCompleteTriad() {
-    currentView.set('discover');
+  let showTriadModal = false;
+  let triadCategory = 'Technologie';
+  let triadFeeds = [];
+  let subscribingTriadMap = {};
+  let subscribedTriadMap = {};
+
+  async function handleCompleteTriad() {
+    triadCategory = triadAlerts.length > 0 ? triadAlerts[0].category : 'Technologie';
+    showTriadModal = true;
+    try {
+      const res = await fetch(`/api/catalog?category=${encodeURIComponent(triadCategory)}&limit=10`);
+      if (res.ok) {
+        const data = await res.json();
+        const catalogList = data.feeds || [];
+        const userUrls = new Set($feedsList.map(f => f.url.toLowerCase()));
+        const candidates = catalogList.filter(f => !userUrls.has(f.url.toLowerCase()));
+        triadFeeds = candidates.slice(0, 3);
+      }
+    } catch (e) {
+      console.error("Erreur chargement triade:", e);
+    }
+  }
+
+  async function subscribeTriadFeed(feed) {
+    subscribingTriadMap[feed.url] = true;
+    try {
+      const res = await fetch('/api/feeds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: feed.url, category: feed.category || triadCategory, language: feed.language || 'fr' })
+      });
+      if (res.ok) {
+        subscribedTriadMap[feed.url] = true;
+        await fetchFeeds();
+        await runAudit();
+      }
+    } catch (e) {
+      console.error("Erreur abonnement triade:", e);
+    } finally {
+      subscribingTriadMap[feed.url] = false;
+      subscribingTriadMap = { ...subscribingTriadMap };
+    }
   }
 
   async function deleteFeed(feedId) {
@@ -326,3 +366,74 @@
     
   </div>
 </div>
+
+<!-- ── Modale interactive Compléter la Triade ── -->
+{#if showTriadModal}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <div class="bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-3xl max-w-2xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+      
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-400 text-xs font-bold mb-2">
+            💡 Règle des 3 Sources
+          </div>
+          <h2 class="text-xl md:text-2xl font-black text-gray-900 dark:text-white leading-tight">
+            Équilibrer votre veille "{triadCategory}"
+          </h2>
+        </div>
+        <button on:click={() => showTriadModal = false} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+        La Règle des 3 Sources évite la bulle de filtre. Pour la catégorie <strong>{triadCategory}</strong>, nous vous conseillons d'associer un média d'analyse et un média régional pour équilibrer la neutralité.
+      </p>
+
+      <div class="space-y-4">
+        {#each triadFeeds as feed}
+          {@const badges = getBadges(feed)}
+          <div class="p-4 rounded-2xl bg-gray-50/50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-start gap-3 flex-1 min-w-0">
+              <img src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.site_url || feed.url}&sz=128`} alt="" class="w-10 h-10 rounded-xl object-contain bg-white dark:bg-gray-800 p-1 shrink-0 border border-gray-100 dark:border-gray-700" />
+              <div class="space-y-1">
+                <h3 class="font-bold text-sm text-gray-900 dark:text-white leading-tight">{feed.title}</h3>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  {#each badges as b}
+                    <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-gray-700">{b}</span>
+                  {/each}
+                  <span class="text-[10px] font-bold text-gray-500 uppercase">{feed.media_type || 'Complémentaire'}</span>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{feed.description || `Média recommandé pour équilibrer votre veille ${triadCategory}.`}</p>
+              </div>
+            </div>
+
+            {#if subscribedTriadMap[feed.url]}
+              <span class="px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0">
+                ✓ Ajouté
+              </span>
+            {:else}
+              <button
+                on:click={() => subscribeTriadFeed(feed)}
+                disabled={subscribingTriadMap[feed.url]}
+                class="px-4 py-2 bg-gradient-to-r from-gray-900 to-black dark:from-white dark:to-gray-100 text-white dark:text-gray-950 font-bold text-xs rounded-xl shadow hover:scale-[1.02] active:scale-[0.98] transition-all shrink-0 disabled:opacity-50"
+              >
+                {#if subscribingTriadMap[feed.url]}...{:else}+ S'abonner{/if}
+              </button>
+            {/if}
+          </div>
+        {/each}
+        {#if triadFeeds.length === 0}
+          <p class="text-sm text-gray-500 text-center py-6 animate-pulse">Sélection des flux complémentaires pour équilibrer votre veille...</p>
+        {/if}
+      </div>
+
+      <div class="pt-2 flex justify-end">
+        <button on:click={() => showTriadModal = false} class="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors">
+          Fermer
+        </button>
+      </div>
+
+    </div>
+  </div>
+{/if}

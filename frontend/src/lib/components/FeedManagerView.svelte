@@ -258,6 +258,7 @@
   onMount(() => {
     if ($feedsList.length === 0) fetchFeeds();
     runAudit();
+    openCategoriesBalanceModal();
   });
 </script>
 
@@ -393,6 +394,53 @@
             📊 Bilan des Catégories
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- ── Explorer de Nouvelles Thématiques (Packs 3 Sources) ── -->
+    <div class="bg-gradient-to-r from-slate-900 to-indigo-950 p-6 md:p-8 rounded-3xl border border-indigo-900/60 shadow-xl space-y-5 relative overflow-hidden">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold mb-2">
+            ✨ Packs 3 Sources Équilibrées
+          </div>
+          <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">
+            Activer de Nouvelles Thématiques en 1 Clic
+          </h2>
+          <p class="text-sm text-indigo-200/80 mt-1 max-w-2xl">
+            Enrichissez votre veille en intégrant d'autres catégories du catalogue avec un Pack de 3 sources pré-équilibrées (Agence/Factuel, Analyse, Régional).
+          </p>
+        </div>
+        <button on:click={openCategoriesBalanceModal} class="px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs rounded-xl transition-all shrink-0">
+          📊 Bilan Éditorial Complet
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+        {#each balanceCategories.filter(c => c.status === 'missing' && !c.is_ignored).slice(0, 4) as cat}
+          <div class="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/50 p-4 rounded-2xl transition-all space-y-3 flex flex-col justify-between group">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-cyan-300 uppercase tracking-wide">{cat.category}</span>
+                <span class="text-[10px] bg-white/10 px-2 py-0.5 rounded-md text-gray-300">0 source</span>
+              </div>
+              <p class="text-xs text-indigo-100/70 mt-2">
+                Pack 3 sources certifiées (Agence, Analyse, Neutre).
+              </p>
+            </div>
+            <button
+              on:click={() => openTriadModalForCategory(cat.category)}
+              class="w-full py-2 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-gray-950 font-bold text-xs rounded-xl shadow-md transition-all group-hover:scale-[1.02]"
+            >
+              ✨ Activer le Pack (3 Sources)
+            </button>
+          </div>
+        {/each}
+        {#if balanceCategories.filter(c => c.status === 'missing' && !c.is_ignored).length === 0}
+          <div class="col-span-full p-4 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-indigo-200">
+            🟢 Vous suivez déjà toutes les thématiques principales du catalogue !
+          </div>
+        {/if}
       </div>
     </div>
 

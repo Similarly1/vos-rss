@@ -10,39 +10,74 @@ from typing import List, Dict, Any, Optional
 from app.database import get_db_connection
 
 CATEGORY_FR_MAP = {
-    'news': 'Actualités',
-    'technologie': 'Technologie',
-    'tech': 'Technologie',
-    'technology': 'Technologie',
-    'cyber security': 'Technologie',
-    'programming': 'Technologie',
-    'web development': 'Technologie',
-    'science': 'Science',
-    'space': 'Science',
-    'environment': 'Science',
-    'business': 'Économie',
-    'economy': 'Économie',
-    'finance': 'Économie',
-    'startups': 'Économie',
-    'culture': 'Culture',
-    'entertainment': 'Culture',
-    'society': 'Société',
-    'sports': 'Sport',
-    'sport': 'Sport',
-    'gaming': 'Jeux Vidéo',
-    'health': 'Santé',
-    'politics': 'Politique',
-    'world': 'Monde',
+    'presse': 'Actualités & Presse',
+    'actualités': 'Actualités & Presse',
+    'actualites': 'Actualités & Presse',
+    'news': 'Actualités & Presse',
+    'une': 'Actualités & Presse',
+
+    'technologie': 'Technologie & Cyber',
+    'technology': 'Technologie & Cyber',
+    'tech': 'Technologie & Cyber',
+    'cybersecurite': 'Technologie & Cyber',
+    'cyber': 'Technologie & Cyber',
+
+    'business & economy': 'Économie & Business',
+    'business': 'Économie & Business',
+    'économie': 'Économie & Business',
+    'economie': 'Économie & Business',
+    'finance': 'Économie & Business',
+
+    'suisse': 'Suisse & Régional',
+    'régional': 'Suisse & Régional',
+    'regional': 'Suisse & Régional',
+    'local': 'Suisse & Régional',
+
+    'monde': 'International & Monde',
+    'world': 'International & Monde',
+    'international': 'International & Monde',
+
+    'science': 'Science & Climat',
+    'environnement': 'Science & Climat',
+    'climat': 'Science & Climat',
+    'space': 'Science & Climat',
+
+    'culture': 'Culture & Société',
+    'art': 'Culture & Société',
+    'société': 'Culture & Société',
+    'societe': 'Culture & Société',
+
+    'chrétien': 'Foi & Spiritualité',
+    'chretien': 'Foi & Spiritualité',
+    'religion': 'Foi & Spiritualité',
+    'foi': 'Foi & Spiritualité',
+
     'général': 'Général',
     'general': 'Général',
-    'suisse': 'Suisse',
 }
 
-def normalize_category(cat: str) -> str:
+CANONICAL_CATEGORIES = [
+    'Actualités & Presse',
+    'Technologie & Cyber',
+    'Économie & Business',
+    'Suisse & Régional',
+    'International & Monde',
+    'Science & Climat',
+    'Culture & Société',
+    'Foi & Spiritualité',
+    'Général'
+]
+
+def normalize_category(cat: Optional[str]) -> str:
     if not cat:
         return 'Général'
-    clean = cat.strip().lower()
-    return CATEGORY_FR_MAP.get(clean, cat.strip().capitalize())
+    raw = cat.strip().lower()
+    if raw in CATEGORY_FR_MAP:
+        return CATEGORY_FR_MAP[raw]
+    for key, val in CATEGORY_FR_MAP.items():
+        if key in raw:
+            return val
+    return 'Général'
 
 def slugify(text: str) -> str:
     """Converts string into clean URL-friendly slug, e.g. '#Cybersécurité' -> 'cybersecurite'."""

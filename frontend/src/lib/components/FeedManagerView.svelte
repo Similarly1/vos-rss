@@ -90,9 +90,39 @@
   let subscribingTriadMap = {};
   let subscribedTriadMap = {};
 
-  let showBalanceModal = false;
-  let balanceCategories = [];
-  let loadingBalance = false;
+  const canonicalCategories = [
+    'Actualités & Presse',
+    'Technologie & Cyber',
+    'Économie & Business',
+    'Suisse & Régional',
+    'International & Monde',
+    'Science & Climat',
+    'Culture & Société',
+    'Foi & Spiritualité',
+    'Général'
+  ];
+
+  async function changeFeedCategory(feed, newCategory) {
+    try {
+      const res = await fetch(`/api/feeds/${feed.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: feed.title,
+          category: newCategory,
+          language: feed.language || 'fr',
+          is_full_text: feed.is_full_text !== undefined ? feed.is_full_text : true
+        })
+      });
+      if (res.ok) {
+        await fetchFeeds();
+        await runAudit();
+        await openCategoriesBalanceModal();
+      }
+    } catch (e) {
+      console.error("Erreur changement catégorie:", e);
+    }
+  }
 
   let subscribingAllPacks = false;
 
@@ -476,9 +506,15 @@
                   </div>
                 </td>
                 <td class="p-4">
-                  <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                    {feed.category || 'Général'}
-                  </span>
+                  <select
+                    value={feed.category || 'Général'}
+                    on:change={(e) => changeFeedCategory(feed, e.target.value)}
+                    class="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-semibold py-1 px-2 rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                  >
+                    {#each canonicalCategories as catName}
+                      <option value={catName}>{catName}</option>
+                    {/each}
+                  </select>
                 </td>
                 <td class="p-4">
                   <div class="flex flex-wrap gap-1">

@@ -107,7 +107,18 @@
   let recommendations = [];
   let loadingRecommendations = false;
 
-  const categories = ['Tous', 'Actualités', 'Technologie', 'Culture', 'Science', 'Économie', 'Suisse', 'Monde', 'Chrétien', 'Général'];
+  const categories = [
+    'Tous',
+    'Actualités & Presse',
+    'Technologie & Cyber',
+    'Économie & Business',
+    'Suisse & Régional',
+    'International & Monde',
+    'Science & Climat',
+    'Culture & Société',
+    'Foi & Spiritualité',
+    'Général'
+  ];
   const languages = [
     { code: 'Tous', label: 'Toutes les langues' },
     { code: 'fr', label: '🇫🇷 Français' },

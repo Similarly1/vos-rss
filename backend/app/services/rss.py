@@ -327,11 +327,13 @@ def get_all_feeds():
     return [dict(row) for row in rows]
 
 def update_feed(feed_id: int, title: str, category: str, language: str = "fr", is_full_text: bool = True):
+    from app.services.catalog import normalize_category
+    norm_cat = normalize_category(category)
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
         "UPDATE feeds SET title = ?, category = ?, language = ?, is_full_text = ? WHERE id = ?",
-        (title, category, language, 1 if is_full_text else 0, feed_id)
+        (title, norm_cat, language, 1 if is_full_text else 0, feed_id)
     )
     cursor.execute(
         "UPDATE articles SET language = ? WHERE feed_id = ?",
@@ -339,7 +341,7 @@ def update_feed(feed_id: int, title: str, category: str, language: str = "fr", i
     )
     conn.commit()
     conn.close()
-    return {"id": feed_id, "title": title, "category": category, "language": language, "is_full_text": is_full_text}
+    return {"id": feed_id, "title": title, "category": norm_cat, "language": language, "is_full_text": is_full_text}
 
 def delete_feed(feed_id: int):
     conn = get_db_connection()

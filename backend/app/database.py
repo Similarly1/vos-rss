@@ -278,12 +278,14 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # Automatically seed/enrich trust metadata (JTI, MBFC, Bias, Media Type) on startup
+    # Automatically seed/enrich trust metadata (JTI, MBFC, Bias, Media Type) and normalize categories on startup
     try:
         from enrich_journalism_trust_batch import enrich_trust_metadata
+        from normalize_categories_batch import normalize_all_db_categories
         enrich_trust_metadata()
+        normalize_all_db_categories()
     except Exception as e:
-        print(f"[Auto-enrich note] {e}")
+        print(f"[Auto-enrich/normalize note] {e}")
 
 if __name__ == "__main__":
     init_db()

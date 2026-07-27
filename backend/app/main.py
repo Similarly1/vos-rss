@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.database import init_db, get_db_connection
 from app.config import settings
-from app.api import routes_feeds, routes_articles, routes_clustering, routes_audio, routes_podcast, routes_catalog, routes_stats, routes_audio_stream, routes_subscriptions
+from app.api import routes_feeds, routes_articles, routes_clustering, routes_audio, routes_podcast, routes_catalog, routes_stats, routes_audio_stream, routes_subscriptions, routes_audit
 from app.services.scheduler import start_podcast_scheduler_loop
 from seed_massive_catalog import seed_massive_catalog_async
 
@@ -46,6 +46,7 @@ app.include_router(routes_catalog.router)
 app.include_router(routes_stats.router)
 app.include_router(routes_audio_stream.router)
 app.include_router(routes_subscriptions.router)
+app.include_router(routes_audit.router)
 
 @app.get("/api/health")
 def health_check():

@@ -223,6 +223,14 @@ def init_db():
         if cf_cols:
             if "enriched_description" not in cf_cols:
                 cursor.execute("ALTER TABLE catalog_feeds ADD COLUMN enriched_description TEXT")
+            if "is_jti_certified" not in cf_cols:
+                cursor.execute("ALTER TABLE catalog_feeds ADD COLUMN is_jti_certified INTEGER DEFAULT 0")
+            if "factuality_rating" not in cf_cols:
+                cursor.execute("ALTER TABLE catalog_feeds ADD COLUMN factuality_rating TEXT")
+            if "bias_rating" not in cf_cols:
+                cursor.execute("ALTER TABLE catalog_feeds ADD COLUMN bias_rating TEXT")
+            if "media_type" not in cf_cols:
+                cursor.execute("ALTER TABLE catalog_feeds ADD COLUMN media_type TEXT")
     except Exception as e:
         print(f"[Migration note] catalog_feeds columns check: {e}")
 

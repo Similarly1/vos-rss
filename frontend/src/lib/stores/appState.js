@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store';
 
-// 'feeds' | 'discover' | 'synthesis' | 'perplexity' | 'podcast'
-export const currentView = writable('feeds');
+// 'articles' | 'feeds' | 'discover' | 'synthesis' | 'perplexity' | 'podcast'
+export const currentView = writable('articles');
 
 // Responsive state
 export const isMobile = writable(false);

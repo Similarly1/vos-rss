@@ -12,8 +12,8 @@
   import PodcastStudioView from './lib/components/PodcastStudioView.svelte';
   import SettingsView from './lib/components/SettingsView.svelte';
   import AddFeedModal from './lib/components/AddFeedModal.svelte';
-  import FeedManagerModal from './lib/components/FeedManagerModal.svelte';
   import StatisticsView from './lib/components/StatisticsView.svelte';
+  import FeedManagerView from './lib/components/FeedManagerView.svelte';
   import OnboardingWizardModal from './lib/components/OnboardingWizardModal.svelte';
   import NotificationPanel from './lib/components/NotificationPanel.svelte';
   import MediaCredentialsModal from './lib/components/MediaCredentialsModal.svelte';
@@ -51,6 +51,8 @@
         <SettingsView />
       {:else if $currentView === 'stats'}
         <StatisticsView />
+      {:else if $currentView === 'feeds'}
+        <FeedManagerView />
       {:else}
         <ArticleList />
         <ReaderView />
@@ -70,6 +72,8 @@
         <SettingsView />
       {:else if $currentView === 'stats'}
         <StatisticsView />
+      {:else if $currentView === 'feeds'}
+        <FeedManagerView />
       {:else}
         <div class="flex-1 w-full flex flex-col h-full overflow-hidden pb-16">
           {#if $selectedItemId}
@@ -94,7 +98,7 @@
   
   <!-- Modals -->
   <AddFeedModal />
-  <FeedManagerModal />
+  
   
   {#if showOnboarding}
     <OnboardingWizardModal />

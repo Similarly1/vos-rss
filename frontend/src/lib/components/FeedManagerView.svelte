@@ -90,6 +90,10 @@
   let subscribingTriadMap = {};
   let subscribedTriadMap = {};
 
+  let showBalanceModal = false;
+  let balanceCategories = [];
+  let loadingBalance = false;
+
   const canonicalCategories = [
     'Actualités & Presse',
     'Technologie & Cyber',

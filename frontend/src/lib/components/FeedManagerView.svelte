@@ -157,14 +157,39 @@
     return { label: '🟢 Actif', class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' };
   }
 
-  function getBadges(feed) {
+  function getTrustBadges(feed) {
     const badges = [];
-    if (feed.is_jti_certified) badges.push('🛡️ Certifié JTI (RSF)');
-    if (feed.factuality_rating === 'High' || feed.factuality_rating === 'Very High') badges.push('⚖️ Factuel');
+    if (!feed) return badges;
+
+    if (feed.is_jti_certified) {
+      badges.push({ text: '🛡️ Certifié JTI (RSF)', class: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' });
+    }
+    if (feed.factuality_rating === 'High' || feed.factuality_rating === 'Very High') {
+      badges.push({ text: '⚖️ Factuel', class: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30' });
+    }
+    
     const bias = (feed.bias_rating || '').toLowerCase();
-    if (bias === 'left' || bias === 'gauche') badges.push('🔴 Gauche');
-    else if (bias === 'center' || bias === 'centre') badges.push('🌐 Centre');
-    else if (bias === 'right' || bias === 'droite') badges.push('🟠 Droite');
+    if (bias === 'left' || bias === 'gauche') {
+      badges.push({ text: '🔴 Gauche', class: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' });
+    } else if (bias === 'left-center' || bias === 'centre-gauche') {
+      badges.push({ text: '🟥 Centre-Gauche', class: 'bg-pink-500/15 text-pink-600 dark:text-pink-400 border-pink-500/30' });
+    } else if (bias === 'center' || bias === 'centre' || bias === 'least biased') {
+      badges.push({ text: '🌐 Centre / Neutre', class: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30' });
+    } else if (bias === 'right-center' || bias === 'centre-droit') {
+      badges.push({ text: '🟦 Centre-Droit', class: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' });
+    } else if (bias === 'right' || bias === 'droite') {
+      badges.push({ text: '🟠 Droite', class: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30' });
+    }
+
+    const type = feed.media_type || 'Général';
+    if (type === 'Agence') {
+      badges.push({ text: '📡 Agence', class: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30' });
+    } else if (type === 'Analyse') {
+      badges.push({ text: '📖 Analyse', class: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' });
+    } else if (type === 'Régional') {
+      badges.push({ text: '🏠 Régional', class: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' });
+    }
+
     return badges;
   }
 
@@ -316,7 +341,7 @@
           <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
             {#each $feedsList as feed (feed.id)}
               {@const health = getHealthState(feed)}
-              {@const badges = getBadges(feed)}
+              {@const badges = getTrustBadges(feed)}
               <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors">
                 <td class="p-4 pl-6">
                   <div class="flex items-center gap-3">
@@ -333,9 +358,9 @@
                   </span>
                 </td>
                 <td class="p-4">
-                  <div class="flex flex-col gap-1">
+                  <div class="flex flex-wrap gap-1">
                     {#each badges as b}
-                      <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 w-max">{b}</span>
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border {b.class}">{b.text}</span>
                     {/each}
                     {#if badges.length === 0}
                       <span class="text-xs text-gray-400">-</span>
@@ -392,7 +417,7 @@
 
       <div class="space-y-4">
         {#each triadFeeds as feed}
-          {@const badges = getBadges(feed)}
+          {@const badges = getTrustBadges(feed)}
           <div class="p-4 rounded-2xl bg-gray-50/50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-start gap-3 flex-1 min-w-0">
               <img src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.site_url || feed.url}&sz=128`} alt="" class="w-10 h-10 rounded-xl object-contain bg-white dark:bg-gray-800 p-1 shrink-0 border border-gray-100 dark:border-gray-700" />
@@ -400,9 +425,8 @@
                 <h3 class="font-bold text-sm text-gray-900 dark:text-white leading-tight">{feed.title}</h3>
                 <div class="flex items-center gap-1.5 flex-wrap">
                   {#each badges as b}
-                    <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md border border-gray-200 dark:border-gray-700">{b}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border {b.class}">{b.text}</span>
                   {/each}
-                  <span class="text-[10px] font-bold text-gray-500 uppercase">{feed.media_type || 'Complémentaire'}</span>
                 </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{feed.description || `Média recommandé pour équilibrer votre veille ${triadCategory}.`}</p>
               </div>

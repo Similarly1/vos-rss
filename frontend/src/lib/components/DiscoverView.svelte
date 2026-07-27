@@ -72,29 +72,32 @@
     if (!feed) return badges;
 
     if (feed.is_jti_certified) {
-      badges.push({ text: '🛡️ Certifié JTI (RSF)', class: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' });
+      badges.push({ text: '🛡️ Certifié JTI (RSF)', class: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' });
     }
     if (feed.factuality_rating === 'High' || feed.factuality_rating === 'Very High') {
-      badges.push({ text: '⚖️ Factuel', class: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' });
+      badges.push({ text: '⚖️ Factuel', class: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30' });
     }
     
     const bias = (feed.bias_rating || '').toLowerCase();
     if (bias === 'left' || bias === 'gauche') {
-      badges.push({ text: '🔴 Gauche', class: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800' });
+      badges.push({ text: '🔴 Gauche', class: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' });
     } else if (bias === 'left-center' || bias === 'centre-gauche') {
-      badges.push({ text: '🟥 Centre-Gauche', class: 'bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-800' });
-    } else if (bias === 'center' || bias === 'centre') {
-      badges.push({ text: '🌐 Centre', class: 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800' });
+      badges.push({ text: '🟥 Centre-Gauche', class: 'bg-pink-500/15 text-pink-600 dark:text-pink-400 border-pink-500/30' });
+    } else if (bias === 'center' || bias === 'centre' || bias === 'least biased') {
+      badges.push({ text: '🌐 Centre / Neutre', class: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30' });
     } else if (bias === 'right-center' || bias === 'centre-droit') {
-      badges.push({ text: '🟦 Centre-Droit', class: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' });
+      badges.push({ text: '🟦 Centre-Droit', class: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' });
     } else if (bias === 'right' || bias === 'droite') {
-      badges.push({ text: '🟠 Droite', class: 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800' });
+      badges.push({ text: '🟠 Droite', class: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30' });
     }
 
-    if (feed.media_type === 'Agence') {
-      badges.push({ text: '📡 Agence', class: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' });
-    } else if (feed.media_type === 'Analyse') {
-      badges.push({ text: '📖 Analyse', class: 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800' });
+    const type = feed.media_type || 'Général';
+    if (type === 'Agence') {
+      badges.push({ text: '📡 Agence', class: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30' });
+    } else if (type === 'Analyse') {
+      badges.push({ text: '📖 Analyse', class: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' });
+    } else if (type === 'Régional') {
+      badges.push({ text: '🏠 Régional', class: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' });
     }
 
     return badges;

@@ -52,26 +52,37 @@ def run_feed_health_audit(conn: sqlite3.Connection) -> Dict[str, Any]:
     total_feeds = sum(r["count"] for r in cat_rows) or 1
     category_distribution = {r["category"]: round((r["count"] / total_feeds) * 100, 2) for r in cat_rows}
 
-    # 4. Rule of 3 Sources Alert
+    # 4. Rule of 3 Sources Alert (analyzing user's active subscriptions)
     cursor.execute("""
-        SELECT category, media_type, COUNT(id) as count
-        FROM catalog_feeds
-        GROUP BY category, media_type
+        SELECT f.category, cf.media_type, COUNT(f.id) as count
+        FROM feeds f
+        LEFT JOIN catalog_feeds cf ON LOWER(f.url) = LOWER(cf.url) OR LOWER(f.url) = LOWER(cf.site_url)
+        GROUP BY f.category, cf.media_type
     """)
-    cat_type_rows = cursor.fetchall()
+    user_cat_type_rows = cursor.fetchall()
     
-    category_sources = defaultdict(set)
-    for r in cat_type_rows:
-        if r["category"]:
-            category_sources[r["category"]].add(r["media_type"])
-            
+    cursor.execute("""
+        SELECT category, COUNT(id) as total_count
+        FROM feeds
+        GROUP BY category
+    """)
+    cat_totals = {r["category"]: r["total_count"] for r in cursor.fetchall()}
+
+    category_media_types = defaultdict(set)
+    for r in user_cat_type_rows:
+        cat = r["category"] or "Général"
+        m_type = r["media_type"] or "Général"
+        category_media_types[cat].add(m_type)
+
     alerts_rule_of_3 = []
-    for cat, types in category_sources.items():
-        if len(types) == 1:
+    for cat, total in cat_totals.items():
+        types = category_media_types.get(cat, set())
+        if total < 3 or len(types) < 2:
             alerts_rule_of_3.append({
                 "category": cat,
-                "current_type": list(types)[0],
-                "alert": "Catégorie avec 1 seule source. Recommandation: Triade (Agence, Analyse, Local/Général)."
+                "current_count": total,
+                "current_types": list(types),
+                "alert": f"Catégorie '{cat}' ({total} source{'s' if total>1 else ''}). Diversifiez en ajoutant une Agence ou de l'Analyse pour compléter la Triade."
             })
 
     # 5. Semantic duplicates

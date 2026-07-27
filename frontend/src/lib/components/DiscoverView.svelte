@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { fetchFeeds, fetchArticles, feedsList, langsearchApiKey } from '../stores/appState.js';
+  import { fetchFeeds, fetchArticles, feedsList, langsearchApiKey, hidePaywalledWithoutCookie } from '../stores/appState.js';
 
   let searchQuery = '';
   let selectedCategory = 'Tous';
@@ -195,6 +195,7 @@
       if (selectedCategory !== 'Tous') params.append('category', selectedCategory);
       if (selectedTag !== 'Tous') params.append('tag', selectedTag);
       if (selectedLanguageFilter !== 'Tous') params.append('language', selectedLanguageFilter);
+      if ($hidePaywalledWithoutCookie) params.append('hide_paywalled', 'true');
       params.append('limit', limit.toString());
       params.append('offset', currentOffset.toString());
 

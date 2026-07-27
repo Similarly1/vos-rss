@@ -25,13 +25,14 @@ def get_catalog_feeds(
     category: Optional[str] = Query(None, description="Category filter"),
     tag: Optional[str] = Query(None, description="Hashtag filter (e.g. #suisse)"),
     language: Optional[str] = Query(None, description="Language code filter (fr, en, de, es)"),
+    hide_paywalled: Optional[bool] = Query(False, description="Filter out paywalled feeds without cookies"),
     limit: int = Query(30, ge=1, le=200, description="Number of items per page"),
     offset: int = Query(0, ge=0, description="Offset for pagination")
 ):
     """
     Search and filter catalog feeds stored in SQLite using Full-Text Search or tags with pagination.
     """
-    return search_catalog(query=q, category=category, tag=tag, language=language, limit=limit, offset=offset)
+    return search_catalog(query=q, category=category, tag=tag, language=language, hide_paywalled=hide_paywalled, limit=limit, offset=offset)
 
 @router.get("/recommendations")
 def catalog_recommendations(limit: int = Query(6, ge=1, le=20, description="Nombre de recommandations")):

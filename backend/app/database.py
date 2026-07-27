@@ -278,5 +278,12 @@ def init_db():
     conn.commit()
     conn.close()
 
+    # Automatically seed/enrich trust metadata (JTI, MBFC, Bias, Media Type) on startup
+    try:
+        from enrich_journalism_trust_batch import enrich_trust_metadata
+        enrich_trust_metadata()
+    except Exception as e:
+        print(f"[Auto-enrich note] {e}")
+
 if __name__ == "__main__":
     init_db()

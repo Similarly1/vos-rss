@@ -142,6 +142,7 @@ def search_catalog(
     category: Optional[str] = None,
     tag: Optional[str] = None,
     language: Optional[str] = None,
+    hide_paywalled: bool = False,
     limit: int = 30,
     offset: int = 0
 ) -> Dict[str, Any]:
@@ -151,6 +152,19 @@ def search_catalog(
     """
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    PAYWALLED_DOMAINS = {
+        'nzz.ch', 'letemps.ch', 'lemonde.fr', 'mediapart.fr', 'nature.com', 
+        'lqj.ch', 'wsj.com', 'nytimes.com', 'ft.com', 'economist.com',
+        'lefigaro.fr', 'lesechos.fr'
+    }
+
+    user_cred_domains = set()
+    try:
+        cursor.execute("SELECT domain FROM media_credentials")
+        user_cred_domains = {r["domain"].lower() for r in cursor.fetchall()}
+    except Exception:
+        user_cred_domains = set()
 
     sql = """
         SELECT DISTINCT cf.*
@@ -172,7 +186,6 @@ def search_catalog(
     # Search Query (FTS5 or LIKE)
     q = (query or '').strip()
     if q:
-        # Check if FTS is available
         use_fts = False
         try:
             fts_query = f'"{q}"*'
@@ -207,7 +220,6 @@ def search_catalog(
         cursor.execute(sql, params)
         all_rows = cursor.fetchall()
     except sqlite3.OperationalError:
-        # Fallback query if FTS query syntax error
         sql_fallback = "SELECT DISTINCT cf.* FROM catalog_feeds cf WHERE 1=1"
         fallback_params = []
         if category and category != 'Tous':
@@ -224,8 +236,20 @@ def search_catalog(
         cursor.execute(sql_fallback, fallback_params)
         all_rows = cursor.fetchall()
 
-    total_count = len(all_rows)
-    paged_rows = all_rows[offset:offset + limit]
+    filtered_rows = []
+    for r in all_rows:
+        row_dict = dict(r)
+        url_text = f"{row_dict.get('url', '')} {row_dict.get('site_url', '')}".lower()
+        if hide_paywalled:
+            is_pw = any(p_dom in url_text for p_dom in PAYWALLED_DOMAINS)
+            if is_pw:
+                has_cookie = any(c_dom in url_text for c_dom in user_cred_domains)
+                if not has_cookie:
+                    continue
+        filtered_rows.append(r)
+
+    total_count = len(filtered_rows)
+    paged_rows = filtered_rows[offset:offset + limit]
 
     results = []
     for row in paged_rows:

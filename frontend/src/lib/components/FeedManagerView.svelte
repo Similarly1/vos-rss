@@ -170,6 +170,19 @@
     openTriadModalForCategory(triadAlerts.length > 0 ? triadAlerts[0].category : 'Technologie');
   }
 
+  async function loadBalanceData() {
+    // Silent background load — does NOT open the modal
+    try {
+      const res = await fetch('/api/audit/categories-balance');
+      if (res.ok) {
+        const data = await res.json();
+        balanceCategories = data.categories || [];
+      }
+    } catch (e) {
+      console.error("Erreur bilan catégories:", e);
+    }
+  }
+
   async function openCategoriesBalanceModal() {
     showBalanceModal = true;
     loadingBalance = true;
@@ -292,7 +305,7 @@
   onMount(() => {
     if ($feedsList.length === 0) fetchFeeds();
     runAudit();
-    openCategoriesBalanceModal();
+    loadBalanceData(); // silent — no modal
   });
 </script>
 

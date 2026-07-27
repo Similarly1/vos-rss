@@ -319,12 +319,55 @@ def parse_and_save_feed(url: str, category: str = "Général", language: str = N
     }
 
 def get_all_feeds():
+    from urllib.parse import urlparse
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, url, title, category, language, is_full_text, created_at FROM feeds ORDER BY id DESC")
     rows = cursor.fetchall()
+
+    # Build domain -> trust metadata lookup from catalog_feeds
+    catalog_trust = {}
+    try:
+        cat_rows = cursor.execute(
+            "SELECT url, site_url, is_jti_certified, factuality_rating, bias_rating, media_type FROM catalog_feeds"
+        ).fetchall()
+        for cr in cat_rows:
+            for col in ['url', 'site_url']:
+                raw = cr[col]
+                if raw:
+                    try:
+                        domain = urlparse(raw).netloc.lower().replace('www.', '')
+                        if domain and domain not in catalog_trust:
+                            catalog_trust[domain] = {
+                                'is_jti_certified': bool(cr['is_jti_certified']),
+                                'factuality_rating': cr['factuality_rating'],
+                                'bias_rating': cr['bias_rating'],
+                                'media_type': cr['media_type'],
+                            }
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
     conn.close()
-    return [dict(row) for row in rows]
+
+    result = []
+    for row in rows:
+        feed = dict(row)
+        # Look up trust data by feed domain
+        try:
+            domain = urlparse(feed['url']).netloc.lower().replace('www.', '')
+            trust = catalog_trust.get(domain, {})
+        except Exception:
+            trust = {}
+        feed['is_jti_certified'] = trust.get('is_jti_certified', False)
+        feed['factuality_rating'] = trust.get('factuality_rating')
+        feed['bias_rating'] = trust.get('bias_rating')
+        feed['media_type'] = trust.get('media_type')
+        result.append(feed)
+
+    return result
 
 def update_feed(feed_id: int, title: str, category: str, language: str = "fr", is_full_text: bool = True):
     from app.services.catalog import normalize_category

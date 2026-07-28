@@ -278,14 +278,18 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # Automatically seed/enrich trust metadata (JTI, MBFC, Bias, Media Type) and normalize categories on startup
+    # Automatically seed/enrich trust metadata, normalize categories and import catalog feeds on startup
     try:
         from enrich_journalism_trust_batch import enrich_trust_metadata
         from normalize_categories_batch import normalize_all_db_categories
+        from seed_quality_catalog import seed as seed_quality_feeds
+        from import_github_opml_catalogs import main as import_github_catalogs
         enrich_trust_metadata()
         normalize_all_db_categories()
+        seed_quality_feeds()
+        import_github_catalogs()
     except Exception as e:
-        print(f"[Auto-enrich/normalize note] {e}")
+        print(f"[Auto-enrich/normalize/seed note] {e}")
 
 if __name__ == "__main__":
     init_db()

@@ -278,18 +278,24 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # Automatically seed/enrich trust metadata, normalize categories and import catalog feeds on startup
-    try:
-        from enrich_journalism_trust_batch import enrich_trust_metadata
-        from normalize_categories_batch import normalize_all_db_categories
-        from seed_quality_catalog import seed as seed_quality_feeds
-        from import_github_opml_catalogs import main as import_github_catalogs
-        enrich_trust_metadata()
-        normalize_all_db_categories()
-        seed_quality_feeds()
-        import_github_catalogs()
-    except Exception as e:
-        print(f"[Auto-enrich/normalize/seed note] {e}")
+    # Run enrichment/seed tasks in background thread so FastAPI starts immediately
+    def _background_startup():
+        try:
+            from enrich_journalism_trust_batch import enrich_trust_metadata
+            from normalize_categories_batch import normalize_all_db_categories
+            from seed_quality_catalog import seed as seed_quality_feeds
+            from import_github_opml_catalogs import main as import_github_catalogs
+            enrich_trust_metadata()
+            normalize_all_db_categories()
+            seed_quality_feeds()
+            import_github_catalogs()
+            print("[Startup] Background enrichment/seed/import complete.")
+        except Exception as e:
+            print(f"[Startup background note] {e}")
+
+    import threading
+    t = threading.Thread(target=_background_startup, daemon=True)
+    t.start()
 
 if __name__ == "__main__":
     init_db()

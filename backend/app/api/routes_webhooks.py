@@ -3,7 +3,10 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import httpx
 import json
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 import sqlite3
 from app.database import get_db_connection
 from app.config import settings

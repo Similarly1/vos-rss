@@ -99,13 +99,16 @@
           {/if}
           
           {#if isEditMode}
-            <button 
+            <span 
+              role="button"
+              tabindex="0"
               on:click|stopPropagation={() => toggleDefaultTab(tab.view)}
-              class="ml-auto text-lg hover:scale-125 transition-transform {$defaultLandingTab === tab.view ? 'text-yellow-400' : 'text-gray-300 grayscale opacity-30 hover:opacity-100 hover:grayscale-0'}"
+              on:keydown|stopPropagation={(e) => e.key === 'Enter' && toggleDefaultTab(tab.view)}
+              class="ml-auto text-lg hover:scale-125 transition-transform cursor-pointer {$defaultLandingTab === tab.view ? 'text-yellow-400' : 'text-gray-300 grayscale opacity-30 hover:opacity-100 hover:grayscale-0'}"
               title="Définir comme page d'accueil par défaut"
             >
               ⭐
-            </button>
+            </span>
           {/if}
         </button>
       </div>

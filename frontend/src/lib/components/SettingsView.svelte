@@ -516,7 +516,6 @@
                 </div>
                 {/if}
               </div>
-            </div>
             
             <div class="mt-6 bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
               <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">📝 Modèle d'Extraction IA (Webhooks)</label>

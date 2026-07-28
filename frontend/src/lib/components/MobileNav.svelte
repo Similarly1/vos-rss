@@ -72,12 +72,15 @@
         <span class="text-[10px]">{tab.label}</span>
         
         {#if isEditMode}
-          <button 
+          <span 
+            role="button"
+            tabindex="0"
             on:click|stopPropagation={() => toggleDefaultTab(tab.view)}
-            class="absolute top-1 right-1 text-xs z-10 {$defaultLandingTab === tab.view ? 'text-yellow-400' : 'text-gray-500 opacity-50'}"
+            on:keydown|stopPropagation={(e) => e.key === 'Enter' && toggleDefaultTab(tab.view)}
+            class="absolute top-1 right-1 text-xs z-10 cursor-pointer {$defaultLandingTab === tab.view ? 'text-yellow-400' : 'text-gray-500 opacity-50'}"
           >
             ⭐
-          </button>
+          </span>
         {/if}
       </button>
     {/each}

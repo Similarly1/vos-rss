@@ -121,10 +121,20 @@ export async function fetchVpsSettings() {
         try {
           const order = JSON.parse(data.nav_tabs_order);
           if (Array.isArray(order) && order.length > 0) {
+            if (!order.includes('webhooks')) {
+              order.push('webhooks');
+            }
             navTabsOrder.set(order);
           }
         } catch (e) {}
       }
+
+      visibleNavTabs.update(tabs => {
+        if (!tabs.includes('webhooks')) {
+          return [...tabs, 'webhooks'];
+        }
+        return tabs;
+      });
 
       return data;
     }

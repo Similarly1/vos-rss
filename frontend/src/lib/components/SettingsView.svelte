@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { 
+    currentView,
     mistralApiKey, selectedMistralModel, 
     geminiApiKey, selectedGeminiModel,
     langsearchApiKey,
@@ -331,6 +332,7 @@
                 { id: 'podcast', label: '🎙️ Studio Podcast' },
                 { id: 'perplexity', label: '⚡ Fil Perplexity' },
                 { id: 'feeds', label: '📰 Flux & Articles' },
+                { id: 'webhooks', label: '🔌 Webhooks' },
                 { id: 'synthesis', label: '🧪 Synthèses IA' },
                 { id: 'discover', label: '🧭 Catalogue' },
                 { id: 'stats', label: '📊 Statistiques' },
@@ -648,10 +650,21 @@
       {/if}
 
       {#if activeTab === 'abonnements'}
-      <!-- Section: Abonnements Médias Payants -->
+      <!-- Section: Abonnements Médias Payants & Webhooks -->
       <section class="bg-white dark:bg-dark-card rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
+        
+        <div class="p-6 bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border border-emerald-500/30 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+          <div>
+            <h4 class="font-bold text-white text-base">⚡ Webhooks & Ingestion Universelle (Recommandé)</h4>
+            <p class="text-xs text-emerald-200 mt-1">Ingérez des newsletters, PDF et articles via n8n, Make ou Mailhooks sans passer par les cookies.</p>
+          </div>
+          <button on:click={() => $currentView = 'webhooks'} class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs shadow-md transition-all whitespace-nowrap">
+            🔌 Ouvrir le Gestionnaire Webhook
+          </button>
+        </div>
+
         <div class="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
-          <h3 class="text-lg font-bold text-primary-500">🔑 Abonnements Médias Payants</h3>
+          <h3 class="text-lg font-bold text-primary-500">🔑 Abonnements Médias (Ancien système)</h3>
           <button on:click={() => $showMediaCredentialsModal = true} class="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold rounded-xl text-sm transition-colors">
             + Ajouter un accès
           </button>

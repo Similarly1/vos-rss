@@ -68,6 +68,55 @@ def save_media_cookie(domain: str, media_name: str, cookie_str: str):
     finally:
         conn.close()
 
+def auto_subscribe_to_media_feeds(domain: str, media_name: str) -> list:
+    """
+    After saving credentials for a domain, automatically subscribe the user
+    to all catalog feeds from that domain that aren't already subscribed.
+    Returns list of newly subscribed feed titles.
+    """
+    from urllib.parse import urlparse
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    subscribed = []
+    try:
+        norm_domain = domain.replace('www.', '').lower()
+        # Find catalog feeds matching this domain
+        rows = cursor.execute(
+            "SELECT id, url, title, category, language FROM catalog_feeds"
+        ).fetchall()
+        matching = []
+        for r in rows:
+            url = (r['url'] or '').lower()
+            site = (r['site_url'] or '' if 'site_url' in r.keys() else '').lower()
+            feed_domain = urlparse(url).netloc.replace('www.', '')
+            if norm_domain in feed_domain or feed_domain in norm_domain:
+                matching.append(r)
+
+        for feed in matching:
+            # Check not already subscribed
+            existing = cursor.execute(
+                "SELECT id FROM feeds WHERE url = ?", (feed['url'],)
+            ).fetchone()
+            if not existing:
+                cursor.execute(
+                    """INSERT INTO feeds (url, title, category, language, is_full_text)
+                       VALUES (?, ?, ?, ?, 1)""",
+                    (feed['url'], feed['title'] or media_name,
+                     feed['category'] or 'Actualités & Presse',
+                     feed['language'] or 'fr')
+                )
+                subscribed.append(feed['title'] or feed['url'])
+                print(f"[AutoSubscribe] Added feed '{feed['title']}' ({feed['url']}) for domain {domain}")
+
+        conn.commit()
+    except Exception as e:
+        print(f"[AutoSubscribe] Error: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+    return subscribed
+
+
 def get_media_cookie(domain: str) -> Optional[str]:
     conn = get_db_connection()
     cursor = conn.cursor()

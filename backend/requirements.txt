@@ -8,5 +8,6 @@ feedparser
 gTTS
 beautifulsoup4
 cryptography
+python-multipart
 
 

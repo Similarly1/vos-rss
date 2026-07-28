@@ -197,8 +197,8 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
     g_model = gemini_model or settings.gemini_discover_model or settings.gemini_model or "gemini-1.5-flash"
 
     articles_text = "\n\n".join([
-        f"--- Source : {a.get('feed_title', 'RSS')} (Langue d'origine: {a.get('language', 'fr').upper()}) ---\nTitre d'origine: {a.get('title')}\nContenu complet: {(a.get('content') or '')[:2500]}"
-        for a in cluster_articles
+        f"--- Source : {a.get('feed_title', 'RSS')} (Langue: {a.get('language', 'fr').upper()}) ---\nTitre: {a.get('title')}\nContenu: {(a.get('content') or a.get('description') or '')[:1500]}"
+        for a in cluster_articles[:6]  # Max 6 articles to stay within token limits
     ])
 
     system_prompt = (
@@ -241,9 +241,10 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    "response_format": {"type": "json_object"}
+                    "response_format": {"type": "json_object"},
+                    "max_tokens": 600
                 },
-                timeout=30.0
+                timeout=45.0
             )
             if res.status_code != 200:
                 raise ValueError(f"Erreur Mistral: {res.text}")
@@ -268,7 +269,7 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
                         "responseMimeType": "application/json"
                     }
                 },
-                timeout=30.0
+                timeout=45.0
             )
             if res.status_code != 200:
                 raise ValueError(f"Erreur Gemini: {res.text}")

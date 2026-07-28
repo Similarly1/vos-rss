@@ -90,16 +90,22 @@
     return cleanTextBoilerplate(cluster.topic_title);
   }
 
+  function isErrorSummary(text) {
+    if (!text) return true;
+    return text.startsWith('Erreur') || text.includes('génération du résumé');
+  }
+
   function getTeaserSentence(cluster) {
     const cId = cluster.cluster_id;
     const synth = syntheses[cId] || cluster.precomputed_synthesis;
-    if (synth && synth.summary) {
+    if (synth && synth.summary && !isErrorSummary(synth.summary)) {
       const parts = synth.summary.split('. ');
       return parts.slice(0, 2).join('. ') + (parts.length > 2 ? '.' : '');
     }
-    const raw = cluster.articles[0]?.content || cluster.articles[0]?.title || '';
+    // Fallback: use first article's content or title
+    const raw = cluster.articles[0]?.content || cluster.articles[0]?.description || cluster.articles[0]?.title || '';
     const clean = cleanTextBoilerplate(raw);
-    return clean.slice(0, 180) + (clean.length > 180 ? '...' : '');
+    return clean.slice(0, 200) + (clean.length > 200 ? '...' : '');
   }
 
   function getCategoryFallbackImage(category) {

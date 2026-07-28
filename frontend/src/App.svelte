@@ -17,6 +17,7 @@
   import OnboardingWizardModal from './lib/components/OnboardingWizardModal.svelte';
   import NotificationPanel from './lib/components/NotificationPanel.svelte';
   import MediaCredentialsModal from './lib/components/MediaCredentialsModal.svelte';
+  import WebhookManagerView from './lib/components/WebhookManagerView.svelte';
   
   let showOnboarding = false; // Could be controlled by a store later
 
@@ -43,6 +44,8 @@
         <PodcastStudioView />
       {:else if $currentView === 'perplexity'}
         <PerplexityFeedView />
+      {:else if $currentView === 'webhooks'}
+        <WebhookManagerView />
       {:else if $currentView === 'discover'}
         <DiscoverView />
       {:else if $currentView === 'synthesis'}
@@ -64,6 +67,8 @@
         <PodcastStudioView />
       {:else if $currentView === 'perplexity'}
         <PerplexityFeedView />
+      {:else if $currentView === 'webhooks'}
+        <WebhookManagerView />
       {:else if $currentView === 'discover'}
         <DiscoverView />
       {:else if $currentView === 'synthesis'}

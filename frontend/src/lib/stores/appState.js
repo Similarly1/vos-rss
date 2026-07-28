@@ -39,7 +39,7 @@ export function setAppTheme(theme) {
 }
 
 // Navigation state
-export const visibleNavTabs = writable(['podcast', 'perplexity', 'feeds', 'synthesis', 'discover', 'stats', 'settings']);
+export const visibleNavTabs = writable(['podcast', 'perplexity', 'feeds', 'webhooks', 'synthesis', 'discover', 'stats', 'settings']);
 export const defaultLandingTab = writable('articles');
 export const navTabsOrder = writable([]);
 

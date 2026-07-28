@@ -95,13 +95,13 @@
             </div>
 
             <!-- Token Usage Table -->
-            {#if $statsStore.token_usage && $statsStore.token_usage.length > 0}
             <div class="bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-700/50 mt-8">
                 <h3 class="text-xl font-medium text-slate-200 mb-6 flex items-center gap-2">
                     <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Consommation API (Tokens & Coûts)
                 </h3>
                 
+                {#if $statsStore.token_usage && $statsStore.token_usage.length > 0}
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -146,8 +146,12 @@
                         </tbody>
                     </table>
                 </div>
+                {:else}
+                <div class="p-6 text-center text-slate-400 text-sm border border-dashed border-slate-700 rounded-xl">
+                    ⚡ Aucune donnée de jetons enregistrée pour le moment. La consommation sera affichée ici lors des prochaines générations d'articles, synthèses ou podcasts.
+                </div>
+                {/if}
             </div>
-            {/if}
         {/if}
     </div>
 </div>

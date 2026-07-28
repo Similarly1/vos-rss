@@ -1,56 +1,117 @@
 <script>
   import { showMediaCredentialsModal, subscribedMediaCredentialsList, hidePaywalledWithoutCookie } from '../stores/appState.js';
   import { fade, slide } from 'svelte/transition';
+  import { onMount } from 'svelte';
 
   let activeTab = 'tutorial'; // 'tutorial' | 'manage'
   
   // Media configuration
   const mediaList = [
-    { id: 'lemonde', name: 'Le Monde', icon: '📰', domain: '.lemonde.fr' },
-    { id: 'letemps', name: 'Le Temps', icon: '⏱️', domain: '.letemps.ch' },
-    { id: 'nzz', name: 'NZZ', icon: '🏔️', domain: '.nzz.ch' },
-    { id: 'mediapart', name: 'Mediapart', icon: '🔴', domain: '.mediapart.fr' },
-    { id: 'nyt', name: 'NY Times', icon: '🗽', domain: '.nytimes.com' }
+    { id: 'lemonde',   name: 'Le Monde',    icon: '📰', domain: 'lemonde.fr' },
+    { id: 'mediapart', name: 'Mediapart',   icon: '🔴', domain: 'mediapart.fr' },
+    { id: 'letemps',   name: 'Le Temps',    icon: '⏱️', domain: 'letemps.ch' },
+    { id: 'nzz',       name: 'NZZ',         icon: '🏔️', domain: 'nzz.ch' },
+    { id: 'nyt',       name: 'NY Times',    icon: '🗽', domain: 'nytimes.com' },
+    { id: 'wsj',       name: 'Wall Street Journal', icon: '📈', domain: 'wsj.com' },
+    { id: 'lefigaro',  name: 'Le Figaro',   icon: '🖋️', domain: 'lefigaro.fr' },
+    { id: 'lesechos',  name: 'Les Échos',   icon: '💼', domain: 'lesechos.fr' },
   ];
 
   let selectedMediaId = 'lemonde';
   let cookieValue = '';
-  
-  function saveCookie() {
-    if (!cookieValue.trim()) return;
-    
-    const currentList = $subscribedMediaCredentialsList || [];
-    const mediaDef = mediaList.find(m => m.id === selectedMediaId);
-    
-    // Check if already exists
-    const existingIndex = currentList.findIndex(item => item.id === selectedMediaId);
-    
-    const newEntry = {
-      id: selectedMediaId,
-      name: mediaDef.name,
-      domain: mediaDef.domain,
-      cookie: cookieValue.trim()
-    };
-    
-    if (existingIndex >= 0) {
-      currentList[existingIndex] = newEntry;
-    } else {
-      currentList.push(newEntry);
+  let isSaving = false;
+  let saveStatus = null; // null | 'success' | 'error'
+  let saveMessage = '';
+  let autoSubscribedFeeds = [];
+
+  // Load existing credentials from the backend
+  onMount(async () => {
+    try {
+      const res = await fetch('/api/subscriptions/credentials');
+      if (res.ok) {
+        const data = await res.json();
+        // Merge backend credentials into store
+        const mapped = data.map(c => ({
+          id: mediaList.find(m => m.domain === c.domain)?.id || c.domain,
+          name: c.media_name || c.domain,
+          domain: c.domain,
+          active: true
+        }));
+        subscribedMediaCredentialsList.set(mapped);
+      }
+    } catch (e) {
+      console.warn('[MediaCredentials] Could not load from server:', e);
     }
-    
-    $subscribedMediaCredentialsList = [...currentList];
-    cookieValue = ''; // reset
-    activeTab = 'manage'; // switch to manage tab to see it
+  });
+
+  async function saveCookie() {
+    if (!cookieValue.trim()) return;
+    const mediaDef = mediaList.find(m => m.id === selectedMediaId);
+    if (!mediaDef) return;
+
+    isSaving = true;
+    saveStatus = null;
+    autoSubscribedFeeds = [];
+
+    try {
+      const res = await fetch('/api/subscriptions/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domain: mediaDef.domain,
+          media_name: mediaDef.name,
+          cookie: cookieValue.trim()
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Update local store
+        const currentList = $subscribedMediaCredentialsList || [];
+        const existingIndex = currentList.findIndex(item => item.domain === mediaDef.domain);
+        const newEntry = { id: selectedMediaId, name: mediaDef.name, domain: mediaDef.domain, active: true };
+        if (existingIndex >= 0) {
+          currentList[existingIndex] = newEntry;
+        } else {
+          currentList.push(newEntry);
+        }
+        subscribedMediaCredentialsList.set([...currentList]);
+
+        autoSubscribedFeeds = data.auto_subscribed || [];
+        saveStatus = 'success';
+        saveMessage = data.message || 'Cookie enregistré avec succès !';
+        cookieValue = '';
+        setTimeout(() => {
+          activeTab = 'manage';
+          saveStatus = null;
+        }, 2500);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        saveStatus = 'error';
+        saveMessage = err.detail || 'Erreur serveur lors de l\'enregistrement.';
+      }
+    } catch (e) {
+      saveStatus = 'error';
+      saveMessage = 'Erreur réseau : impossible de joindre le serveur.';
+    } finally {
+      isSaving = false;
+    }
   }
   
-  function removeCookie(id) {
-    $subscribedMediaCredentialsList = $subscribedMediaCredentialsList.filter(item => item.id !== id);
+  async function removeCookie(domain) {
+    try {
+      await fetch(`/api/subscriptions/credentials/${encodeURIComponent(domain)}`, { method: 'DELETE' });
+    } catch (e) {
+      console.warn('[MediaCredentials] Could not delete from server:', e);
+    }
+    subscribedMediaCredentialsList.set($subscribedMediaCredentialsList.filter(item => item.domain !== domain));
   }
 
   function close() {
     $showMediaCredentialsModal = false;
   }
 </script>
+
 
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -168,12 +229,32 @@
                 ></textarea>
               </div>
               
+              {#if saveStatus === 'success'}
+                <div class="p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-xl text-sm text-emerald-800 dark:text-emerald-300 font-medium" transition:slide>
+                  ✅ {saveMessage}
+                  {#if autoSubscribedFeeds.length > 0}
+                    <div class="mt-2 text-xs font-normal">
+                      Flux ajoutés automatiquement : {autoSubscribedFeeds.join(', ')}
+                    </div>
+                  {/if}
+                </div>
+              {:else if saveStatus === 'error'}
+                <div class="p-3 bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-700 rounded-xl text-sm text-rose-800 dark:text-rose-300 font-medium" transition:slide>
+                  ❌ {saveMessage}
+                </div>
+              {/if}
+
               <button 
                 on:click={saveCookie} 
-                disabled={!cookieValue.trim()}
-                class="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-sm transition-all disabled:opacity-50"
+                disabled={!cookieValue.trim() || isSaving}
+                class="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Sauvegarder l'accès
+                {#if isSaving}
+                  <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  Enregistrement…
+                {:else}
+                  🔐 Sauvegarder l'accès
+                {/if}
               </button>
             </div>
           </div>
@@ -200,7 +281,7 @@
                       </div>
                     </div>
                     <button 
-                      on:click={() => removeCookie(item.id)}
+                      on:click={() => removeCookie(item.domain)}
                       class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
                       title="Supprimer"
                     >

@@ -137,6 +137,32 @@ def init_db():
         value TEXT NOT NULL
     )
     ''')
+    
+    # 6.1 Webhook Sources Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS webhook_sources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        token TEXT UNIQUE NOT NULL,
+        category TEXT DEFAULT 'Général',
+        css_selectors_json TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+
+    # 6.2 Token Usage Table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS token_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        usage_type TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        tokens_in INTEGER DEFAULT 0,
+        tokens_out INTEGER DEFAULT 0,
+        cost_eur REAL DEFAULT 0.0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
 
     # Auto-migration for podcasts columns
     try:

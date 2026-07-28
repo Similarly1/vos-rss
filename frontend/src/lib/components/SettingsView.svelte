@@ -10,7 +10,7 @@
     synthesisProvider, vectorizationProvider, synthesisFallbackProvider, vectorizationFallbackProvider, mistralEmbedModel, geminiEmbedModel,
     refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, 
     saveSettings, runArticlesCleanup, fetchVpsSettings,
-    userTheme, setAppTheme, visibleNavTabs,
+    userTheme, setAppTheme, visibleNavTabs, webhookModel,
     showMediaCredentialsModal, subscribedMediaCredentialsList, hidePaywalledWithoutCookie
   } from '../stores/appState.js';
   import { selectedVoice, saveVoiceSetting } from '../stores/audioStore.js';
@@ -29,6 +29,7 @@
   let geminiArticleInput = $selectedGeminiArticleModel;
   let geminiDiscoverInput = $selectedGeminiDiscoverModel;
   let geminiPodcastInput = $selectedGeminiPodcastModel;
+  let webhookModelInput = $webhookModel || 'mistral-large-latest';
   
   let langsearchKeyInput = $langsearchApiKey;
 
@@ -60,6 +61,57 @@
   let testResultGemini = null;
   let testResultLangsearch = null;
 
+  let categoryImages = [];
+  let isUploadingCategory = false;
+
+  async function loadCategoryImages() {
+    try {
+      const res = await fetch('/api/settings/categories');
+      if (res.ok) {
+        const json = await res.json();
+        categoryImages = json.data;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function uploadCategoryImage(category, file) {
+    if (!file) return;
+    isUploadingCategory = true;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`/api/settings/categories/${encodeURIComponent(category)}`, {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        await loadCategoryImages();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      isUploadingCategory = false;
+    }
+  }
+
+  async function resetCategoryImage(category) {
+    isUploadingCategory = true;
+    try {
+      const res = await fetch(`/api/settings/categories/${encodeURIComponent(category)}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        await loadCategoryImages();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      isUploadingCategory = false;
+    }
+  }
+
   onMount(async () => {
     const vpsKeys = await fetchVpsSettings();
     if (vpsKeys) {
@@ -76,6 +128,7 @@
       geminiDiscoverInput = vpsKeys.gemini_discover_model || 'gemini-1.5-flash';
       mistralPodcastInput = vpsKeys.mistral_podcast_model || 'mistral-large-latest';
       geminiPodcastInput = vpsKeys.gemini_podcast_model || 'gemini-1.5-pro';
+      webhookModelInput = vpsKeys.webhook_model || 'mistral-large-latest';
       synthFallbackInput = vpsKeys.synthesis_fallback_provider || 'gemini';
       vectFallbackInput = vpsKeys.vectorization_fallback_provider || 'gemini';
       mistralEmbedInput = vpsKeys.mistral_embed_model || 'mistral-embed';
@@ -85,6 +138,7 @@
       fullTextInput = vpsKeys.full_text_only || false;
       retentionInput = vpsKeys.article_retention_days || 14;
     }
+    loadCategoryImages();
   });
 
   async function handleSave() {
@@ -96,6 +150,7 @@
       mistralArticleInput, geminiArticleInput,
       mistralDiscoverInput, geminiDiscoverInput,
       mistralPodcastInput, geminiPodcastInput,
+      webhookModelInput,
       synthProvInput, vectProvInput, synthFallbackInput, vectFallbackInput,
       mistralEmbedInput, geminiEmbedInput,
       refreshInput, langInput, fullTextInput, retentionInput,
@@ -294,6 +349,40 @@
               {/each}
             </div>
           </div>
+
+          <!-- Category Images Section -->
+          <div class="bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">🖼️ Images des Catégories (Catalogue & Synthèses)</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {#each categoryImages as cat (cat.category)}
+                <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden flex flex-col">
+                  <div class="h-24 w-full bg-gray-200 dark:bg-gray-800 relative">
+                    <img src={cat.image_url} alt={cat.category} class="w-full h-full object-cover" />
+                    {#if cat.is_custom}
+                      <span class="absolute top-1 right-1 bg-primary-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">Personnalisé</span>
+                    {/if}
+                  </div>
+                  <div class="p-3">
+                    <h5 class="text-xs font-bold text-gray-900 dark:text-white mb-2">{cat.category}</h5>
+                    <div class="flex gap-2">
+                      <label class="flex-1 text-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] font-bold py-1.5 rounded cursor-pointer transition-colors">
+                        {isUploadingCategory ? '...' : 'Modifier'}
+                        <input type="file" accept="image/*" class="hidden" on:change={(e) => uploadCategoryImage(cat.category, e.target.files[0])} disabled={isUploadingCategory} />
+                      </label>
+                      <button 
+                        on:click={() => resetCategoryImage(cat.category)} 
+                        disabled={!cat.is_custom || isUploadingCategory}
+                        class="px-2 bg-rose-50 text-rose-500 hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors text-[10px] font-bold"
+                        title="Réinitialiser"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
         </div>
       </section>
       {/if}
@@ -427,8 +516,19 @@
                 </div>
                 {/if}
               </div>
+            </div>
+            
+            <div class="mt-6 bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">📝 Modèle d'Extraction IA (Webhooks)</label>
+              <select bind:value={webhookModelInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-xs focus:ring-2 focus:ring-primary-500">
+                <option value="mistral-large-latest">Mistral Large (Précis & Détaillé)</option>
+                <option value="codestral-latest">Codestral (Performant sur le code/JSON)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Excellente Extraction)</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Rapide)</option>
+              </select>
+            </div>
 
-              <button on:click={testGeminiConnection} disabled={isTestingGemini} class="text-xs font-semibold px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 rounded-lg w-full mt-2">
+            <button on:click={testGeminiConnection} disabled={isTestingGemini} class="text-xs font-semibold px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 rounded-lg w-full mt-2">
                 {isTestingGemini ? 'Test en cours...' : 'Tester la connexion Gemini'}
               </button>
               {#if testResultGemini}

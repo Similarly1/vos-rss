@@ -29,4 +29,5 @@ vos.db
 .idea/
 
 # Audio cache
-backend/audio_cache/
+backend/audio_cache/*
+!backend/audio_cache/whoosh_default.mp3

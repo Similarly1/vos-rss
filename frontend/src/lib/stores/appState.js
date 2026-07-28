@@ -40,6 +40,8 @@ export function setAppTheme(theme) {
 
 // Navigation state
 export const visibleNavTabs = writable(['podcast', 'perplexity', 'feeds', 'synthesis', 'discover', 'stats', 'settings']);
+export const defaultLandingTab = writable('articles');
+export const navTabsOrder = writable([]);
 
 // Notification state
 export const notificationsList = writable([]);
@@ -58,6 +60,7 @@ export const selectedMistralDiscoverModel = writable('mistral-small-latest');
 export const selectedGeminiDiscoverModel = writable('gemini-1.5-flash');
 export const selectedMistralPodcastModel = writable('mistral-large-latest');
 export const selectedGeminiPodcastModel = writable('gemini-1.5-pro');
+export const webhookModel = writable('mistral-large-latest');
 
 export const synthesisProvider = writable('mistral');
 export const vectorizationProvider = writable('mistral');
@@ -97,6 +100,7 @@ export async function fetchVpsSettings() {
       if (data.gemini_discover_model) selectedGeminiDiscoverModel.set(data.gemini_discover_model);
       if (data.mistral_podcast_model) selectedMistralPodcastModel.set(data.mistral_podcast_model);
       if (data.gemini_podcast_model) selectedGeminiPodcastModel.set(data.gemini_podcast_model);
+      if (data.webhook_model) webhookModel.set(data.webhook_model);
       if (data.synthesis_fallback_provider) synthesisFallbackProvider.set(data.synthesis_fallback_provider);
       if (data.vectorization_fallback_provider) vectorizationFallbackProvider.set(data.vectorization_fallback_provider);
       if (data.mistral_embed_model) mistralEmbedModel.set(data.mistral_embed_model);
@@ -106,6 +110,22 @@ export async function fetchVpsSettings() {
       if (data.article_language) articleLanguageFilter.set(data.article_language);
       if (data.full_text_only !== undefined) fullTextOnlyFilter.set(data.full_text_only);
       
+      if (data.default_landing_tab) {
+        defaultLandingTab.set(data.default_landing_tab);
+        if (get(currentView) === 'articles') {
+           currentView.set(data.default_landing_tab);
+        }
+      }
+      
+      if (data.nav_tabs_order) {
+        try {
+          const order = JSON.parse(data.nav_tabs_order);
+          if (Array.isArray(order) && order.length > 0) {
+            navTabsOrder.set(order);
+          }
+        } catch (e) {}
+      }
+
       return data;
     }
   } catch (err) {
@@ -120,6 +140,7 @@ export async function saveSettings(
   mistralArticleModel, geminiArticleModel,
   mistralDiscoverModel, geminiDiscoverModel,
   mistralPodcastModel, geminiPodcastModel,
+  webhookModelVal,
   synthProv, vectProv, synthFallback, vectFallback, mistralEmbed, geminiEmbed, 
   refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14,
   langsearchKey = ''
@@ -135,6 +156,7 @@ export async function saveSettings(
   selectedGeminiDiscoverModel.set(geminiDiscoverModel);
   selectedMistralPodcastModel.set(mistralPodcastModel);
   selectedGeminiPodcastModel.set(geminiPodcastModel);
+  webhookModel.set(webhookModelVal);
 
   synthesisProvider.set(synthProv);
   vectorizationProvider.set(vectProv);
@@ -166,6 +188,7 @@ export async function saveSettings(
         gemini_discover_model: geminiDiscoverModel,
         mistral_podcast_model: mistralPodcastModel,
         gemini_podcast_model: geminiPodcastModel,
+        webhook_model: webhookModelVal,
         synthesis_fallback_provider: synthFallback,
         vectorization_fallback_provider: vectFallback,
         mistral_embed_model: mistralEmbed,
@@ -173,7 +196,9 @@ export async function saveSettings(
         refresh_interval_minutes: refreshMinutes,
         article_retention_days: retentionDays,
         article_language: langFilter,
-        full_text_only: fullTextOnly
+        full_text_only: fullTextOnly,
+        default_landing_tab: get(defaultLandingTab),
+        nav_tabs_order: JSON.stringify(get(navTabsOrder))
       })
     });
     if (!res.ok) {
@@ -186,6 +211,24 @@ export async function saveSettings(
   runArticlesCleanup(retentionDays);
   setupAutoRefresh();
   fetchArticles();
+}
+
+export async function saveNavPreferences() {
+  try {
+    const res = await fetch('/api/feeds/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        default_landing_tab: get(defaultLandingTab),
+        nav_tabs_order: JSON.stringify(get(navTabsOrder))
+      })
+    });
+    if (!res.ok) {
+      console.error("Erreur saveNavPreferences.");
+    }
+  } catch (err) {
+    console.error("Erreur réseau:", err);
+  }
 }
 
 export async function runArticlesCleanup(days) {

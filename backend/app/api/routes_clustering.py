@@ -80,23 +80,31 @@ async def trigger_precompute(payload: Optional[PrecomputeRequest] = None, backgr
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/clusters")
-def get_clusters(threshold: float = 0.91):
+def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
     try:
         # Determine cache key
         mode_key = "events" if threshold >= 0.86 else "themes"
         cached = get_cached_clusters(f"threshold_{mode_key}") or get_cached_clusters(f"threshold_{threshold}")
 
-        if cached is not None:
-            return {
-                "status": "success", 
-                "source": "cache", 
-                "clusters_count": len(cached), 
-                "clusters": cached
-            }
+        clusters = cached if cached is not None else compute_article_clusters(similarity_threshold=threshold)
+        source = "cache" if cached is not None else "live"
 
-        # Fallback to computing on-the-fly if cache is empty
-        clusters = compute_article_clusters(similarity_threshold=threshold)
-        return {"status": "success", "source": "live", "clusters_count": len(clusters), "clusters": clusters}
+        # Apply cluster_type filtering
+        if cluster_type == "events":
+            # Exclude clusters that are reviews or summaries ("bilan/revue")
+            filtered_clusters = []
+            for c in clusters:
+                cat = (c.get("category") or "").lower()
+                if "bilan" not in cat and "revue" not in cat:
+                    filtered_clusters.append(c)
+            clusters = filtered_clusters
+
+        return {
+            "status": "success", 
+            "source": source, 
+            "clusters_count": len(clusters), 
+            "clusters": clusters
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

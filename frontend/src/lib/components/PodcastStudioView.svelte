@@ -41,6 +41,48 @@
   let feedToken = "";
   let runMessageMap = {};
 
+  let podcastSystemPrompt = "";
+  let podcastJingleFilename = "whoosh_default.mp3";
+
+  async function fetchPodcastSettings() {
+    try {
+      const res = await fetch('/api/podcast/settings');
+      if (res.ok) {
+        const data = await res.json();
+        podcastSystemPrompt = data.podcast_system_prompt || "";
+        podcastJingleFilename = data.podcast_jingle_filename || "whoosh_default.mp3";
+      }
+    } catch (e) {}
+  }
+
+  async function saveSettings() {
+    try {
+      await fetch('/api/podcast/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          podcast_system_prompt: podcastSystemPrompt,
+          podcast_jingle_filename: podcastJingleFilename
+        })
+      });
+      alert('Paramètres enregistrés !');
+    } catch (e) {}
+  }
+
+  async function resetSystemPrompt() {
+    try {
+      await fetch('/api/podcast/settings/reset-prompt', { method: 'POST' });
+      await fetchPodcastSettings();
+    } catch (e) {}
+  }
+
+  async function resetJingle() {
+    try {
+      await fetch('/api/podcast/settings/reset-jingle', { method: 'POST' });
+      await fetchPodcastSettings();
+    } catch (e) {}
+  }
+
   $: feedUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/podcast/feed.xml${feedToken ? `?token=${feedToken}` : ''}`;
 
   async function fetchFeedToken() {
@@ -334,6 +376,7 @@
     fetchHistory();
     fetchSchedules();
     fetchFeedToken();
+    fetchPodcastSettings();
   });
 </script>
 
@@ -652,6 +695,41 @@
 
     </div>
 
+    <!-- CARD 3: PERSONNALISATION -->
+    <div class="bg-gray-900/90 border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+      <div class="space-y-1 border-b border-gray-800 pb-3">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span>⚙️ Personnalisation du Podcast</span>
+        </h2>
+        <p class="text-xs text-gray-400">Modifiez le prompt système de l'IA et l'audio de transition.</p>
+      </div>
+
+      <!-- SYSTEM PROMPT -->
+      <div class="space-y-2">
+        <div class="flex justify-between items-center">
+          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider">Prompt Système (IA)</label>
+          <button on:click={resetSystemPrompt} class="text-xs text-rose-400 hover:text-rose-300 font-bold">Réinitialiser</button>
+        </div>
+        <textarea
+          bind:value={podcastSystemPrompt}
+          rows="5"
+          placeholder="Laissez vide pour utiliser le prompt par défaut..."
+          class="w-full bg-gray-950 border border-gray-800 rounded-2xl py-3 px-4 text-xs font-semibold text-gray-200 focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all"
+        ></textarea>
+        <button on:click={saveSettings} class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md transition-all">Enregistrer le prompt</button>
+      </div>
+
+      <!-- CUSTOM JINGLE -->
+      <div class="space-y-2">
+        <div class="flex justify-between items-center">
+          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider">Jingle de transition (Nom du fichier MP3)</label>
+          <button on:click={resetJingle} class="text-xs text-rose-400 hover:text-rose-300 font-bold">Réinitialiser</button>
+        </div>
+        <input type="text" bind:value={podcastJingleFilename} class="w-full bg-gray-950 border border-gray-800 rounded-2xl py-3 px-4 text-xs font-semibold text-gray-200 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="whoosh_default.mp3" />
+        <button on:click={saveSettings} class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all">Mettre à jour le jingle</button>
+      </div>
+    </div>
+
     <!-- PLAYER & HISTORIQUE DES ÉMISSIONS -->
     {#if podcastHistory.length > 0}
       <div class="bg-gray-900/90 border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
@@ -705,11 +783,16 @@
         <div class="space-y-3">
           {#each podcastHistory as pod}
             <div class="p-4 bg-gray-950 border border-gray-800/80 hover:border-purple-800/60 rounded-2xl flex items-center justify-between gap-4 transition-all group">
-              <div class="space-y-1 min-w-0">
-                <h4 class="font-bold text-sm text-white truncate">{pod.title}</h4>
-                <p class="text-xs text-gray-400">
-                  {pod.created_at ? new Date(pod.created_at).toLocaleDateString('fr-FR') : ''} • {pod.topics_count || 5} sujets
-                </p>
+              <div class="flex items-center gap-4 min-w-0">
+                {#if pod.image_url}
+                  <img src={pod.image_url} alt="Cover" style="object-fit: cover; aspect-ratio: 1/1;" class="w-12 h-12 rounded-lg shrink-0 border border-gray-800" />
+                {/if}
+                <div class="space-y-1 min-w-0">
+                  <h4 class="font-bold text-sm text-white truncate">{pod.title}</h4>
+                  <p class="text-xs text-gray-400">
+                    {pod.created_at ? new Date(pod.created_at).toLocaleDateString('fr-FR') : ''} • {pod.topics_count || 5} sujets
+                  </p>
+                </div>
               </div>
 
               <div class="flex items-center gap-2 shrink-0">

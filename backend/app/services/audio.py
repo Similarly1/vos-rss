@@ -256,7 +256,36 @@ def combine_audio_chunks(audio_chunks: list[bytes]) -> str:
     """
     Concatenates multiple MP3 byte streams into a single combined MP3 file.
     """
-    combined_bytes = b"".join(audio_chunks)
+    from app.database import get_db_connection
+    
+    jingle_filename = "whoosh_default.mp3"
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM app_settings WHERE key = 'podcast_jingle_filename'")
+        row = cursor.fetchone()
+        conn.close()
+        if row and row["value"]:
+            jingle_filename = row["value"]
+    except Exception:
+        pass
+
+    jingle_path = AUDIO_DIR / jingle_filename
+    jingle_bytes = b""
+    if jingle_path.exists():
+        with open(jingle_path, "rb") as f:
+            jingle_bytes = f.read()
+    elif (AUDIO_DIR / "whoosh_default.mp3").exists():
+        with open(AUDIO_DIR / "whoosh_default.mp3", "rb") as f:
+            jingle_bytes = f.read()
+
+    combined_list = []
+    for i, chunk in enumerate(audio_chunks):
+        combined_list.append(chunk)
+        if i < len(audio_chunks) - 1 and jingle_bytes:
+            combined_list.append(jingle_bytes)
+
+    combined_bytes = b"".join(combined_list)
     combined_hash = hashlib.md5(combined_bytes).hexdigest()
     filename = f"voxtral_multi_{combined_hash}.mp3"
     filepath = AUDIO_DIR / filename

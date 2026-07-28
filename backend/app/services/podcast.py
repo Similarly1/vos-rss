@@ -542,28 +542,32 @@ async def generate_podcast_show(
     emotion_instruction = ""
     if is_dynamic_voice:
         emotion_instruction = (
-            "\n\n8. MULTI-ÉMOTIONS DYNAMIQUE (INCLURE ABSOLUMENT) : Au tout début de chaque sujet/paragraphe principal, spécifie l'intonation émotionnelle appropriée entre crochets.\n"
+            "\n\n8. MULTI-ÉMOTIONS DYNAMIQUE (INCLURE ABSOLUMENT) : Au tout début de chaque sujet, tu dois spécifier l'intonation émotionnelle appropriée entre crochets. Tu dois utiliser UNE SEULE voix/intonation par sujet et NE JAMAIS changer d'intonation au milieu d'un sujet. La voix ne doit changer qu'au moment de la transition vers le sujet suivant.\n"
             "Marqueurs autorisés : [Marie - Neutral], [Marie - Excited], [Marie - Angry], [Marie - Sad], [Marie - Curious], [Marie - Happy].\n"
             "Exemple de structuration :\n"
             "[Marie - Neutral]\nBonjour et bienvenue dans Vos...\n\n"
-            "[Marie - Angry]\nPremière nouvelle grave aujourd'hui en Europe...\n\n"
-            "[Marie - Excited]\nDu côté de l'innovation technologique..."
+            "[Marie - Angry]\nSujet 1 : Première nouvelle grave aujourd'hui en Europe...\n\n"
+            "[Marie - Excited]\nSujet 2 : Du côté de l'innovation technologique..."
         )
 
-    system_prompt = (
-        "Tu es un journaliste radio chevronné et le présentateur principal de l'émission d'actualités 'Vos'. "
-        f"Ton rôle est de rédiger un script d'émission d’actualités radio d'une qualité professionnelle irréprochable{theme_note}.\n"
-        f"Style d'antenne souhaité : {tone_instruction}\n\n"
-        "CONSIGNES STRICTES POUR LA SYNTHÈSE VOCALE (TTS) :\n"
-        "1. Ne jamais écrire [Votre Nom] ou [Nom du présentateur] dans le texte.\n"
-        "2. N'utilise aucun nom de présentateur fictif. Si tu te présentes en intro, dis simplement 'Bonjour et bienvenue dans Vos, votre revue de presse quotidienne.'\n"
-        "3. Ne répète jamais inutilement le nom de l'émission.\n"
-        "4. Rédige un français naturel, captivant, vivant et dynamique, fluide à la lecture audio.\n"
-        "5. Les transitions entre chaque sujet doivent être naturelles et journalistiques.\n"
-        "6. Cite clairement et naturellement les médias sources (ex: 'Selon Le Monde...', 'D'après TechCrunch...').\n"
-        "7. Évite les phrases moralisatrices clichés en conclusion."
-        f"{emotion_instruction}"
-    )
+    custom_system_prompt = get_app_setting("podcast_system_prompt", "")
+    if custom_system_prompt.strip():
+        system_prompt = custom_system_prompt.strip() + f"\n\nStyle d'antenne souhaité : {tone_instruction}\n{theme_note}\n{emotion_instruction}"
+    else:
+        system_prompt = (
+            "Tu es un journaliste radio chevronné et le présentateur principal de l'émission d'actualités 'Vos'. "
+            f"Ton rôle est de rédiger un script d'émission d’actualités radio d'une qualité professionnelle irréprochable{theme_note}.\n"
+            f"Style d'antenne souhaité : {tone_instruction}\n\n"
+            "CONSIGNES STRICTES POUR LA SYNTHÈSE VOCALE (TTS) :\n"
+            "1. Ne jamais écrire [Votre Nom] ou [Nom du présentateur] dans le texte.\n"
+            "2. N'utilise aucun nom de présentateur fictif. Si tu te présentes en intro, dis simplement 'Bonjour et bienvenue dans Vos, votre revue de presse quotidienne.'\n"
+            "3. Ne répète jamais inutilement le nom de l'émission.\n"
+            "4. Rédige un français naturel, captivant, vivant et dynamique, fluide à la lecture audio.\n"
+            "5. Les transitions entre chaque sujet doivent être naturelles et journalistiques.\n"
+            "6. Cite clairement et naturellement les médias sources (ex: 'Selon Le Monde...', 'D'après TechCrunch...').\n"
+            "7. Évite les phrases moralisatrices clichés en conclusion."
+            f"{emotion_instruction}"
+        )
 
     user_prompt = f"""
     Voici les {actual_topics_count} actualités majeures sélectionnées aujourd'hui :
@@ -612,10 +616,11 @@ async def generate_podcast_show(
                     pass
                 raise ValueError(f"Erreur API Mistral ({res.status_code}) : {err_text}")
             
-            raw_content = res.json()["choices"][0]["message"]["content"]
+            res_data = res.json()
+            raw_content = res_data["choices"][0]["message"]["content"]
             cleaned = re.sub(r"^```json\s*", "", raw_content.strip(), flags=re.IGNORECASE)
             cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
-            return json.loads(cleaned)
+            return json.loads(cleaned), res_data.get("usage", {}).get("total_tokens", 0)
 
     async def call_gemini():
         if not g_key:
@@ -646,10 +651,11 @@ async def generate_podcast_show(
                     pass
                 raise ValueError(f"Erreur API Gemini ({res.status_code}) : {err_text}")
             
-            raw_content = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+            res_data = res.json()
+            raw_content = res_data["candidates"][0]["content"]["parts"][0]["text"]
             cleaned = re.sub(r"^```json\s*", "", raw_content.strip(), flags=re.IGNORECASE)
             cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
-            return json.loads(cleaned)
+            return json.loads(cleaned), res_data.get("usageMetadata", {}).get("totalTokenCount", 0)
 
     async def try_provider(p_name: str):
         if p_name == "mistral":
@@ -661,7 +667,7 @@ async def generate_podcast_show(
 
     errors = []
     try:
-        script_data = await try_provider(prov)
+        script_data, llm_tokens = await try_provider(prov)
     except Exception as e:
         err_msg = f"Erreur {prov} : {e}"
         print(f"[Podcast Script Generation Note]: {err_msg}")
@@ -672,7 +678,7 @@ async def generate_podcast_show(
             if has_fallback_key:
                 print(f"Fallback activé : tentative avec {fallback_provider}...")
                 try:
-                    script_data = await try_provider(fallback_provider)
+                    script_data, llm_tokens = await try_provider(fallback_provider)
                 except Exception as e2:
                     err_msg2 = f"Erreur fallback {fallback_provider} : {e2}"
                     print(f"[Podcast Script Fallback Note]: {err_msg2}")
@@ -728,6 +734,17 @@ async def generate_podcast_show(
 
     key_points_json = json.dumps(key_points, ensure_ascii=False)
     sources_json = json.dumps(source_articles, ensure_ascii=False)
+    
+    tts_chars = len(full_script)
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                "http://127.0.0.1:8000/api/stats/tokens",
+                json={"llm_tokens": llm_tokens, "tts_chars": tts_chars},
+                timeout=5.0
+            )
+    except Exception as e:
+        print(f"[Stats Tracking Note]: {e}")
 
     # Save into SQLite database
     conn = get_db_connection()

@@ -1,5 +1,46 @@
 <script>
-  import { currentView, showAddFeedModal, showFeedManagerModal, visibleNavTabs, unreadNotificationsCount, showNotifications } from '../stores/appState.js';
+  import { currentView, showAddFeedModal, showFeedManagerModal, visibleNavTabs, unreadNotificationsCount, showNotifications, navTabsOrder, defaultLandingTab, saveNavPreferences } from '../stores/appState.js';
+
+  let isEditMode = false;
+
+  const ALL_TABS = {
+    podcast: { id: 'podcast', view: 'podcast', icon: '🎙️', label: 'Studio Podcast', extra: '<span class="text-[9px] bg-purple-500 text-white font-black px-1.5 py-0.5 rounded-full uppercase">Émission</span>', activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' },
+    perplexity: { id: 'perplexity', view: 'perplexity', icon: '⚡', label: 'Fil Perplexity', activeClass: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500' },
+    feeds: { id: 'feeds', view: 'articles', icon: '📰', label: 'Articles', activeClass: 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' },
+    synthesis: { id: 'synthesis', view: 'synthesis', icon: '🧪', label: 'Synthèses IA', activeClass: 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' },
+    discover: { id: 'discover', view: 'discover', icon: '🧭', label: 'Catalogue', activeClass: 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' },
+    stats: { id: 'stats', view: 'stats', icon: '📊', label: 'Statistiques', activeClass: 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' }
+  };
+
+  $: orderedTabs = ($navTabsOrder.length > 0 ? $navTabsOrder : ['podcast', 'perplexity', 'feeds', 'synthesis', 'discover', 'stats'])
+    .filter(id => $visibleNavTabs.includes(id))
+    .map(id => ALL_TABS[id])
+    .filter(Boolean);
+
+  let draggedIdx = null;
+
+  function handleDragStart(e, idx) {
+    if (!isEditMode) return;
+    draggedIdx = idx;
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDrop(e, idx) {
+    e.preventDefault();
+    if (!isEditMode || draggedIdx === null || draggedIdx === idx) return;
+    let newOrder = [...orderedTabs.map(t => t.id)];
+    const [movedItem] = newOrder.splice(draggedIdx, 1);
+    newOrder.splice(idx, 0, movedItem);
+    $navTabsOrder = newOrder;
+    saveNavPreferences();
+    draggedIdx = null;
+  }
+
+  function toggleDefaultTab(view) {
+    if (!isEditMode) return;
+    $defaultLandingTab = view;
+    saveNavPreferences();
+  }
 </script>
 
 <aside class="w-64 h-full bg-white dark:bg-dark-card border-r border-gray-200 dark:border-gray-800 flex flex-col p-4">
@@ -26,49 +67,49 @@
     </button>
   </div>
 
-  <nav class="space-y-1.5 flex-1">
-    {#if $visibleNavTabs.includes('podcast')}
-    <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'podcast' ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'podcast'}>
-      <span>🎙️</span>
-      <span class="flex-1 font-bold">Studio Podcast</span>
-      <span class="text-[9px] bg-purple-500 text-white font-black px-1.5 py-0.5 rounded-full uppercase">Émission</span>
+  <div class="flex items-center justify-between px-2 mb-2">
+    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Menu</span>
+    <button on:click={() => isEditMode = !isEditMode} class="text-xs text-primary-500 hover:underline">
+      {isEditMode ? 'Terminer' : 'Modifier'}
     </button>
-    {/if}
+  </div>
 
-    {#if $visibleNavTabs.includes('perplexity')}
-    <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'perplexity' ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'perplexity'}>
-      <span>⚡</span>
-      <span class="flex-1">Fil Perplexity</span>
-    </button>
-    {/if}
-
-    {#if $visibleNavTabs.includes('feeds')}
-    <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'articles' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'articles'}>
-      <span>📰</span>
-      <span>Articles</span>
-    </button>
-    {/if}
-
-    {#if $visibleNavTabs.includes('synthesis')}
-    <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'synthesis' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'synthesis'}>
-      <span>🧪</span>
-      <span>Synthèses IA</span>
-    </button>
-    {/if}
-
-    {#if $visibleNavTabs.includes('discover')}
-    <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'discover' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'discover'}>
-      <span>🧭</span>
-      <span>Catalogue</span>
-    </button>
-    {/if}
-
-    {#if $visibleNavTabs.includes('stats')}
-    <button class="w-full text-left px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold {$currentView === 'stats' ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}" on:click={() => $currentView = 'stats'}>
-      <span>📊</span>
-      <span>Statistiques</span>
-    </button>
-    {/if}
+  <nav class="space-y-1.5 flex-1 overflow-y-auto overflow-x-hidden p-1 -m-1">
+    {#each orderedTabs as tab, idx}
+      <div
+        draggable={isEditMode}
+        on:dragstart={(e) => handleDragStart(e, idx)}
+        on:dragover|preventDefault
+        on:drop={(e) => handleDrop(e, idx)}
+        class="flex items-center gap-1 group {isEditMode ? 'cursor-move' : ''}"
+      >
+        {#if isEditMode}
+          <div class="text-gray-400 opacity-50 cursor-move">⋮⋮</div>
+        {/if}
+        <button 
+          class="flex-1 text-left px-3 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold 
+                 {$currentView === tab.view ? tab.activeClass : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}
+                 {isEditMode ? 'border border-dashed border-gray-300 dark:border-gray-700' : ''}" 
+          on:click={() => !isEditMode && ($currentView = tab.view)}
+        >
+          <span>{tab.icon}</span>
+          <span class="flex-1">{tab.label}</span>
+          {#if tab.extra}
+            {@html tab.extra}
+          {/if}
+          
+          {#if isEditMode}
+            <button 
+              on:click|stopPropagation={() => toggleDefaultTab(tab.view)}
+              class="ml-auto text-lg hover:scale-125 transition-transform {$defaultLandingTab === tab.view ? 'text-yellow-400' : 'text-gray-300 grayscale opacity-30 hover:opacity-100 hover:grayscale-0'}"
+              title="Définir comme page d'accueil par défaut"
+            >
+              ⭐
+            </button>
+          {/if}
+        </button>
+      </div>
+    {/each}
   </nav>
 
   <div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-800">

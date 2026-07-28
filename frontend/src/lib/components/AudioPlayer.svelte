@@ -91,16 +91,61 @@
         targetUrl = '/api/audio/stream/' + parts[1];
       }
 
-      audioElement.src = targetUrl;
-      audioElement.currentTime = 0;
-      $playbackTime = 0;
-      
-      audioElement.play().then(() => {
-        $isPlaying = true;
-      }).catch(err => {
-        console.error("Playback error:", err);
-        $isPlaying = false;
-      });
+      if (window.MediaSource && MediaSource.isTypeSupported('audio/mpeg')) {
+        const mediaSource = new MediaSource();
+        audioElement.src = URL.createObjectURL(mediaSource);
+        
+        mediaSource.addEventListener('sourceopen', async () => {
+          const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+          try {
+            const response = await fetch(targetUrl);
+            const reader = response.body.getReader();
+            
+            audioElement.currentTime = 0;
+            $playbackTime = 0;
+            audioElement.play().then(() => $isPlaying = true).catch(err => {
+               console.error("Playback error:", err);
+               $isPlaying = false;
+            });
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                if (sourceBuffer.updating) {
+                  sourceBuffer.addEventListener('updateend', () => {
+                    if (mediaSource.readyState === 'open') mediaSource.endOfStream();
+                  }, { once: true });
+                } else {
+                  if (mediaSource.readyState === 'open') mediaSource.endOfStream();
+                }
+                break;
+              }
+              
+              if (sourceBuffer.updating) {
+                await new Promise(resolve => {
+                  sourceBuffer.addEventListener('updateend', resolve, { once: true });
+                });
+              }
+              sourceBuffer.appendBuffer(value);
+            }
+          } catch (err) {
+            console.error("Fetch/MSE error:", err);
+          }
+        });
+      } else {
+        fetch(targetUrl)
+          .then(res => res.arrayBuffer())
+          .then(buffer => {
+            const blob = new Blob([new Uint8Array(buffer)], { type: 'audio/mpeg' });
+            audioElement.src = URL.createObjectURL(blob);
+            audioElement.currentTime = 0;
+            $playbackTime = 0;
+            audioElement.play().then(() => $isPlaying = true).catch(err => {
+               console.error("Playback error:", err);
+               $isPlaying = false;
+            });
+          }).catch(err => console.error("Fallback fetch error:", err));
+      }
     }
   }
 </script>

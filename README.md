@@ -1,66 +1,121 @@
-# Vos - AI Reader & Podcast Studio (YunoHost Deployment & Documentation)
+# Vos - Hub d'Écoute et d'Ingestion Universelle & Podcast Studio (Phase 2)
 
-Application de revue de presse intelligente, clustering d'actualités et studio de création de podcasts audio alimenté par les API IA Mistral et Gemini.
+Application PWA intelligente de veille, de regroupement d'actualités et de studio de création de podcasts audio alimenté par les modèles d'Intelligence Artificielle (Mistral, Gemini).
 
 ---
 
-## 🛠️ Configuration & Déploiement YunoHost (VPS)
+## 🌟 Nouveautés de la Phase 2
 
-### ⚠️ Problème fréquent : Interception YunoHost SSO (SSOWat) sur les MP3 et Flux RSS
+1. **Ingestion Universelle Webhook & Mailhook**
+   Fini le web scraping lourd et la gestion complexe des cookies côté serveur. L'application agit maintenant comme un hub d'écoute passif ultra-performant.
+   - **Point d'entrée Webhook unique** (`/api/v1/webhooks/ingest`) pour ingérer n'importe quel flux (Newsletter n8n, Make, scripts Python, RSS, Mailhooks.dev).
+   - **Assistant Clic & Valide (Zero Code)** : Collez un échantillon HTML brut ; Mistral IA découpe visuellement le document en blocs sémantiques. Cliquez sur ce que vous voulez garder (Titre, Corps, Auteur) pour créer un filtre de nettoyage.
 
-Sur YunoHost, les éléments média `<audio>` et les agrégateurs de podcasts (AntennaPod, Apple Podcasts, etc.) ne transmettent pas le cookie de session YunoHost SSO (`SSOWatauth`).  
-Si Nginx n'est pas configuré correctement, SSOWat intercepte la requête HTTP et renvoie la page de connexion HTML (`text/html`), ce qui provoque l'erreur de détection média/décodeur dans le navigateur ou les lecteurs RSS.
+2. **Moteur Audio & Podcast Ultra-Rapide**
+   - **Streaming binaire direct** via MediaSource API (MSE) : Le lecteur audio web commence la lecture quasi-instantanément (~1 seconde) pendant que les segments de synthèse sont téléchargés en arrière-plan.
+   - **Intonation intelligente** : Une voix/intonation par sujet pour des transitions fluides, et insertion du jingle (Whoosh Bamboo) entre chaque nouvelle.
+   - **Personnalisation** : Remplacez le prompt de synthèse système et le fichier audio jingle via l'interface du Studio Podcast.
 
-### 🔑 Solution : Fichier de Bypass SSOWat Nginx
+3. **Catalogue d'Images Personnalisable (Zéro Dépendance)**
+   - Upload de fichiers locaux depuis les paramètres pour définir les images de catégories canoniques.
+   - Recadrage systématique 1:1 (`object-fit: cover`) appliqué nativement aux jaquettes audios et podcasts.
+
+4. **Tableau de Bord des Jetons IA (Tokens)**
+   - Suivi complet et persistant de la consommation de jetons IA (Mistral, Gemini).
+   - Visualisation graphique ventilée par usage (Synthèse, Webhook, Podcast) dans l'onglet Statistiques.
+
+---
+
+## 🛠️ Architecture
+
+L'application repose sur une architecture découplée et légère :
+
+* **Frontend** : SvelteKit + Vite (PWA) + Tailwind CSS
+* **Backend API** : FastAPI (Python 3.11+)
+* **Base de données** : SQLite (via module standard et `sqlite-vec` pour les embeddings vectoriels)
+* **Intelligence Artificielle** : API Mistral (Codestral, Voxtral, Mistral Large), Google Gemini (1.5 Pro/Flash)
+
+```mermaid
+graph TD;
+    A[Sources (Mail, Web, PDF)] -->|via n8n/Make| B(Webhook POST /ingest);
+    B --> C{FastAPI Backend};
+    C --> D[(SQLite / Vecteurs)];
+    D --> E[Studio Podcast & Résumés];
+    E <--> F[Mistral/Gemini API];
+    E --> G[Svelte PWA Frontend];
+```
+
+---
+
+## 🚀 Guide d'Installation
+
+### 1. Prérequis
+- **Python 3.11+**
+- **Node.js 18+**
+
+### 2. Configuration Backend
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # Sous Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+Copiez `.env.example` en `.env` et renseignez :
+```ini
+MISTRAL_API_KEY="votre_cle_mistral"
+GEMINI_API_KEY="votre_cle_gemini"
+```
+Lancez le backend (FastAPI) :
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+### 3. Configuration Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+L'application sera accessible sur `http://localhost:5173`.
+
+---
+
+## ☁️ Déploiement YunoHost (VPS)
+
+### Bypass SSOWat Nginx pour les Médias & Webhooks
+Sur YunoHost, les éléments média `<audio>` et le webhook `POST` ne transmettent pas forcément le cookie d'authentification YunoHost. SSOWat intercepte la requête, provoquant l'échec de la lecture ou de l'ingestion.
 
 Créez le fichier de configuration Nginx sur votre VPS YunoHost à l'emplacement suivant :  
 `/etc/nginx/conf.d/<votre_domaine.tld>.d/vos_rss.conf`
 
 ```nginx
 # ==============================================================================
-# CONFIGURATION NGINX YUNOHOST (BYPASS SSO RSS PODCAST & AUDIO STREAM)
+# CONFIGURATION NGINX YUNOHOST (BYPASS SSO RSS PODCAST, WEBHOOKS & AUDIO STREAM)
 # ==============================================================================
 
-# 1. Bypass SSO YunoHost pour le flux RSS XML Podcast
+# 1. Bypass SSO YunoHost pour le Webhook Ingest
+location /api/v1/webhooks/ingest {
+    access_by_lua_block { return; }
+    proxy_pass http://127.0.0.1:8000/api/v1/webhooks/ingest;
+    proxy_set_header Host $host;
+}
+
+# 2. Bypass SSO YunoHost pour le flux RSS XML Podcast
 location /api/podcast/feed.xml {
     access_by_lua_block { return; }
     proxy_pass http://127.0.0.1:8000/api/podcast/feed.xml;
     proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
 }
 
-# 2. Bypass SSO YunoHost pour les fichiers MP3 audio des podcasts
+# 3. Bypass SSO YunoHost pour les fichiers MP3 audio des podcasts
 location /api/audio/stream/ {
     access_by_lua_block { return; }
     proxy_pass http://127.0.0.1:8000/api/audio/stream/;
     proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    
-    # Support du streaming audio / Seek (Range requests)
-    proxy_force_ranges on;
+    proxy_force_ranges on; # Support du Seek (Range requests)
 }
 ```
-
-> **Note cruciale** : La directive `access_by_lua_block { return; }` est indispensable car elle désactive le handler Lua d'authentification SSOWat au niveau d'Nginx.
-
-Appliquer la configuration sur le serveur :
+Appliquez la configuration :
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
 ```
-
----
-
-## 🎙️ Architecture Audio & Résumés
-
-1. **Diffusion en mémoire (Data URL Base64)** :
-   Lors de la génération d'un résumé audio (`POST /api/audio/generate`), l'API renvoie le contenu audio encodé en Data URL Base64 (`data:audio/mp3;base64,...`). Le lecteur web charge ce flux directement en mémoire sans déclencher de requête réseau distante, évitant 100% des redirections SSO et problèmes CORS/fingerprinting.
-
-2. **Dossier de Cache Audio Absolu** :
-   Le dossier `AUDIO_DIR` dans `backend/app/services/audio.py` est ancré de manière absolue par rapport à la racine du projet (`BASE_DIR / "audio_cache"`). Cela garantit que les fichiers générés en tâche de fond sont enregistrés et lus au même endroit sur le serveur, quel que soit le dossier de travail courant du process Python.
-
-3. **Mise à jour du Service Worker PWA (Navigateur)** :
-   L'application utilise Vite PWA. En cas de mise à jour du code frontend, désenregistrez le Service Worker dans la console de développement du navigateur (`F12 -> Stockage -> Service Workers -> Désenregistrer`) ou effectuez un rafraîchissement forcé (`Ctrl + F5`) pour recharger la nouvelle version du bundle JavaScript.

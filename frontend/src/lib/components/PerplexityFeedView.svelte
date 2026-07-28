@@ -124,7 +124,7 @@
     isLoading = true;
     const threshold = perplexityMode === 'events' ? 0.91 : 0.78;
     try {
-      const res = await fetch(`/api/clustering/clusters?threshold=${threshold}`);
+      const res = await fetch(`/api/clustering/clusters?threshold=${threshold}&cluster_type=${perplexityMode}`);
       if (res.ok) {
         const data = await res.json();
         clusters = data.clusters || [];

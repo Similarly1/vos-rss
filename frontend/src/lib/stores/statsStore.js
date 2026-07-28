@@ -6,6 +6,7 @@ export const statsStore = writable({
     articlesRead: 0,
     articlesListened: 0,
     activityHistory: [],
+    token_usage: [],
     loading: false,
     error: null
 });

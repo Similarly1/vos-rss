@@ -15,16 +15,26 @@ def get_stats():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM user_stats WHERE id = 1")
     row = cursor.fetchone()
+    
+    # Get token usage summary
+    cursor.execute('''
+        SELECT usage_type, provider, SUM(tokens_in) as tokens_in, SUM(tokens_out) as tokens_out, SUM(cost_eur) as cost_eur
+        FROM token_usage
+        GROUP BY usage_type, provider
+    ''')
+    token_rows = cursor.fetchall()
     conn.close()
-    if not row:
-        return {
-            "listening_seconds": 0,
-            "articles_read_count": 0,
-            "articles_listened_count": 0,
-            "podcasts_generated_count": 0,
-            "last_activity": None
-        }
-    return dict(row)
+    
+    stats_data = dict(row) if row else {
+        "listening_seconds": 0,
+        "articles_read_count": 0,
+        "articles_listened_count": 0,
+        "podcasts_generated_count": 0,
+        "last_activity": None
+    }
+    
+    stats_data["token_usage"] = [dict(tr) for tr in token_rows]
+    return stats_data
 
 @router.post("/track")
 def track_stat(payload: TrackRequest):
@@ -50,4 +60,27 @@ def track_stat(payload: TrackRequest):
     conn.commit()
     conn.close()
     
+    return {"success": True}
+
+class TokenTrackRequest(BaseModel):
+    usage_type: str
+    provider: str
+    tokens_in: int
+    tokens_out: int
+    cost_eur: float
+
+@router.post("/track_tokens")
+def track_tokens(payload: TokenTrackRequest):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    import datetime
+    date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    
+    cursor.execute('''
+        INSERT INTO token_usage (date, usage_type, provider, tokens_in, tokens_out, cost_eur)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (date_str, payload.usage_type, payload.provider, payload.tokens_in, payload.tokens_out, payload.cost_eur))
+    
+    conn.commit()
+    conn.close()
     return {"success": True}

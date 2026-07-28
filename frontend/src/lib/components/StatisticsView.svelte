@@ -93,6 +93,61 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Token Usage Table -->
+            {#if $statsStore.token_usage && $statsStore.token_usage.length > 0}
+            <div class="bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-700/50 mt-8">
+                <h3 class="text-xl font-medium text-slate-200 mb-6 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Consommation API (Tokens & Coûts)
+                </h3>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-700 text-slate-400 text-sm">
+                                <th class="pb-3 px-2 font-semibold">Type d'usage</th>
+                                <th class="pb-3 px-2 font-semibold">Fournisseur</th>
+                                <th class="pb-3 px-2 font-semibold text-right">Tokens In</th>
+                                <th class="pb-3 px-2 font-semibold text-right">Tokens Out</th>
+                                <th class="pb-3 px-2 font-semibold text-right">Coût Est. (€)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-slate-300 text-sm">
+                            {#each $statsStore.token_usage as row}
+                                <tr class="border-b border-slate-700/50 hover:bg-slate-700/20">
+                                    <td class="py-3 px-2 capitalize font-medium">{row.usage_type}</td>
+                                    <td class="py-3 px-2">
+                                        <span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider 
+                                            {row.provider.toLowerCase().includes('mistral') ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 
+                                            row.provider.toLowerCase().includes('gemini') ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 
+                                            'bg-slate-700 text-slate-300'}">
+                                            {row.provider}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-2 text-right font-mono text-xs">{row.tokens_in.toLocaleString()}</td>
+                                    <td class="py-3 px-2 text-right font-mono text-xs">{row.tokens_out.toLocaleString()}</td>
+                                    <td class="py-3 px-2 text-right font-bold text-emerald-400">{row.cost_eur > 0 ? row.cost_eur.toFixed(4) + ' €' : '-'}</td>
+                                </tr>
+                            {/each}
+                            <!-- Total Row -->
+                            <tr class="bg-slate-900/50 font-bold">
+                                <td class="py-3 px-2 text-slate-200" colspan="2">TOTAL</td>
+                                <td class="py-3 px-2 text-right font-mono text-xs">
+                                    {$statsStore.token_usage.reduce((sum, r) => sum + r.tokens_in, 0).toLocaleString()}
+                                </td>
+                                <td class="py-3 px-2 text-right font-mono text-xs">
+                                    {$statsStore.token_usage.reduce((sum, r) => sum + r.tokens_out, 0).toLocaleString()}
+                                </td>
+                                <td class="py-3 px-2 text-right text-emerald-400">
+                                    {$statsStore.token_usage.reduce((sum, r) => sum + r.cost_eur, 0).toFixed(4)} €
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {/if}
         {/if}
     </div>
 </div>

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.services.rss import parse_and_save_feed, get_all_feeds, update_feed, delete_feed, refresh_all_feeds_and_vectorize, generate_opml_export, import_feeds_from_content, clean_old_articles
 from app.services.feed_analyzer import analyze_feed_completeness
-from app.services.podcast import set_app_setting
+from app.services.podcast import set_app_setting, get_app_setting
 from app.config import settings
 
 router = APIRouter(prefix="/api/feeds", tags=["Feeds"])
@@ -120,6 +120,9 @@ class AppSettingsRequest(BaseModel):
     article_retention_days: Optional[int] = None
     article_language: Optional[str] = None
     full_text_only: Optional[bool] = None
+    nav_tabs_order: Optional[str] = None
+    default_landing_tab: Optional[str] = None
+    webhook_model: Optional[str] = None
 
 @router.get("")
 @router.get("/")
@@ -173,6 +176,9 @@ def get_settings():
             "article_retention_days": settings.article_retention_days,
             "article_language": settings.article_language,
             "full_text_only": settings.full_text_only,
+            "nav_tabs_order": get_app_setting("nav_tabs_order", ""),
+            "default_landing_tab": get_app_setting("default_landing_tab", "articles"),
+            "webhook_model": get_app_setting("webhook_model", ""),
         }
     }
 
@@ -252,8 +258,15 @@ def save_settings(payload: AppSettingsRequest):
     if payload.article_retention_days is not None: settings.article_retention_days = payload.article_retention_days
     if payload.article_language is not None: settings.article_language = payload.article_language
     if payload.full_text_only is not None: settings.full_text_only = payload.full_text_only
+
+    if payload.nav_tabs_order is not None:
+        set_app_setting("nav_tabs_order", payload.nav_tabs_order)
+    if payload.default_landing_tab is not None:
+        set_app_setting("default_landing_tab", payload.default_landing_tab)
+    if payload.webhook_model is not None:
+        set_app_setting("webhook_model", payload.webhook_model)
         
-    return {"status": "success", "message": "Paramètres enregistrés dans le fichier .env !"}
+    return {"status": "success", "message": "Paramètres enregistrés dans le fichier .env et en base !"}
 
 class KeyTestRequest(BaseModel):
     key: Optional[str] = None

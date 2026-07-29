@@ -6,6 +6,7 @@ import asyncio
 import time
 from pathlib import Path
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from xml.sax.saxutils import escape as xml_escape
 from urllib.parse import urlparse
 from app.database import get_db_connection
@@ -39,7 +40,7 @@ MONTHS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "
 DAYS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 
 def get_french_date_str() -> str:
-    now = datetime.now().astimezone()
+    now = datetime.now(ZoneInfo("Europe/Paris"))
     day_name = DAYS_FR[now.weekday()]
     month_name = MONTHS_FR[now.month - 1]
     return f"{day_name} {now.day} {month_name} {now.year}"
@@ -226,7 +227,7 @@ async def generate_podcast_show(
     Generates a full podcast episode with streaming logs callback support.
     """
     async def emit_log(msg: str):
-        now_str = datetime.now().astimezone().strftime("%H:%M:%S")
+        now_str = datetime.now(ZoneInfo("Europe/Paris")).strftime("%H:%M:%S")
         full_msg = f"[{now_str}] {msg}"
         print(f"[Podcast Log] {full_msg}")
         if log_callback:

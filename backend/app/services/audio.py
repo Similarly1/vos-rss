@@ -295,12 +295,21 @@ def combine_audio_chunks(audio_chunks: list[bytes]) -> str:
 
     jingle_path = AUDIO_DIR / jingle_filename
     jingle_bytes = b""
-    if jingle_path.exists():
-        with open(jingle_path, "rb") as f:
-            jingle_bytes = f.read()
-    elif (AUDIO_DIR / "whoosh_default.mp3").exists():
-        with open(AUDIO_DIR / "whoosh_default.mp3", "rb") as f:
-            jingle_bytes = f.read()
+    possible_paths = [
+        jingle_path,
+        AUDIO_DIR / "whoosh_default.mp3",
+        BASE_DIR / "audio_cache" / "whoosh_default.mp3",
+        BASE_DIR / "app" / "static" / "whoosh_default.mp3"
+    ]
+    for p in possible_paths:
+        if p.exists():
+            try:
+                with open(p, "rb") as f:
+                    jingle_bytes = f.read()
+                if jingle_bytes:
+                    break
+            except Exception:
+                pass
 
     clean_jingle = strip_id3_tags(jingle_bytes)
 

@@ -7,11 +7,17 @@ try:
 except ImportError:
     HAS_SQLITE_VEC = False
 
-DB_PATH = Path("./vos.db")
+DB_PATH = Path(__file__).resolve().parent.parent / "vos.db"
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH, timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA busy_timeout=5000;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+    except Exception as pragma_err:
+        print(f"[SQLite PRAGMA Note] {pragma_err}")
     
     if HAS_SQLITE_VEC:
         try:

@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,14 +11,19 @@ from app.api import routes_feeds, routes_articles, routes_clustering, routes_aud
 from app.services.scheduler import start_podcast_scheduler_loop
 from seed_massive_catalog import seed_massive_catalog_async
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR_CATEGORIES = STATIC_DIR / "categories"
+STATIC_DIR_CATEGORIES.mkdir(parents=True, exist_ok=True)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize DB on startup
     init_db()
 
-    # Auto-seed & sync catalog database in background (non-blocking to ensure fast startup)
+    # Auto-seed & sync catalog database in background thread (non-blocking)
     try:
-        asyncio.create_task(seed_massive_catalog_async())
+        asyncio.create_task(asyncio.to_thread(asyncio.run, seed_massive_catalog_async()))
     except Exception as e:
         print(f"[Auto-seed background note] {e}")
 
@@ -37,10 +43,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-import os
-if not os.path.exists("static"):
-    os.makedirs("static/categories", exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Register routes
 app.include_router(routes_feeds.router)

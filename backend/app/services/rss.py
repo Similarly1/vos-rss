@@ -1,3 +1,4 @@
+import asyncio
 import json
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
@@ -525,14 +526,14 @@ def import_feeds_from_content(raw_content: str) -> dict:
 
 async def refresh_all_feeds_and_vectorize(api_key: str = None):
     # 1. Clean old expired articles based on retention settings
-    clean_res = clean_old_articles()
+    clean_res = await asyncio.to_thread(clean_old_articles)
 
-    # 2. Fetch fresh articles from all RSS feeds
-    feeds = get_all_feeds()
+    # 2. Fetch fresh articles from all RSS feeds asynchronously in worker thread pool
+    feeds = await asyncio.to_thread(get_all_feeds)
     results = []
     for f in feeds:
         try:
-            res = parse_and_save_feed(f["url"], f["category"], f.get("language"), bool(f.get("is_full_text")))
+            res = await asyncio.to_thread(parse_and_save_feed, f["url"], f["category"], f.get("language"), bool(f.get("is_full_text")))
             results.append(res)
         except Exception as e:
             print(f"Erreur rafraîchissement flux {f['url']}: {e}")

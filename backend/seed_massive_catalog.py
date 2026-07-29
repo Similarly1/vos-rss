@@ -554,9 +554,10 @@ async def seed_massive_catalog_async():
     # 2. Add / Update Direct Verified Feeds
     added_count = 0
     for feed_info in MASSIVE_FEEDS:
-        tags = feed_info.pop("tags", [])
+        feed_copy = dict(feed_info)
+        tags = list(feed_copy.get("tags", []))
         try:
-            feed_id = add_or_update_catalog_feed(feed_info, tags=tags)
+            feed_id = add_or_update_catalog_feed(feed_copy, tags=tags)
             if feed_id:
                 added_count += 1
         except Exception as err:

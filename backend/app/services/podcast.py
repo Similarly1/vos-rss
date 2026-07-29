@@ -21,7 +21,17 @@ from app.services.audio import (
     AUDIO_DIR
 )
 
-DEFAULT_PODCAST_COVER = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80"
+DEFAULT_PODCAST_COVER = "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=1000&h=1000&q=80"
+
+def make_image_square(url: str) -> str:
+    if not url:
+        return DEFAULT_PODCAST_COVER
+    if "unsplash.com" in url:
+        # Strip existing sizing parameters and force square crop
+        clean_url = re.sub(r'[?&](w|h|fit|rect|crop)=[^&]*', '', url)
+        connector = "&" if "?" in clean_url else "?"
+        return f"{clean_url}{connector}fit=crop&w=1000&h=1000&q=80"
+    return url
 
 DEFAULT_SYSTEM_PROMPT = (
     "Tu es un journaliste radio chevronné et le présentateur principal de l'émission d'actualités 'Vos'. "
@@ -153,16 +163,16 @@ def extract_cover_image(selected_topics: list) -> str:
             if isinstance(a, dict):
                 img = a.get("image_url")
                 if img and isinstance(img, str) and img.startswith("http"):
-                    return img
+                    return make_image_square(img)
                 content = a.get("content") or ""
                 match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content, re.IGNORECASE)
                 if match and match.group(1).startswith("http"):
-                    return match.group(1)
+                    return make_image_square(match.group(1))
 
         if isinstance(t, dict):
             img = t.get("image_url")
             if img and isinstance(img, str) and img.startswith("http"):
-                return img
+                return make_image_square(img)
 
     return DEFAULT_PODCAST_COVER
 
@@ -204,6 +214,8 @@ def clean_script_text_content(val) -> str:
             pass
     s = re.sub(r"^\{['\"](?:intonation|emotion)['\"]\s*:\s*['\"][^'\"]*['\"]\s*,\s*['\"](?:texte|text|content)['\"]\s*:\s*['\"]", "", s)
     s = re.sub(r"['\"]\}\s*$", "", s)
+    s = re.sub(r"\[Marie\s*-\s*[^\]]+\]", "", s)
+    s = re.sub(r"\[[^\]]+\]", "", s)
     return s.strip()
 
 async def generate_podcast_show(
@@ -618,7 +630,8 @@ async def generate_podcast_show(
         top_title = top.get("topic_title") or f"Sujet #{idx}"
         top_emotion = top.get("emotion") or voice_key
         top_content = clean_script_text_content(top.get("content") or top.get("texte") or top.get("text") or top)
-        clean_text = sanitize_text_for_speech(top_content)
+        clean_text = sanitize_script_for_tts(top_content)
+        clean_text = sanitize_text_for_speech(clean_text)
         
         if not clean_text:
             continue

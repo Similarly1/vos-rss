@@ -186,7 +186,8 @@ def get_mp3_duration_seconds(filepath: Path) -> int:
     if not filepath.exists():
         return 180
     file_size = filepath.stat().st_size
-    duration = int(file_size / 16000)
+    # Voxtral TTS is 48 kbps, which equates to 6000 bytes/second
+    duration = int(file_size / 6000)
     return max(5, duration)
 
 def format_duration_rss(seconds: int) -> str:

@@ -100,6 +100,40 @@
     } catch (e) {}
   }
 
+  let isUploadingJingle = false;
+
+  async function handleJingleUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.mp3')) {
+      alert("Seuls les fichiers MP3 sont autorisés.");
+      return;
+    }
+    
+    isUploadingJingle = true;
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+      const res = await fetch('/api/podcast/settings/upload-jingle', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        podcastJingleFilename = data.filename || "whoosh_custom.mp3";
+        alert("Nouveau jingle MP3 téléversé et configuré avec succès !");
+      } else {
+        const err = await res.json();
+        alert(`Erreur : ${err.detail || "Échec de l'envoi"}`);
+      }
+    } catch (e) {
+      alert(`Erreur : ${e.message}`);
+    } finally {
+      isUploadingJingle = false;
+    }
+  }
+
   $: feedUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/podcast/feed.xml${feedToken ? `?token=${feedToken}` : ''}`;
 
   async function fetchFeedToken() {
@@ -764,13 +798,35 @@
       </div>
 
       <!-- CUSTOM JINGLE -->
-      <div class="space-y-2">
+      <div class="space-y-3">
         <div class="flex justify-between items-center">
-          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider">Jingle de transition (Nom du fichier MP3)</label>
+          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider">Jingle de transition</label>
           <button on:click={resetJingle} class="text-xs text-rose-400 hover:text-rose-300 font-bold">Réinitialiser</button>
         </div>
-        <input type="text" bind:value={podcastJingleFilename} class="w-full bg-gray-950 border border-gray-800 rounded-2xl py-3 px-4 text-xs font-semibold text-gray-200 focus:ring-2 focus:ring-purple-500 focus:outline-none" placeholder="whoosh_default.mp3" />
-        <button on:click={saveSettings} class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all">Mettre à jour le jingle</button>
+        
+        <p class="text-[10px] text-gray-400">
+          Fichier de transition actif : <span class="text-purple-400 font-extrabold">{podcastJingleFilename}</span>
+        </p>
+
+        <div class="flex items-center gap-3">
+          <input 
+            type="file" 
+            accept="audio/mpeg" 
+            on:change={handleJingleUpload} 
+            class="hidden" 
+            id="jingle-upload-input" 
+          />
+          <label 
+            for="jingle-upload-input" 
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5"
+          >
+            📂 Téléverser un fichier MP3 (jingle court)
+          </label>
+          
+          {#if isUploadingJingle}
+            <span class="text-[10px] text-purple-400 animate-pulse font-bold">Envoi...</span>
+          {/if}
+        </div>
       </div>
     </div>
 

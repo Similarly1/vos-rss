@@ -1,6 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
+import shutil
+from pathlib import Path
 from app.services.podcast import get_app_setting, set_app_setting, DEFAULT_SYSTEM_PROMPT
+from app.services.audio import AUDIO_DIR
 
 router = APIRouter(prefix="/api/podcast/settings", tags=["Podcast Settings"])
 
@@ -36,3 +39,20 @@ def reset_prompt():
 def reset_jingle():
     set_app_setting("podcast_jingle_filename", "whoosh_default.mp3")
     return {"status": "success"}
+
+@router.post("/upload-jingle")
+async def upload_jingle(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(".mp3"):
+        raise HTTPException(status_code=400, detail="Seuls les fichiers MP3 sont autorisés.")
+    
+    # Save to audio_cache as whoosh_custom.mp3
+    filename = "whoosh_custom.mp3"
+    dest_path = AUDIO_DIR / filename
+    
+    try:
+        with open(dest_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        set_app_setting("podcast_jingle_filename", filename)
+        return {"status": "success", "filename": filename}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'écriture du fichier : {e}")

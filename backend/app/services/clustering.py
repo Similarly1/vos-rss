@@ -337,6 +337,16 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
             "key_takeaways": []
         }
 
+def clear_cluster_cache():
+    """
+    Clears all cached cluster syntheses from SQLite cluster_cache table.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM cluster_cache")
+    conn.commit()
+    conn.close()
+
 async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True):
     """
     Background job to pre-compute clusters for strict event mode (0.86) and thematic mode (0.78),
@@ -345,6 +355,8 @@ async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str =
     from app.config import settings
     m_key = mistral_key or settings.mistral_api_key
     g_key = gemini_key or settings.gemini_api_key
+
+    clear_cluster_cache()
 
     # 1. Event Mode (0.86 with Centroid Matching & 48h Window)
     event_clusters = compute_article_clusters(similarity_threshold=0.86, max_time_diff_hours=48.0)

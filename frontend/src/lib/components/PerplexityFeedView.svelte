@@ -159,7 +159,10 @@
   async function autoSynthesizeClusters(clustersList) {
     for (const cluster of clustersList.slice(0, 10)) {
       const cId = cluster.cluster_id;
-      if (syntheses[cId] || cluster.precomputed_synthesis || synthLoading[cId]) continue;
+      const existing = syntheses[cId] || cluster.precomputed_synthesis;
+      const isLowQuality = existing && (isErrorSummary(existing.summary) || (existing.summary || '').length < 120 || (existing.summary || '').includes('<img') || (existing.summary || '').includes('<p>'));
+      
+      if (syntheses[cId] || (existing && !isLowQuality) || synthLoading[cId]) continue;
 
       synthLoading[cId] = true;
       synthLoading = { ...synthLoading };
@@ -527,7 +530,7 @@
             </div>
           {:else}
             <p class="text-sm text-gray-300 leading-relaxed italic">
-              {activeCluster.articles[0].content || activeCluster.articles[0].title}
+              {cleanTextBoilerplate(activeCluster.articles[0].content || activeCluster.articles[0].description || activeCluster.articles[0].title)}
             </p>
           {/if}
         </div>

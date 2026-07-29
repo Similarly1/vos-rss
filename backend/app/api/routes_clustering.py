@@ -6,7 +6,7 @@ from app.database import get_db_connection, HAS_SQLITE_VEC, init_db
 from app.config import settings
 from app.api.routes_feeds import get_vps_api_key
 from app.services.embeddings import vectorize_all_pending
-from app.services.clustering import compute_article_clusters, synthesize_cluster, get_cached_clusters, precompute_and_cache_clusters
+from app.services.clustering import compute_article_clusters, synthesize_cluster, get_cached_clusters, precompute_and_cache_clusters, clear_cluster_cache
 
 router = APIRouter(prefix="/api/clustering", tags=["Clustering"])
 
@@ -69,6 +69,14 @@ async def trigger_vectorization(payload: VectorizeRequest, background_tasks: Bac
         return {"status": "success", "data": res}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/clear-cache")
+def clear_cache():
+    try:
+        clear_cluster_cache()
+        return {"status": "success", "message": "Cache des synthèses et grappes vidé avec succès."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/precompute")
 async def trigger_precompute(payload: Optional[PrecomputeRequest] = None, background_tasks: BackgroundTasks = None):

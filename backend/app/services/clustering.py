@@ -84,6 +84,7 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
         JOIN feeds f ON a.feed_id = f.id
         WHERE e.provider = ?
         ORDER BY a.published_date DESC
+        LIMIT 350
     """, (settings.vectorization_provider,))
     rows = cursor.fetchall()
     conn.close()

@@ -80,18 +80,21 @@ async def trigger_precompute(payload: Optional[PrecomputeRequest] = None, backgr
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/clusters")
-def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
+async def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
     try:
         # Determine cache key
         mode_key = "events" if threshold >= 0.86 else "themes"
         cached = get_cached_clusters(f"threshold_{mode_key}") or get_cached_clusters(f"threshold_{threshold}")
 
-        clusters = cached if cached is not None else compute_article_clusters(similarity_threshold=threshold)
-        source = "cache" if cached is not None else "live"
+        if cached is not None and len(cached) > 0:
+            clusters = cached
+            source = "cache"
+        else:
+            clusters = await asyncio.to_thread(compute_article_clusters, similarity_threshold=threshold)
+            source = "live"
 
         # Apply cluster_type filtering
         if cluster_type == "events":
-            # Exclude clusters that are reviews or summaries ("bilan/revue")
             filtered_clusters = []
             for c in clusters:
                 cat = (c.get("category") or "").lower()

@@ -2,6 +2,8 @@ import json
 import httpx
 import re
 import secrets
+import asyncio
+import time
 from pathlib import Path
 from datetime import datetime, timedelta
 from xml.sax.saxutils import escape as xml_escape
@@ -9,9 +11,25 @@ from urllib.parse import urlparse
 from app.database import get_db_connection
 from app.config import settings
 from app.services.clustering import compute_article_clusters
-from app.services.audio import generate_podcast_audio, generate_audio_bytes_for_voice, combine_audio_chunks, AUDIO_DIR
+from app.services.audio import (
+    generate_podcast_audio,
+    generate_audio_bytes_for_voice,
+    combine_audio_chunks,
+    split_script_into_emotion_segments,
+    sanitize_text_for_speech,
+    AUDIO_DIR
+)
 
 DEFAULT_PODCAST_COVER = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80"
+
+MONTHS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+DAYS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+
+def get_french_date_str() -> str:
+    now = datetime.now()
+    day_name = DAYS_FR[now.weekday()]
+    month_name = MONTHS_FR[now.month - 1]
+    return f"{day_name} {now.day} {month_name} {now.year}"
 
 def format_script_html(script_text) -> str:
     """
@@ -52,9 +70,9 @@ def sanitize_script_for_tts(text) -> str:
     elif not isinstance(text, str):
         text = str(text)
 
-    # 1. Remove bracketed text like [Votre Nom], [Nom du présentateur], [Musique], [Rires], etc.
+    # 1. Remove bracketed text
     text = re.sub(r"\[([^\]]+)\]", "", text)
-    # 2. Remove parenthetical stage directions like (musique dynamique)
+    # 2. Remove parenthetical directions
     text = re.sub(r"\((musique|rires|pause|transition|jingle|sourire|silence)[^\)]*\)", "", text, flags=re.IGNORECASE)
     # 3. Clean up repetitive intro phrases
     text = re.sub(r"revue\s+de\s+presse\s+Vos\s+Revue\s+de\s+Presse", "revue de presse Vos", text, flags=re.IGNORECASE)
@@ -73,9 +91,7 @@ def clean_podcast_title(raw_title) -> str:
     elif not isinstance(raw_title, str):
         raw_title = str(raw_title)
 
-    t = raw_title.strip()
-    t = t.strip('"\'')
-    # Clean redundant prefixes/suffixes
+    t = raw_title.strip().strip('"\'')
     t = re.sub(r"^\s*Vos\s+Revue\s+de\s+Presse\s*\(Revue\s+de\s+presse\)\s*-?\s*", "", t, flags=re.IGNORECASE)
     t = re.sub(r"^\s*Vos\s+Revue\s+de\s+Presse\s*-?\s*", "", t, flags=re.IGNORECASE)
     t = re.sub(r"^\s*Revue\s+de\s+presse\s*-?\s*", "", t, flags=re.IGNORECASE)
@@ -121,15 +137,10 @@ def get_or_create_podcast_feed_token(force_regenerate: bool = False) -> str:
     return new_token
 
 def extract_cover_image(selected_topics: list) -> str:
-    """
-    Extracts the best article image URL from selected topics for AntennaPod / iTunes episode cover.
-    Iterates over articles in topics clusters to find an authentic article image URL.
-    """
     if not selected_topics:
         return DEFAULT_PODCAST_COVER
 
     for t in selected_topics:
-        # Check if t is a cluster dictionary containing an "articles" list
         articles = t.get("articles") or ([t] if isinstance(t, dict) and ("title" in t or "image_url" in t) else [])
         for a in articles:
             if isinstance(a, dict):
@@ -141,271 +152,12 @@ def extract_cover_image(selected_topics: list) -> str:
                 if match and match.group(1).startswith("http"):
                     return match.group(1)
 
-        # Direct check if t itself has an image_url
         if isinstance(t, dict):
             img = t.get("image_url")
             if img and isinstance(img, str) and img.startswith("http"):
                 return img
 
     return DEFAULT_PODCAST_COVER
-
-async def generate_podcast_show(
-    topics_count: int = 5,
-    max_days: int = 7,
-    only_verified: bool = False,
-    tone: str = "journal_matinal",
-    voice_key: str = "Marie - Dynamic",
-    theme: str = None,
-    api_key: str = None, # kept for retrocompatibility
-    mistral_key: str = "",
-    gemini_key: str = "",
-    provider: str = None,
-    fallback_enabled: bool = True,
-    mistral_model: str = None,
-    gemini_model: str = None,
-    base_url: str = None
-) -> dict:
-    """
-    1. Selects top news topics from SQLite
-    2. Writes a script with Mistral AI or Gemini
-    3. Synthesizes full multi-voice audio with Voxtral TTS
-    4. Saves into podcasts SQLite database table
-    """
-    m_key = mistral_key or api_key or settings.mistral_api_key
-    g_key = gemini_key or settings.gemini_api_key
-    
-    if not m_key and not g_key:
-        raise ValueError("Clé API Mistral ou Gemini requise pour générer l'émission de podcast.")
-
-    prov = (provider or settings.synthesis_provider or ("mistral" if m_key else "gemini")).lower()
-    m_model = mistral_model or settings.mistral_podcast_model or settings.mistral_model or "mistral-large-latest"
-    g_model = gemini_model or settings.gemini_podcast_model or settings.gemini_model or "gemini-1.5-pro"
-
-    b_url = sanitize_base_url(base_url)
-    feed_token = get_or_create_podcast_feed_token()
-    token_param = f"?token={feed_token}" if feed_token else ""
-
-    # Fetch recent clusters from SQLite
-    clusters = compute_article_clusters(similarity_threshold=0.91)
-    if not clusters:
-        raise ValueError("Aucun article disponible pour composer le podcast.")
-
-    filtered_clusters = []
-    cutoff_date = datetime.now() - timedelta(days=max_days)
-
-    for c in clusters:
-        if only_verified and c.get("distinct_feed_count", 1) < 3:
-            continue
-
-        if theme and theme.strip():
-            clean_t = theme.strip().lower()
-            cat = (c.get("category") or "").lower()
-            title = (c.get("topic_title") or "").lower()
-            if clean_t not in cat and clean_t not in title:
-                continue
-
-        first_art = c["articles"][0]
-        pub_str = first_art.get("published_date") or ""
-        try:
-            art_date = datetime.strptime(pub_str[:19], "%Y-%m-%d %H:%M:%S")
-            if art_date >= cutoff_date:
-                filtered_clusters.append(c)
-        except Exception:
-            filtered_clusters.append(c)
-
-    if not filtered_clusters:
-        filtered_clusters = clusters[:topics_count]
-
-    selected_topics = filtered_clusters[:topics_count]
-    actual_topics_count = len(selected_topics)
-    cover_image_url = extract_cover_image(selected_topics)
-
-    # Prepare prompt text for Mistral
-    topics_summary_list = []
-    for idx, topic in enumerate(selected_topics, 1):
-        sources = ", ".join(list(set(a["feed_title"] for a in topic["articles"])))
-        main_art = topic["articles"][0]
-        snippet = (main_art.get("content") or main_art.get("title") or "")[:500]
-        topics_summary_list.append(
-            f"Sujet #{idx}: {topic['topic_title']}\nSources recoupées ({topic.get('distinct_feed_count', 1)}): {sources}\nRésumé/Extraits: {snippet}"
-        )
-
-    all_topics_text = "\n\n".join(topics_summary_list)
-
-    tones_prompts = {
-        "journal_matinal": "Un ton dynamique, chaleureux, professionnel et fluide de matinale radio. Présente les faits avec clarté et rythme.",
-        "analyse_profonde": "Un ton posé, analytique, recherché et pédagogique de grand reportage. Explique le 'pourquoi' et les enjeux.",
-        "express": "Un format ultra-rapide, incisif et percutant de 2 minutes. Va droit à l'essentiel sans fioritures.",
-        "debat": "Un style vivant avec des nuances et du recul sur chaque actualité."
-    }
-    tone_instruction = tones_prompts.get(tone, tones_prompts["journal_matinal"])
-
-    theme_note = f" (Focus thématique : {theme})" if theme and theme.strip() else ""
-
-    system_prompt = (
-        "Tu es un journaliste radio chevronné et le présentateur principal de l'émission d'actualités 'Vos'. "
-        f"Ton rôle est de rédiger un script d'émission d'actualités radio d'une qualité professionnelle irréprochable{theme_note}.\n"
-        f"Style d'antenne souhaité : {tone_instruction}\n\n"
-        "CONSIGNES STRICTES POUR LA SYNTHÈSE VOCALE (TTS) :\n"
-        "1. INTERDICTION ABSOLUE des crochets et des textes de remplacement. Ne jamais écrire [Votre Nom], [Nom du présentateur], [Musique], [Rires], etc. Le texte sera directement lu à voix haute par un synthétiseur vocal.\n"
-        "2. N'utilise aucun nom de présentateur fictif ou générique entre crochets. Si tu te présentes en intro, dis simplement 'Bonjour et bienvenue dans Vos, votre revue de presse quotidienne.' sans mentionner de nom propre d'animateur.\n"
-        "3. Ne répète jamais inutilement le nom de l'émission (Évite absolument 'votre revue de presse Vos Revue de Presse').\n"
-        "4. Rédige un français naturel, captivant, vivant et dynamique, fluide à la lecture audio.\n"
-        "5. Les transitions entre chaque sujet doivent être naturelles et journalistiques (ex: 'Du côté de la technologie...', 'En Europe...', 'Autre fait marquant aujourd'hui...').\n"
-        "6. Cite clairement et naturellement les médias sources (ex: 'Selon une enquête du Monde...', 'D'après les informations de TechCrunch...').\n"
-        "7. Évite les phrases moralisatrices clichés en conclusion. Reste sobre, professionnel et chaleureux ('Merci d'avoir suivi cette édition de Vos, et à très vite pour la suite de l'actualité.')."
-    )
-
-    user_prompt = f"""
-    Voici les {actual_topics_count} actualités majeures sélectionnées aujourd'hui :
-
-    {all_topics_text}
-
-    Rédige le script intégral du podcast au format JSON suivant :
-    {{
-      "show_title": "Titre clair et percutant résumant les sujets phares de l'édition (sans ajouter '(Revue de presse)' au début ou à la fin)",
-      "script": "Script radio complet rédigé en français..."
-    }}
-    Réponds uniquement au format JSON valide.
-    """
-
-    async def call_mistral():
-        if not m_key:
-            raise ValueError("Clé API Mistral manquante. Renseignez votre clé API Mistral dans les Paramètres (icône ⚙️).")
-        async with httpx.AsyncClient() as client:
-            res = await client.post(
-                "https://api.mistral.ai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {m_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": m_model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "response_format": {"type": "json_object"}
-                },
-                timeout=60.0
-            )
-            if res.status_code != 200:
-                err_text = res.text
-                try:
-                    err_json = res.json()
-                    err_text = err_json.get("message") or err_json.get("detail") or res.text
-                except Exception:
-                    pass
-                raise ValueError(f"Erreur API Mistral ({res.status_code}) : {err_text}")
-            
-            raw_content = res.json()["choices"][0]["message"]["content"]
-            cleaned = re.sub(r"^```json\s*", "", raw_content.strip(), flags=re.IGNORECASE)
-            cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
-            return json.loads(cleaned)
-
-    async def call_gemini():
-        if not g_key:
-            raise ValueError("Clé API Gemini manquante. Renseignez votre clé API Gemini dans les Paramètres (icône ⚙️).")
-        async with httpx.AsyncClient() as client:
-            res = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={g_key}",
-                headers={"Content-Type": "application/json"},
-                json={
-                    "system_instruction": {
-                        "parts": [{"text": system_prompt}]
-                    },
-                    "contents": [{
-                        "parts": [{"text": user_prompt}]
-                    }],
-                    "generationConfig": {
-                        "responseMimeType": "application/json"
-                    }
-                },
-                timeout=60.0
-            )
-            if res.status_code != 200:
-                err_text = res.text
-                try:
-                    err_json = res.json()
-                    err_text = err_json.get("error", {}).get("message") or res.text
-                except Exception:
-                    pass
-                raise ValueError(f"Erreur API Gemini ({res.status_code}) : {err_text}")
-            
-            raw_content = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-            cleaned = re.sub(r"^```json\s*", "", raw_content.strip(), flags=re.IGNORECASE)
-            cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
-            return json.loads(cleaned)
-
-    async def try_provider(p_name: str):
-        if p_name == "mistral":
-            return await call_mistral()
-        elif p_name == "gemini":
-            return await call_gemini()
-        else:
-            raise ValueError(f"Fournisseur IA inconnu ({p_name}).")
-
-    errors = []
-    try:
-        script_data = await try_provider(prov)
-    except Exception as e:
-        err_msg = f"Erreur {prov} : {e}"
-        print(f"[Podcast Script Generation Note]: {err_msg}")
-        errors.append(err_msg)
-        if fallback_enabled:
-            fallback_provider = "gemini" if prov == "mistral" else "mistral"
-            has_fallback_key = bool(g_key) if fallback_provider == "gemini" else bool(m_key)
-            if has_fallback_key:
-                print(f"Fallback activé : tentative avec {fallback_provider}...")
-                try:
-                    script_data = await try_provider(fallback_provider)
-                except Exception as e2:
-                    err_msg2 = f"Erreur fallback {fallback_provider} : {e2}"
-                    print(f"[Podcast Script Fallback Note]: {err_msg2}")
-                    errors.append(err_msg2)
-                    raise ValueError(" ; ".join(errors))
-            else:
-                raise ValueError(f"{err_msg}. Pour activer le secours automatique, renseignez votre clé API de secours dans les Paramètres.")
-        else:
-            raise ValueError(err_msg)
-
-    raw_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
-    show_title = clean_podcast_title(raw_title)
-
-    raw_script = script_data.get("script", "")
-    full_script = sanitize_script_for_tts(raw_script)
-    
-    # Audio generation is still dependent on voxtral TTS API, we assume it's working with any text.
-    audio_filename = await generate_podcast_audio(full_script, voice_key=voice_key, api_key=m_key)
-
-    audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
-
-    # Save into SQLite database
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO podcasts (title, script, audio_filename, audio_url, image_url, topics_count, max_days, only_verified, voice)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (show_title, full_script, audio_filename, audio_url, cover_image_url, actual_topics_count, max_days, 1 if only_verified else 0, voice_key))
-    
-    podcast_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-
-    return {
-        "id": podcast_id,
-        "title": show_title,
-        "script": full_script,
-        "audio_filename": audio_filename,
-        "audio_url": audio_url,
-        "image_url": cover_image_url,
-        "topics_count": actual_topics_count,
-        "max_days": max_days,
-        "only_verified": only_verified,
-        "voice": voice_key,
-        "theme": theme,
-        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
 
 def sanitize_base_url(url: str) -> str:
     b_url = (url or settings.base_url or "").rstrip("/")
@@ -414,13 +166,9 @@ def sanitize_base_url(url: str) -> str:
     return b_url
 
 def get_mp3_duration_seconds(filepath: Path) -> int:
-    """
-    Calculates exact MP3 audio duration in seconds from file size and Voxtral audio stream metadata.
-    """
     if not filepath.exists():
         return 180
     file_size = filepath.stat().st_size
-    # Voxtral MP3 audio streams at ~128kbps (16,000 bytes per second)
     duration = int(file_size / 16000)
     return max(5, duration)
 
@@ -438,21 +186,34 @@ async def generate_podcast_show(
     tone: str = "journal_matinal",
     voice_key: str = "Marie - Dynamic",
     theme: str = None,
-    api_key: str = None, # kept for retrocompatibility
+    api_key: str = None,
     mistral_key: str = "",
     gemini_key: str = "",
     provider: str = None,
     fallback_enabled: bool = True,
     mistral_model: str = None,
     gemini_model: str = None,
-    base_url: str = None
+    base_url: str = None,
+    log_callback = None
 ) -> dict:
     """
-    1. Selects top news topics from SQLite
-    2. Writes a script + key points with Mistral AI or Gemini
-    3. Synthesizes full multi-voice audio with Voxtral TTS
-    4. Saves into podcasts SQLite database table
+    Generates a full podcast episode with streaming logs callback support.
     """
+    async def emit_log(msg: str):
+        now_str = datetime.now().strftime("%H:%M:%S")
+        full_msg = f"[{now_str}] {msg}"
+        print(f"[Podcast Log] {full_msg}")
+        if log_callback:
+            try:
+                if asyncio.iscoroutinefunction(log_callback):
+                    await log_callback(full_msg)
+                else:
+                    log_callback(full_msg)
+            except Exception as e:
+                print(f"[Log Callback Error]: {e}")
+
+    await emit_log("🚀 Démarrage de la génération de l'émission radio Vos...")
+
     m_key = mistral_key or api_key or settings.mistral_api_key
     g_key = gemini_key or settings.gemini_api_key
     
@@ -466,6 +227,10 @@ async def generate_podcast_show(
     b_url = sanitize_base_url(base_url)
     feed_token = get_or_create_podcast_feed_token()
     token_param = f"?token={feed_token}" if feed_token else ""
+
+    date_fr = get_french_date_str()
+    await emit_log(f"📅 Date dynamique de l'émission : {date_fr}")
+    await emit_log(f"📥 Récupération et analyse des clusters d'actualités dans la base...")
 
     # Fetch recent clusters from SQLite
     clusters = compute_article_clusters(similarity_threshold=0.91)
@@ -502,7 +267,8 @@ async def generate_podcast_show(
     actual_topics_count = len(selected_topics)
     cover_image_url = extract_cover_image(selected_topics)
 
-    # Extract source articles with URLs
+    await emit_log(f"📊 {actual_topics_count} sujet(s) d'actualité sélectionné(s) pour le script.")
+
     source_articles = []
     seen_urls = set()
     for t in selected_topics:
@@ -516,7 +282,6 @@ async def generate_podcast_show(
                     "feed": a.get("feed_title") or "Source"
                 })
 
-    # Prepare prompt text for Mistral
     topics_summary_list = []
     for idx, topic in enumerate(selected_topics, 1):
         sources = ", ".join(list(set(a["feed_title"] for a in topic["articles"])))
@@ -542,50 +307,61 @@ async def generate_podcast_show(
     emotion_instruction = ""
     if is_dynamic_voice:
         emotion_instruction = (
-            "\n\n8. MULTI-ÉMOTIONS DYNAMIQUE (INCLURE ABSOLUMENT) : Au tout début de chaque sujet, tu dois spécifier l'intonation émotionnelle appropriée entre crochets. Tu dois utiliser UNE SEULE voix/intonation par sujet et NE JAMAIS changer d'intonation au milieu d'un sujet. La voix ne doit changer qu'au moment de la transition vers le sujet suivant.\n"
-            "Marqueurs autorisés : [Marie - Neutral], [Marie - Excited], [Marie - Angry], [Marie - Sad], [Marie - Curious], [Marie - Happy].\n"
-            "Exemple de structuration :\n"
-            "[Marie - Neutral]\nBonjour et bienvenue dans Vos...\n\n"
-            "[Marie - Angry]\nSujet 1 : Première nouvelle grave aujourd'hui en Europe...\n\n"
-            "[Marie - Excited]\nSujet 2 : Du côté de l'innovation technologique..."
+            "\n\n8. MULTI-ÉMOTIONS DYNAMIQUE : Pour chaque sujet, spécifie l'intonation dans le champ 'emotion'.\n"
+            "Valeurs autorisées : 'Marie - Neutral', 'Marie - Excited', 'Marie - Angry', 'Marie - Sad', 'Marie - Curious', 'Marie - Happy'."
         )
 
     custom_system_prompt = get_app_setting("podcast_system_prompt", "")
     if custom_system_prompt.strip():
-        system_prompt = custom_system_prompt.strip() + f"\n\nStyle d'antenne souhaité : {tone_instruction}\n{theme_note}\n{emotion_instruction}"
+        system_prompt = custom_system_prompt.strip() + f"\n\nAujourd'hui nous sommes le {date_fr}.\nStyle d'antenne : {tone_instruction}\n{theme_note}\n{emotion_instruction}"
     else:
         system_prompt = (
             "Tu es un journaliste radio chevronné et le présentateur principal de l'émission d'actualités 'Vos'. "
-            f"Ton rôle est de rédiger un script d'émission d’actualités radio d'une qualité professionnelle irréprochable{theme_note}.\n"
+            f"Aujourd'hui nous sommes le {date_fr}.\n"
+            f"Ton rôle est de rédiger un script d'émission d'actualités radio d'une qualité professionnelle irréprochable{theme_note}.\n"
             f"Style d'antenne souhaité : {tone_instruction}\n\n"
-            "CONSIGNES STRICTES POUR LA SYNTHÈSE VOCALE (TTS) :\n"
-            "1. Ne jamais écrire [Votre Nom] ou [Nom du présentateur] dans le texte.\n"
-            "2. N'utilise aucun nom de présentateur fictif. Si tu te présentes en intro, dis simplement 'Bonjour et bienvenue dans Vos, votre revue de presse quotidienne.'\n"
-            "3. Ne répète jamais inutilement le nom de l'émission.\n"
-            "4. Rédige un français naturel, captivant, vivant et dynamique, fluide à la lecture audio.\n"
-            "5. Les transitions entre chaque sujet doivent être naturelles et journalistiques.\n"
+            "CONSIGNES STRICTES POUR LA RÉDACTION ET LA SYNTHÈSE VOCALE (TTS) :\n"
+            "1. INTERDICTION DE MENTIONNER L'HEURE (ne jamais écrire 'il est 7h30', 'il est 8h' ou toute heure fixe).\n"
+            "2. INTERDICTION ABSOLUE DE FAIRE UN SOMMAIRE OU UN RAPPEL DES TITRES EN INTRO. Après une phrase courte d'accroche (ex: 'Bonjour et bienvenue dans Vos, votre revue de presse du " + date_fr + ".'), entre directement dans le premier sujet d'actualité.\n"
+            "3. INTERDICTION ABSOLUE des crochets et textes entre parenthèses dans le texte des sujets. Pas de [Votre Nom], [Musique], etc.\n"
+            "4. Ne répète jamais le nom de l'émission de façon répétitive.\n"
+            "5. Rédige un français naturel, captivant, vivant et dynamique.\n"
             "6. Cite clairement et naturellement les médias sources (ex: 'Selon Le Monde...', 'D'après TechCrunch...').\n"
-            "7. Évite les phrases moralisatrices clichés en conclusion."
+            "7. Évite les phrases moralisatrices en conclusion."
             f"{emotion_instruction}"
         )
 
     user_prompt = f"""
-    Voici les {actual_topics_count} actualités majeures sélectionnées aujourd'hui :
+    Voici les {actual_topics_count} actualités majeures sélectionnées aujourd'hui ({date_fr}) :
 
     {all_topics_text}
 
-    Rédige l'émission au format JSON suivant :
+    Rédige l'émission sous forme d'un objet JSON strict avec la structure suivante :
     {{
       "show_title": "Titre clair et percutant résumant les sujets phares de l'édition",
       "key_points": [
         "1 phrase de résumé du sujet #1",
-        "1 phrase de résumé du sujet #2",
-        "1 phrase de résumé du sujet #3"
+        "1 phrase de résumé du sujet #2"
       ],
-      "script": "Script radio complet rédigé en français..."
+      "script_topics": [
+        {{
+          "topic_index": 1,
+          "topic_title": "Titre du sujet 1",
+          "emotion": "Marie - Neutral",
+          "content": "Texte intégral du premier sujet..."
+        }},
+        {{
+          "topic_index": 2,
+          "topic_title": "Titre du sujet 2",
+          "emotion": "Marie - Excited",
+          "content": "Texte intégral du deuxième sujet..."
+        }}
+      ]
     }}
     Réponds uniquement au format JSON valide.
     """
+
+    await emit_log(f"🧠 Génération du script par l'IA ({prov.capitalize()} - {m_model if prov == 'mistral' else g_model})...")
 
     async def call_mistral():
         if not m_key:
@@ -670,18 +446,17 @@ async def generate_podcast_show(
         script_data, llm_tokens = await try_provider(prov)
     except Exception as e:
         err_msg = f"Erreur {prov} : {e}"
-        print(f"[Podcast Script Generation Note]: {err_msg}")
+        await emit_log(f"⚠️ {err_msg}")
         errors.append(err_msg)
         if fallback_enabled:
             fallback_provider = "gemini" if prov == "mistral" else "mistral"
             has_fallback_key = bool(g_key) if fallback_provider == "gemini" else bool(m_key)
             if has_fallback_key:
-                print(f"Fallback activé : tentative avec {fallback_provider}...")
+                await emit_log(f"🔄 Secours automatique activé : tentative avec {fallback_provider}...")
                 try:
                     script_data, llm_tokens = await try_provider(fallback_provider)
                 except Exception as e2:
                     err_msg2 = f"Erreur fallback {fallback_provider} : {e2}"
-                    print(f"[Podcast Script Fallback Note]: {err_msg2}")
                     errors.append(err_msg2)
                     raise ValueError(" ; ".join(errors))
             else:
@@ -700,6 +475,7 @@ async def generate_podcast_show(
 
     raw_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
     show_title = clean_podcast_title(raw_title)
+    await emit_log(f"📌 Titre retenu pour l'émission : '{show_title}'")
 
     key_points = script_data.get("key_points") or []
     if isinstance(key_points, str):
@@ -709,28 +485,67 @@ async def generate_podcast_show(
     elif not isinstance(key_points, list):
         key_points = [str(key_points)]
 
-    raw_script = script_data.get("script", "")
-    if isinstance(raw_script, dict):
-        parts = []
-        for k, v in raw_script.items():
-            if isinstance(v, dict):
-                v_str = "\n".join([f"{sub_k}: {sub_v}" for sub_k, sub_v in v.items()])
-            elif isinstance(v, list):
-                v_str = "\n".join([str(x) for x in v])
-            else:
-                v_str = str(v)
-            parts.append(v_str)
-        raw_script = "\n\n".join(parts)
-    elif isinstance(raw_script, list):
-        raw_script = "\n\n".join([str(x) for x in raw_script])
-    elif not isinstance(raw_script, str):
-        raw_script = str(raw_script)
+    # Parse topics array
+    script_topics = script_data.get("script_topics") or []
+    if not isinstance(script_topics, list) or len(script_topics) == 0:
+        raw_script = script_data.get("script", "")
+        if isinstance(raw_script, dict):
+            raw_script = "\n\n".join([f"{k}: {v}" for k, v in raw_script.items()])
+        elif isinstance(raw_script, list):
+            raw_script = "\n\n".join([str(x) for x in raw_script])
+        segments = split_script_into_emotion_segments(str(raw_script), default_voice=voice_key)
+        script_topics = [
+            {
+                "topic_index": i + 1,
+                "topic_title": f"Sujet #{i + 1}",
+                "emotion": seg_voice,
+                "content": seg_text
+            }
+            for i, (seg_voice, seg_text) in enumerate(segments)
+        ]
 
-    # Audio generation supports multi-emotion dynamic splitting if markers are present
-    audio_filename = await generate_podcast_audio(raw_script, voice_key=voice_key, api_key=m_key)
+    await emit_log(f"🎙️ Début du traitement Vocale Voxtral ({len(script_topics)} sujet(s)...)")
+
+    audio_chunks = []
+    full_script_parts = []
+
+    for idx, top in enumerate(script_topics, 1):
+        top_title = top.get("topic_title") or f"Sujet #{idx}"
+        top_emotion = top.get("emotion") or voice_key
+        top_content = top.get("content") or ""
+        clean_text = sanitize_text_for_speech(top_content)
+        
+        if not clean_text:
+            continue
+
+        full_script_parts.append(f"[{top_emotion}]\n{top_content}")
+
+        await emit_log(f"🎙️ TTS Sujet {idx}/{len(script_topics)} : '{top_title[:40]}...' [Voix: {top_emotion}]")
+        t_start = time.time()
+        
+        try:
+            chunk_bytes = await generate_audio_bytes_for_voice(clean_text, voice_key=top_emotion, api_key=m_key)
+            elapsed = round(time.time() - t_start, 1)
+            audio_chunks.append(chunk_bytes)
+            await emit_log(f"✅ TTS Sujet {idx}/{len(script_topics)} -> OK ({elapsed}s)")
+        except Exception as e:
+            await emit_log(f"⚠️ Erreur TTS Sujet {idx} : {e}")
+
+    if not audio_chunks:
+        fallback_text = sanitize_text_for_speech(all_topics_text[:1000])
+        audio_bytes = await generate_audio_bytes_for_voice(fallback_text, voice_key=voice_key, api_key=m_key)
+        audio_chunks = [audio_bytes]
+
+    await emit_log("🎵 Insertion du son de transition (whoosh_default.mp3) entre les sujets...")
+    audio_filename = combine_audio_chunks(audio_chunks)
+
     audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
+    full_script = sanitize_script_for_tts("\n\n".join(full_script_parts))
 
-    full_script = sanitize_script_for_tts(raw_script)
+    filepath = AUDIO_DIR / audio_filename
+    duration_secs = get_mp3_duration_seconds(filepath)
+    dur_formatted = format_duration_rss(duration_secs)
+    await emit_log(f"🎧 Assemblage audio final terminé (Durée totale : {dur_formatted}).")
 
     key_points_json = json.dumps(key_points, ensure_ascii=False)
     sources_json = json.dumps(source_articles, ensure_ascii=False)
@@ -758,6 +573,8 @@ async def generate_podcast_show(
     conn.commit()
     conn.close()
 
+    await emit_log(f"🎉 Émission ID #{podcast_id} enregistrée et disponible sur AntennaPod !")
+
     return {
         "id": podcast_id,
         "title": show_title,
@@ -775,17 +592,58 @@ async def generate_podcast_show(
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-def sanitize_base_url(url: str) -> str:
-    b_url = (url or settings.base_url or "").rstrip("/")
-    if b_url.startswith("http://") and not b_url.startswith("http://127.0.0.1") and not b_url.startswith("http://localhost"):
-        b_url = b_url.replace("http://", "https://")
-    return b_url
+def get_podcast_history(base_url: str = None) -> list:
+    b_url = sanitize_base_url(base_url)
+    feed_token = get_or_create_podcast_feed_token()
+    token_param = f"?token={feed_token}" if feed_token else ""
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, title, script, audio_filename, audio_url, image_url, topics_count, max_days, only_verified, voice, key_points_json, sources_json, created_at
+        FROM podcasts
+        ORDER BY created_at DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+
+    podcasts = []
+    for r in rows:
+        fn = r["audio_filename"]
+        u = f"{b_url}/api/audio/stream/{fn}{token_param}" if fn else r["audio_url"]
+        
+        kp = []
+        if r["key_points_json"]:
+            try:
+                kp = json.loads(r["key_points_json"])
+            except Exception:
+                pass
+
+        srcs = []
+        if r["sources_json"]:
+            try:
+                srcs = json.loads(r["sources_json"])
+            except Exception:
+                pass
+
+        podcasts.append({
+            "id": r["id"],
+            "title": r["title"],
+            "script": r["script"],
+            "audio_filename": fn,
+            "audio_url": u,
+            "image_url": r["image_url"] or DEFAULT_PODCAST_COVER,
+            "topics_count": r["topics_count"],
+            "max_days": r["max_days"],
+            "only_verified": bool(r["only_verified"]),
+            "voice": r["voice"],
+            "key_points": kp,
+            "sources": srcs,
+            "created_at": r["created_at"]
+        })
+    return podcasts
 
 def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
-    """
-    Generates a 100% valid RSS 2.0 XML podcast feed with iTunes / AntennaPod / Spotify / Apple Podcasts metadata.
-    Includes domain host in channel title, unique episode cover images, exact MP3 duration, key points, and clickable source links.
-    """
     b_url = sanitize_base_url(base_url)
     feed_token = token or get_or_create_podcast_feed_token()
     token_param = f"?token={feed_token}" if feed_token else ""
@@ -802,169 +660,107 @@ def generate_podcast_rss_feed(base_url: str = None, token: str = None) -> str:
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    cursor.execute("PRAGMA table_info(podcasts)")
-    p_cols = [row["name"] for row in cursor.fetchall()]
-    has_kp = "key_points_json" in p_cols
-    has_src = "sources_json" in p_cols
-
-    select_sql = """
-        SELECT id, title, script, audio_filename, audio_url, image_url, topics_count, voice, created_at
-    """
-    if has_kp:
-        select_sql += ", key_points_json"
-    if has_src:
-        select_sql += ", sources_json"
-
-    select_sql += " FROM podcasts ORDER BY id DESC LIMIT 50"
-
-    cursor.execute(select_sql)
-    rows = cursor.fetchall()
-    conn.close()
-
-    feed_url = f"{b_url}/api/podcast/feed.xml{token_param}"
-
-    items_xml = []
-    for r in rows:
-        title = xml_escape(r["title"])
-        script = r["script"]
-        topics_count = r["topics_count"] or 5
-        voice_used = r["voice"] or "Marie"
-        
-        audio_filename = r["audio_filename"]
-        audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
-        audio_url_escaped = xml_escape(audio_url)
-        img_url = r["image_url"] or DEFAULT_PODCAST_COVER
-        img_url_escaped = xml_escape(img_url)
-
-        filepath = AUDIO_DIR / audio_filename
-        file_size = filepath.stat().st_size if filepath.exists() else 2000000
-        duration_seconds = get_mp3_duration_seconds(filepath)
-        duration_str = format_duration_rss(duration_seconds)
-
-        try:
-            dt = datetime.strptime(r["created_at"][:19], "%Y-%m-%d %H:%M:%S")
-            pub_date_str = dt.strftime("%a, %d %b %Y %H:%M:%S +0200")
-            display_date = dt.strftime("%d/%m/%Y à %H:%M")
-        except Exception:
-            pub_date_str = datetime.now().strftime("%a, %d %b %Y %H:%M:%S +0200")
-            display_date = datetime.now().strftime("%d/%m/%Y")
-
-        kp_raw = r["key_points_json"] if has_kp and "key_points_json" in r.keys() else None
-        src_raw = r["sources_json"] if has_src and "sources_json" in r.keys() else None
-
-        key_points_list = []
-        if kp_raw:
-            try:
-                key_points_list = json.loads(kp_raw)
-            except Exception:
-                pass
-
-        sources_list = []
-        if src_raw:
-            try:
-                sources_list = json.loads(src_raw)
-            except Exception:
-                pass
-
-        # Build rich HTML description
-        html_parts = []
-        html_parts.append(f'<p style="margin-bottom:12px;"><strong>🎙️ Édition du {display_date}</strong> • <em>{topics_count} sujets d\'actualité récapitulés • Voix: {xml_escape(voice_used)}</em></p>')
-        html_parts.append('<hr style="border:0;border-top:1px solid #e5e7eb;margin:14px 0;"/>')
-
-        if key_points_list:
-            html_parts.append('<h3 style="color:#2563eb;margin-bottom:8px;font-size:16px;">📌 Points clés de l\'édition :</h3>')
-            html_parts.append('<ul style="padding-left:20px;margin-bottom:16px;">')
-            for kp in key_points_list:
-                html_parts.append(f'<li style="margin-bottom:6px;">{xml_escape(str(kp))}</li>')
-            html_parts.append('</ul>')
-
-        if sources_list:
-            html_parts.append('<h3 style="color:#2563eb;margin-bottom:8px;font-size:16px;">📰 Articles &amp; Sources consultés :</h3>')
-            html_parts.append('<ul style="padding-left:20px;margin-bottom:16px;">')
-            for s in sources_list:
-                s_title = xml_escape(s.get("title") or "Article")
-                s_url = xml_escape(s.get("url") or "#")
-                s_feed = xml_escape(s.get("feed") or "Source")
-                html_parts.append(f'<li style="margin-bottom:6px;"><a href="{s_url}" target="_blank" style="color:#2563eb;text-decoration:underline;">{s_title}</a> <span style="color:#6b7280;font-size:13px;">({s_feed})</span></li>')
-            html_parts.append('</ul>')
-
-        formatted_script_html = format_script_html(script)
-        html_parts.append('<h3 style="color:#2563eb;margin-bottom:8px;font-size:16px;">📜 Transcription radio complète :</h3>')
-        html_parts.append(formatted_script_html)
-        html_parts.append('<hr style="border:0;border-top:1px solid #e5e7eb;margin:16px 0;"/>')
-        html_parts.append(f'<p style="font-size:12px;color:#6b7280;">Émission générée automatiquement par <strong>Vos AI Reader</strong> sur {xml_escape(domain_host or "adrienotge.nohost.me")}.</p>')
-
-        desc_html = f"<![CDATA[<div style=\"font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;line-height:1.6;color:#1f2937;\">\n" + "\n".join(html_parts) + "\n</div>]]>"
-
-        item_str = f"""    <item>
-      <title>{title}</title>
-      <link>{audio_url_escaped}</link>
-      <description>{desc_html}</description>
-      <content:encoded>{desc_html}</content:encoded>
-      <enclosure url="{audio_url_escaped}" length="{file_size}" type="audio/mpeg"/>
-      <guid isPermaLink="false">vos-podcast-{r['id']}</guid>
-      <pubDate>{pub_date_str}</pubDate>
-      <itunes:image href="{img_url_escaped}"/>
-      <itunes:duration>{duration_str}</itunes:duration>
-      <itunes:explicit>no</itunes:explicit>
-    </item>"""
-        items_xml.append(item_str)
-
-    items_joined = "\n".join(items_xml)
-
-    xml_feed = f"""<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" 
-     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" 
-     xmlns:content="http://purl.org/rss/1.0/modules/content/" 
-     xmlns:media="http://search.yahoo.com/mrss/">
-  <channel>
-    <title>{xml_escape(channel_title)}</title>
-    <link>{xml_escape(feed_url)}</link>
-    <language>fr</language>
-    <copyright>Vos AI Reader</copyright>
-    <itunes:subtitle>Revues de presse quotidiennes scénarisées et lues par Voxtral</itunes:subtitle>
-    <itunes:author>{xml_escape(author_name)}</itunes:author>
-    <itunes:summary>Vos génère automatiquement votre revue de presse personnalisée à partir d'actualités croisées et lue par la voix de Marie.</itunes:summary>
-    <description>Revue de presse quotidienne personnalisée et croisée.</description>
-    <itunes:owner>
-      <itunes:name>{xml_escape(author_name)}</itunes:name>
-      <itunes:email>podcast@{xml_escape(domain_host or 'vos-app.local')}</itunes:email>
-    </itunes:owner>
-    <itunes:image href="{xml_escape(DEFAULT_PODCAST_COVER)}"/>
-    <itunes:category text="News">
-      <itunes:category text="Daily News"/>
-    </itunes:category>
-    <itunes:explicit>no</itunes:explicit>
-{items_joined}
-  </channel>
-</rss>"""
-    return xml_feed
-
-def get_podcast_history(base_url: str = None):
-    """
-    Returns the list of previously generated podcasts with dynamically adapted audio URLs.
-    """
-    b_url = sanitize_base_url(base_url)
-    token = get_or_create_podcast_feed_token()
-    token_param = f"?token={token}" if token else ""
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, title, script, audio_filename, audio_url, image_url, topics_count, max_days, only_verified, voice, created_at
+        SELECT id, title, script, audio_filename, audio_url, image_url, topics_count, voice, key_points_json, sources_json, created_at
         FROM podcasts
-        ORDER BY id DESC
-        LIMIT 30
+        ORDER BY created_at DESC
+        LIMIT 50
     """)
     rows = cursor.fetchall()
     conn.close()
 
-    result = []
+    channel_cover = DEFAULT_PODCAST_COVER
+    if rows and rows[0]["image_url"]:
+        channel_cover = rows[0]["image_url"]
+
+    items_xml = []
     for r in rows:
-        item = dict(r)
-        fn = item.get("audio_filename")
-        if fn:
-            item["audio_url"] = f"{b_url}/api/audio/stream/{fn}{token_param}"
-        result.append(item)
-    return result
+        fn = r["audio_filename"]
+        audio_stream_url = f"{b_url}/api/audio/stream/{fn}{token_param}" if fn else r["audio_url"]
+        
+        filepath = AUDIO_DIR / fn if fn else Path()
+        file_size = filepath.stat().st_size if filepath.exists() else 1000000
+        dur_seconds = get_mp3_duration_seconds(filepath)
+        dur_formatted = format_duration_rss(dur_seconds)
+
+        ep_cover = r["image_url"] or channel_cover
+
+        try:
+            dt = datetime.strptime(r["created_at"][:19], "%Y-%m-%d %H:%M:%S")
+            pub_date = dt.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        except Exception:
+            pub_date = datetime.now().strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+        kp = []
+        if r["key_points_json"]:
+            try:
+                kp = json.loads(r["key_points_json"])
+            except Exception:
+                pass
+
+        srcs = []
+        if r["sources_json"]:
+            try:
+                srcs = json.loads(r["sources_json"])
+            except Exception:
+                pass
+
+        html_body = format_script_html(r["script"])
+        
+        extras_html = []
+        if kp:
+            extras_html.append("<h4 style=\"color:#2563eb;margin-top:16px;margin-bottom:6px;\">💡 Points clés :</h4><ul>")
+            for point in kp:
+                extras_html.append(f"<li style=\"margin-bottom:4px;\">{xml_escape(str(point))}</li>")
+            extras_html.append("</ul>")
+
+        if srcs:
+            extras_html.append("<h4 style=\"color:#2563eb;margin-top:16px;margin-bottom:6px;\">🔗 Sources de l'édition :</h4><ul>")
+            for s in srcs:
+                t_title = xml_escape(s.get("title") or "Article")
+                t_url = xml_escape(s.get("url") or "#")
+                t_feed = xml_escape(s.get("feed") or "Media")
+                extras_html.append(f"<li style=\"margin-bottom:4px;\"><a href=\"{t_url}\" target=\"_blank\">{t_title}</a> <small style=\"color:#6b7280;\">({t_feed})</small></li>")
+            extras_html.append("</ul>")
+
+        full_description_html = html_body + "\n" + "\n".join(extras_html)
+
+        item = f"""
+    <item>
+      <title>{xml_escape(r['title'])}</title>
+      <link>{xml_escape(audio_stream_url)}</link>
+      <guid isPermaLink="false">vos-podcast-{r['id']}</guid>
+      <pubDate>{pub_date}</pubDate>
+      <description><![CDATA[{full_description_html}]]></description>
+      <enclosure url="{xml_escape(audio_stream_url)}" length="{file_size}" type="audio/mpeg"/>
+      <itunes:duration>{dur_formatted}</itunes:duration>
+      <itunes:explicit>false</itunes:explicit>
+      <itunes:image href="{xml_escape(ep_cover)}"/>
+    </item>"""
+        items_xml.append(item)
+
+    feed_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" 
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>{xml_escape(channel_title)}</title>
+    <link>{xml_escape(b_url)}</link>
+    <language>fr-fr</language>
+    <copyright>Vos Reader</copyright>
+    <itunes:author>{xml_escape(author_name)}</itunes:author>
+    <itunes:summary>Flux RSS privé et personnalisé de votre revue de presse audio rédigée et enregistrée automatiquement.</itunes:summary>
+    <description>Revue de presse quotidienne générée automatiquement par Vos.</description>
+    <itunes:owner>
+      <itunes:name>{xml_escape(author_name)}</itunes:name>
+      <itunes:email>podcast@{domain_host or 'vos.app'}</itunes:email>
+    </itunes:owner>
+    <itunes:image href="{xml_escape(channel_cover)}"/>
+    <itunes:category text="News">
+      <itunes:category text="Daily News"/>
+    </itunes:category>
+    <itunes:explicit>false</itunes:explicit>
+    {"".join(items_xml)}
+  </channel>
+</rss>"""
+    return feed_xml

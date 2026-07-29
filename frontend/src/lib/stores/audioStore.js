@@ -18,16 +18,16 @@ export function sanitizeTextForSpeech(text) {
   return clean.replace(/\s+/g, ' ').trim();
 }
 
-export function playTrack(title, audioUrl, feedTitle = 'Vos Podcast') {
+export function playTrack(title, audioUrl, feedTitle = 'Vos Podcast', imageUrl = null) {
   let cleanUrl = audioUrl || '';
   if (cleanUrl.startsWith('http:') && typeof window !== 'undefined' && window.location.protocol === 'https:') {
     cleanUrl = cleanUrl.replace(/^http:/, 'https:');
   }
   // Connect to SSE stream-tts endpoint if requested
   if (cleanUrl.includes('/api/audio/stream-tts')) {
-    currentTrack.set({ title, audioUrl: cleanUrl, feedTitle, isStream: true });
+    currentTrack.set({ title, audioUrl: cleanUrl, feedTitle, imageUrl, isStream: true });
   } else {
-    currentTrack.set({ title, audioUrl: cleanUrl, feedTitle, isStream: false });
+    currentTrack.set({ title, audioUrl: cleanUrl, feedTitle, imageUrl, isStream: false });
   }
   isPlaying.set(true);
 }

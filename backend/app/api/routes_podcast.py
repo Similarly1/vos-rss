@@ -191,6 +191,63 @@ async def create_podcast(payload: PodcastGenerateRequest, request: Request):
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.post("/generate-stream")
+async def create_podcast_stream(payload: PodcastGenerateRequest, request: Request):
+    from fastapi.responses import StreamingResponse
+    import json
+    import asyncio
+
+    async def event_generator():
+        queue = asyncio.Queue()
+
+        async def log_cb(msg: str):
+            await queue.put({"type": "log", "message": msg})
+
+        async def run_gen():
+            try:
+                api_key = get_vps_api_key(payload.api_key)
+                base_url = str(request.base_url).rstrip("/")
+                res = await generate_podcast_show(
+                    topics_count=payload.topics_count or 5,
+                    max_days=payload.max_days if payload.max_days is not None else 7,
+                    only_verified=bool(payload.only_verified),
+                    tone=payload.tone or "journal_matinal",
+                    voice_key=payload.voice or "Marie - Neutral",
+                    theme=payload.theme,
+                    provider=payload.provider,
+                    mistral_model=payload.mistral_model,
+                    gemini_model=payload.gemini_model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    log_callback=log_cb
+                )
+                await queue.put({"type": "result", "podcast": res})
+            except Exception as e:
+                traceback.print_exc()
+                await queue.put({"type": "error", "message": str(e)})
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(run_gen())
+
+        while True:
+            item = await queue.get()
+            if item is None:
+                break
+            yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
+        
+        await task
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
 @router.delete("/{podcast_id}")
 def delete_podcast(podcast_id: int):
     try:

@@ -179,6 +179,12 @@
             {/if}
           </button>
 
+          {#if $currentTrack.imageUrl}
+            <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden shrink-0 border border-gray-800 shadow-md">
+              <img src={$currentTrack.imageUrl} alt="Cover" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1 / 1;" />
+            </div>
+          {/if}
+
           <div class="truncate">
             <h4 class="font-extrabold text-xs md:text-sm truncate leading-snug text-white">{$currentTrack.title}</h4>
             <p class="text-[11px] text-purple-400 font-semibold truncate flex items-center gap-1">

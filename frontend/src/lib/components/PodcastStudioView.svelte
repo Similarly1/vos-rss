@@ -15,6 +15,23 @@
   let progressStep = "";
   let errorMsg = "";
 
+  let generationLogs = [];
+  let logContainer = null;
+  let logsCopied = false;
+
+  $: if (logContainer && generationLogs.length) {
+    setTimeout(() => {
+      if (logContainer) logContainer.scrollTop = logContainer.scrollHeight;
+    }, 50);
+  }
+
+  function copyLogs() {
+    const text = generationLogs.join('\n');
+    navigator.clipboard.writeText(text);
+    logsCopied = true;
+    setTimeout(() => logsCopied = false, 2500);
+  }
+
   let currentPodcast = null;
   let podcastHistory = [];
   let showScript = false;
@@ -273,18 +290,10 @@
 
     isGenerating = true;
     errorMsg = "";
-    progressStep = `1/3 : Sélection des ${topicsCount} sujets${themeInput ? ` sur '${themeInput}'` : ''}...`;
+    generationLogs = [];
 
     try {
-      setTimeout(() => {
-        if (isGenerating) progressStep = `2/3 : Rédaction du script multi-émotions par IA...`;
-      }, 2500);
-
-      setTimeout(() => {
-        if (isGenerating) progressStep = `3/3 : Synthèse audio Voxtral (MP3)...`;
-      }, 7000);
-
-      const res = await fetch('/api/podcast/generate', {
+      const res = await fetch('/api/podcast/generate-stream', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -302,61 +311,62 @@
         })
       });
 
-      let data = {};
-      const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        try {
-          data = await res.json();
-        } catch (e) {
-          console.warn("Erreur parsing JSON:", e);
-        }
+      if (!res.ok) {
+        throw new Error(`Erreur HTTP ${res.status}`);
       }
 
-      if (res.ok && contentType.includes('application/json') && data.podcast) {
-        currentPodcast = data.podcast;
-        showScript = false;
-        playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
-        await fetchHistory();
-        errorMsg = "";
-      } else if (res.redirected || (res.ok && !contentType.includes('application/json'))) {
-        console.warn("Redirection YunoHost SSO détectée sur /api/podcast/generate.");
-        errorMsg = "Redirection YunoHost SSO détectée sur /api/podcast/generate. Mettez à jour vos_rss.conf sur votre VPS avec 'location ^~ /api/podcast/generate' et 'access_by_lua_block { return; }'.";
-      } else if (res.status === 504 || res.status === 502) {
-        console.warn("Nginx Timeout (504/502) détecté. Tentative de récupération dans l'historique...");
-        await new Promise(r => setTimeout(r, 2000));
-        await fetchHistory();
-        if (podcastHistory.length > 0) {
-          currentPodcast = podcastHistory[0];
-          showScript = false;
-          playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
-          errorMsg = "";
-        } else {
-          errorMsg = "Le serveur VPS a dépassé le délai d'attente Nginx (504 Gateway Timeout). Pensez à ajouter 'proxy_read_timeout 300s;' dans votre conf Nginx.";
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const payload = JSON.parse(trimmed.slice(6));
+              if (payload.type === 'log') {
+                generationLogs = [...generationLogs, payload.message];
+              } else if (payload.type === 'result' && payload.podcast) {
+                currentPodcast = payload.podcast;
+                showScript = false;
+                playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`, currentPodcast.image_url);
+                await fetchHistory();
+              } else if (payload.type === 'error') {
+                errorMsg = payload.message;
+                generationLogs = [...generationLogs, `❌ Erreur : ${payload.message}`];
+              }
+            } catch (e) {
+              console.warn("Parse SSE error:", e);
+            }
+          }
         }
-      } else {
-        errorMsg = data.detail || `Échec de la génération (Erreur HTTP ${res.status}).`;
       }
     } catch (err) {
-      console.warn("Connexion interrompue ou timeout HTTP. Vérification dans l'historique...", err);
+      console.warn("Connexion interrompue ou timeout. Vérification de l'historique...", err);
       await new Promise(r => setTimeout(r, 2000));
       await fetchHistory();
       if (podcastHistory.length > 0) {
         currentPodcast = podcastHistory[0];
         showScript = false;
-        playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`);
+        playTrack(currentPodcast.title, currentPodcast.audio_url, `Revue de Presse Vos (${voiceKey})`, currentPodcast.image_url);
         errorMsg = "";
-      } else {
-        errorMsg = "Délai d'attente dépassé (Timeout HTTP). Mettez à jour la conf Nginx de votre VPS avec 'proxy_read_timeout 300s;'.";
       }
     } finally {
       isGenerating = false;
-      progressStep = "";
     }
   }
 
   function playPodcastItem(p) {
     currentPodcast = p;
-    playTrack(p.title, p.audio_url, `Revue de Presse Vos (${p.voice || 'Marie'})`);
+    playTrack(p.title, p.audio_url, `Revue de Presse Vos (${p.voice || 'Marie'})`, p.image_url);
   }
 
   async function deletePodcastItem(pId) {
@@ -693,6 +703,38 @@
         <p class="text-xs text-rose-400 font-medium text-center">{errorMsg}</p>
       {/if}
 
+      <!-- TERMINAL LOGS CONSOLE UI -->
+      {#if isGenerating || generationLogs.length > 0}
+        <div class="bg-gray-950 border border-purple-800/60 rounded-3xl p-5 shadow-2xl space-y-3 font-mono text-xs">
+          <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+              <span class="text-gray-300 font-bold ml-2">Console d'exécution du Podcast (SSE Temps Réel)</span>
+            </div>
+
+            {#if generationLogs.length > 0}
+              <button 
+                on:click={copyLogs}
+                class="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-emerald-400 font-bold text-xs rounded-xl border border-gray-700 transition-all shadow-sm flex items-center gap-1.5"
+              >
+                <span>{logsCopied ? '✓ Logs Copiés !' : '📋 Copier les logs'}</span>
+              </button>
+            {/if}
+          </div>
+
+          <div bind:this={logContainer} class="max-h-64 overflow-y-auto space-y-1.5 pr-2 text-gray-300 select-text leading-relaxed">
+            {#each generationLogs as log}
+              <div class="font-mono">{log}</div>
+            {/each}
+            {#if isGenerating}
+              <div class="text-purple-400 animate-pulse font-bold pt-1">⏳ Génération audio en cours...</div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
     </div>
 
     <!-- CARD 3: PERSONNALISATION -->
@@ -745,12 +787,19 @@
           <div class="bg-gradient-to-b from-gray-900 to-gray-950 border border-purple-800/60 rounded-3xl p-6 shadow-2xl space-y-4">
             
             <div class="flex items-start justify-between gap-4">
-              <div class="space-y-1">
-                <span class="text-[10px] uppercase tracking-wider font-extrabold bg-purple-950 text-purple-400 px-2.5 py-1 rounded-full border border-purple-800">
-                  Émission sélectionnée
-                </span>
-                <h3 class="text-xl font-extrabold text-white leading-snug">{currentPodcast.title}</h3>
-                <p class="text-xs text-gray-400">Généré le {currentPodcast.created_at || 'récemment'} • Voix: {currentPodcast.voice || 'Marie'}</p>
+              <div class="flex items-center gap-4 min-w-0">
+                {#if currentPodcast.image_url}
+                  <div class="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 border border-gray-800 shadow-md">
+                    <img src={currentPodcast.image_url} alt="Cover" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1 / 1;" />
+                  </div>
+                {/if}
+                <div class="space-y-1 min-w-0">
+                  <span class="text-[10px] uppercase tracking-wider font-extrabold bg-purple-950 text-purple-400 px-2.5 py-1 rounded-full border border-purple-800">
+                    Émission sélectionnée
+                  </span>
+                  <h3 class="text-xl font-extrabold text-white leading-snug truncate">{currentPodcast.title}</h3>
+                  <p class="text-xs text-gray-400">Généré le {currentPodcast.created_at || 'récemment'} • Voix: {currentPodcast.voice || 'Marie'}</p>
+                </div>
               </div>
 
               <button 
@@ -785,7 +834,9 @@
             <div class="p-4 bg-gray-950 border border-gray-800/80 hover:border-purple-800/60 rounded-2xl flex items-center justify-between gap-4 transition-all group">
               <div class="flex items-center gap-4 min-w-0">
                 {#if pod.image_url}
-                  <img src={pod.image_url} alt="Cover" style="object-fit: cover; aspect-ratio: 1/1;" class="w-12 h-12 rounded-lg shrink-0 border border-gray-800" />
+                  <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-gray-800 shadow-sm">
+                    <img src={pod.image_url} alt="Cover" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1 / 1;" />
+                  </div>
                 {/if}
                 <div class="space-y-1 min-w-0">
                   <h4 class="font-bold text-sm text-white truncate">{pod.title}</h4>

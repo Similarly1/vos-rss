@@ -22,6 +22,19 @@ from app.services.audio import (
 
 DEFAULT_PODCAST_COVER = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80"
 
+DEFAULT_SYSTEM_PROMPT = (
+    "Tu es un journaliste radio chevronné et le présentateur principal de l'émission d'actualités 'Vos'. "
+    "Ton rôle est de rédiger un script d'émission d'actualités radio d'une qualité professionnelle irréprochable.\n\n"
+    "CONSIGNES STRICTES POUR LA RÉDACTION ET LA SYNTHÈSE VOCALE (TTS) :\n"
+    "1. INTERDICTION DE MENTIONNER L'HEURE DE LA JOURNÉE (ne jamais écrire 'il est 7h30', 'il est 8h' ou toute heure fixe).\n"
+    "2. INTERDICTION ABSOLUE DE FAIRE UN SOMMAIRE OU UN RAPPEL DES TITRES EN INTRO. Après une phrase courte d'accroche (ex: 'Bonjour et bienvenue dans Vos, votre revue de presse quotidienne.'), entre directement dans le premier sujet d'actualité.\n"
+    "3. INTERDICTION ABSOLUE des crochets et textes entre parenthèses dans le texte des sujets. Pas de [Votre Nom], [Musique], etc.\n"
+    "4. Ne répète jamais le nom de l'émission de façon répétitive.\n"
+    "5. Rédige un français naturel, captivant, vivant et dynamique.\n"
+    "6. Cite clairement et naturellement les médias sources (ex: 'Selon Le Monde...', 'D'après TechCrunch...').\n"
+    "7. Évite les phrases moralisatrices en conclusion."
+)
+
 MONTHS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
 DAYS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 
@@ -32,9 +45,6 @@ def get_french_date_str() -> str:
     return f"{day_name} {now.day} {month_name} {now.year}"
 
 def format_script_html(script_text) -> str:
-    """
-    Formats the raw podcast transcript into clean, readable HTML paragraphs and subheadings for AntennaPod.
-    """
     if not script_text:
         return "<p>Aucune transcription disponible.</p>"
     
@@ -70,14 +80,10 @@ def sanitize_script_for_tts(text) -> str:
     elif not isinstance(text, str):
         text = str(text)
 
-    # 1. Remove bracketed text
     text = re.sub(r"\[([^\]]+)\]", "", text)
-    # 2. Remove parenthetical directions
     text = re.sub(r"\((musique|rires|pause|transition|jingle|sourire|silence)[^\)]*\)", "", text, flags=re.IGNORECASE)
-    # 3. Clean up repetitive intro phrases
     text = re.sub(r"revue\s+de\s+presse\s+Vos\s+Revue\s+de\s+Presse", "revue de presse Vos", text, flags=re.IGNORECASE)
     text = re.sub(r"revue\s+de\s+presse\s+Vos\s+Revue\s+de\s+presse", "revue de presse Vos", text, flags=re.IGNORECASE)
-    # 4. Normalize spaces and floating punctuation
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\s+([,\.\?!;:])", r"\1", text)
     return text.strip()
@@ -212,7 +218,7 @@ async def generate_podcast_show(
             except Exception as e:
                 print(f"[Log Callback Error]: {e}")
 
-    await emit_log("🚀 Démarrage de la génération de l'émission radio Vos...")
+    await emit_log("🚀 Initialisation du générateur de podcast radio Vos...")
 
     m_key = mistral_key or api_key or settings.mistral_api_key
     g_key = gemini_key or settings.gemini_api_key
@@ -224,13 +230,15 @@ async def generate_podcast_show(
     m_model = mistral_model or settings.mistral_podcast_model or settings.mistral_model or "mistral-large-latest"
     g_model = gemini_model or settings.gemini_podcast_model or settings.gemini_model or "gemini-1.5-pro"
 
+    await emit_log(f"🔑 Fournisseur d'IA actif : {prov.upper()} (Modèle : {m_model if prov == 'mistral' else g_model})")
+
     b_url = sanitize_base_url(base_url)
     feed_token = get_or_create_podcast_feed_token()
     token_param = f"?token={feed_token}" if feed_token else ""
 
     date_fr = get_french_date_str()
-    await emit_log(f"📅 Date dynamique de l'émission : {date_fr}")
-    await emit_log(f"📥 Récupération et analyse des clusters d'actualités dans la base...")
+    await emit_log(f"📅 Date dynamique injectée dans le prompt : {date_fr}")
+    await emit_log("📥 Analyse des clusters d'actualités récentes dans SQLite...")
 
     # Fetch recent clusters from SQLite
     clusters = compute_article_clusters(similarity_threshold=0.91)
@@ -267,7 +275,10 @@ async def generate_podcast_show(
     actual_topics_count = len(selected_topics)
     cover_image_url = extract_cover_image(selected_topics)
 
-    await emit_log(f"📊 {actual_topics_count} sujet(s) d'actualité sélectionné(s) pour le script.")
+    await emit_log(f"📊 {actual_topics_count} sujet(s) sélectionné(s) pour l'édition :")
+    for idx, top in enumerate(selected_topics, 1):
+        sources = ", ".join(list(set(a["feed_title"] for a in top["articles"])))
+        await emit_log(f"  • Sujet #{idx} : '{top['topic_title']}' ({top.get('distinct_feed_count', 1)} sources: {sources})")
 
     source_articles = []
     seen_urls = set()
@@ -311,25 +322,19 @@ async def generate_podcast_show(
             "Valeurs autorisées : 'Marie - Neutral', 'Marie - Excited', 'Marie - Angry', 'Marie - Sad', 'Marie - Curious', 'Marie - Happy'."
         )
 
-    custom_system_prompt = get_app_setting("podcast_system_prompt", "")
-    if custom_system_prompt.strip():
-        system_prompt = custom_system_prompt.strip() + f"\n\nAujourd'hui nous sommes le {date_fr}.\nStyle d'antenne : {tone_instruction}\n{theme_note}\n{emotion_instruction}"
-    else:
-        system_prompt = (
-            "Tu es un journaliste radio chevronné et le présentateur principal de l'émission d'actualités 'Vos'. "
-            f"Aujourd'hui nous sommes le {date_fr}.\n"
-            f"Ton rôle est de rédiger un script d'émission d'actualités radio d'une qualité professionnelle irréprochable{theme_note}.\n"
-            f"Style d'antenne souhaité : {tone_instruction}\n\n"
-            "CONSIGNES STRICTES POUR LA RÉDACTION ET LA SYNTHÈSE VOCALE (TTS) :\n"
-            "1. INTERDICTION DE MENTIONNER L'HEURE (ne jamais écrire 'il est 7h30', 'il est 8h' ou toute heure fixe).\n"
-            "2. INTERDICTION ABSOLUE DE FAIRE UN SOMMAIRE OU UN RAPPEL DES TITRES EN INTRO. Après une phrase courte d'accroche (ex: 'Bonjour et bienvenue dans Vos, votre revue de presse du " + date_fr + ".'), entre directement dans le premier sujet d'actualité.\n"
-            "3. INTERDICTION ABSOLUE des crochets et textes entre parenthèses dans le texte des sujets. Pas de [Votre Nom], [Musique], etc.\n"
-            "4. Ne répète jamais le nom de l'émission de façon répétitive.\n"
-            "5. Rédige un français naturel, captivant, vivant et dynamique.\n"
-            "6. Cite clairement et naturellement les médias sources (ex: 'Selon Le Monde...', 'D'après TechCrunch...').\n"
-            "7. Évite les phrases moralisatrices en conclusion."
-            f"{emotion_instruction}"
-        )
+    custom_system_prompt = get_app_setting("podcast_system_prompt", DEFAULT_SYSTEM_PROMPT)
+    if not custom_system_prompt or not custom_system_prompt.strip():
+        custom_system_prompt = DEFAULT_SYSTEM_PROMPT
+
+    system_prompt = (
+        f"{custom_system_prompt.strip()}\n\n"
+        f"Aujourd'hui nous sommes le {date_fr}.\n"
+        f"Style d'antenne souhaité : {tone_instruction}\n"
+        f"{theme_note}\n"
+        f"{emotion_instruction}"
+    )
+
+    await emit_log("📜 Prompt Système assemblé avec les consignes strictes (Pas d'heure, pas de sommaire).")
 
     user_prompt = f"""
     Voici les {actual_topics_count} actualités majeures sélectionnées aujourd'hui ({date_fr}) :
@@ -361,7 +366,7 @@ async def generate_podcast_show(
     Réponds uniquement au format JSON valide.
     """
 
-    await emit_log(f"🧠 Génération du script par l'IA ({prov.capitalize()} - {m_model if prov == 'mistral' else g_model})...")
+    await emit_log(f"🤖 Envoi de la requête de rédaction au LLM ({prov.capitalize()} - {m_model if prov == 'mistral' else g_model})...")
 
     async def call_mistral():
         if not m_key:
@@ -473,6 +478,8 @@ async def generate_podcast_show(
     if not isinstance(script_data, dict):
         script_data = {"script": str(script_data)}
 
+    await emit_log(f"✅ Réponse LLM reçue avec succès ({llm_tokens} tokens consommés).")
+
     raw_title = script_data.get("show_title") or f"Revue de presse du {datetime.now().strftime('%d/%m/%Y')}"
     show_title = clean_podcast_title(raw_title)
     await emit_log(f"📌 Titre retenu pour l'émission : '{show_title}'")
@@ -485,7 +492,6 @@ async def generate_podcast_show(
     elif not isinstance(key_points, list):
         key_points = [str(key_points)]
 
-    # Parse topics array
     script_topics = script_data.get("script_topics") or []
     if not isinstance(script_topics, list) or len(script_topics) == 0:
         raw_script = script_data.get("script", "")
@@ -504,10 +510,16 @@ async def generate_podcast_show(
             for i, (seg_voice, seg_text) in enumerate(segments)
         ]
 
-    await emit_log(f"🎙️ Début du traitement Vocale Voxtral ({len(script_topics)} sujet(s)...)")
+    await emit_log(f"📑 {len(script_topics)} bloc(s) de sujet(s) structuré(s) prêt(s) pour la synthèse vocal Voxtral :")
+    for idx, top in enumerate(script_topics, 1):
+        top_title = top.get("topic_title") or f"Sujet #{idx}"
+        top_emotion = top.get("emotion") or voice_key
+        top_content = top.get("content") or ""
+        await emit_log(f"  • Sujet [{idx}/{len(script_topics)}] : '{top_title}' | Intonation: [{top_emotion}] | Longueur: {len(top_content)} car.")
 
     audio_chunks = []
     full_script_parts = []
+    jingle_filename = get_app_setting("podcast_jingle_filename", "whoosh_default.mp3")
 
     for idx, top in enumerate(script_topics, 1):
         top_title = top.get("topic_title") or f"Sujet #{idx}"
@@ -520,23 +532,26 @@ async def generate_podcast_show(
 
         full_script_parts.append(f"[{top_emotion}]\n{top_content}")
 
-        await emit_log(f"🎙️ TTS Sujet {idx}/{len(script_topics)} : '{top_title[:40]}...' [Voix: {top_emotion}]")
+        await emit_log(f"🎙️ [Sujet {idx}/{len(script_topics)}] Génération audio Voxtral (Voix: [{top_emotion}])...")
         t_start = time.time()
         
         try:
             chunk_bytes = await generate_audio_bytes_for_voice(clean_text, voice_key=top_emotion, api_key=m_key)
             elapsed = round(time.time() - t_start, 1)
             audio_chunks.append(chunk_bytes)
-            await emit_log(f"✅ TTS Sujet {idx}/{len(script_topics)} -> OK ({elapsed}s)")
+            await emit_log(f"  ✓ Sujet {idx}/{len(script_topics)} synthétisé en {elapsed}s (Taille audio: {len(chunk_bytes)} octets)")
+            
+            if idx < len(script_topics):
+                await emit_log(f"  🎵 Woosh de transition inséré entre le Sujet {idx} et le Sujet {idx + 1} ({jingle_filename})")
         except Exception as e:
-            await emit_log(f"⚠️ Erreur TTS Sujet {idx} : {e}")
+            await emit_log(f"  ⚠️ Erreur TTS Sujet {idx} : {e}")
 
     if not audio_chunks:
         fallback_text = sanitize_text_for_speech(all_topics_text[:1000])
         audio_bytes = await generate_audio_bytes_for_voice(fallback_text, voice_key=voice_key, api_key=m_key)
         audio_chunks = [audio_bytes]
 
-    await emit_log("🎵 Insertion du son de transition (whoosh_default.mp3) entre les sujets...")
+    await emit_log(f"🎧 Assemblage des {len(audio_chunks)} blocs audio MP3 avec le jingle '{jingle_filename}'...")
     audio_filename = combine_audio_chunks(audio_chunks)
 
     audio_url = f"{b_url}/api/audio/stream/{audio_filename}{token_param}"
@@ -545,7 +560,9 @@ async def generate_podcast_show(
     filepath = AUDIO_DIR / audio_filename
     duration_secs = get_mp3_duration_seconds(filepath)
     dur_formatted = format_duration_rss(duration_secs)
-    await emit_log(f"🎧 Assemblage audio final terminé (Durée totale : {dur_formatted}).")
+    file_size = filepath.stat().st_size if filepath.exists() else 0
+
+    await emit_log(f"💾 Fichier audio généré : {audio_filename} (Durée : {dur_formatted}, Taille : {file_size} octets)")
 
     key_points_json = json.dumps(key_points, ensure_ascii=False)
     sources_json = json.dumps(source_articles, ensure_ascii=False)
@@ -573,7 +590,7 @@ async def generate_podcast_show(
     conn.commit()
     conn.close()
 
-    await emit_log(f"🎉 Émission ID #{podcast_id} enregistrée et disponible sur AntennaPod !")
+    await emit_log(f"🎉 Émission ID #{podcast_id} enregistrée en BDD et immédiatement disponible sur AntennaPod !")
 
     return {
         "id": podcast_id,

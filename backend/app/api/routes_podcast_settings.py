@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from app.services.podcast import get_app_setting, set_app_setting
+from app.services.podcast import get_app_setting, set_app_setting, DEFAULT_SYSTEM_PROMPT
 
 router = APIRouter(prefix="/api/podcast/settings", tags=["Podcast Settings"])
 
@@ -10,7 +10,9 @@ class SettingsUpdate(BaseModel):
 
 @router.get("/")
 def get_settings():
-    prompt = get_app_setting("podcast_system_prompt", "")
+    prompt = get_app_setting("podcast_system_prompt", DEFAULT_SYSTEM_PROMPT)
+    if not prompt or not prompt.strip():
+        prompt = DEFAULT_SYSTEM_PROMPT
     jingle = get_app_setting("podcast_jingle_filename", "whoosh_default.mp3")
     return {
         "podcast_system_prompt": prompt,

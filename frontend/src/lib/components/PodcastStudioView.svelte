@@ -724,12 +724,12 @@
             {/if}
           </div>
 
-          <div bind:this={logContainer} class="max-h-64 overflow-y-auto space-y-1.5 pr-2 text-gray-300 select-text leading-relaxed">
+          <div bind:this={logContainer} class="max-h-96 overflow-y-auto space-y-1.5 pr-2 text-gray-300 select-text leading-relaxed font-mono">
             {#each generationLogs as log}
-              <div class="font-mono">{log}</div>
+              <div class="font-mono text-[11px] leading-relaxed whitespace-pre-wrap">{log}</div>
             {/each}
             {#if isGenerating}
-              <div class="text-purple-400 animate-pulse font-bold pt-1">⏳ Génération audio en cours...</div>
+              <div class="text-purple-400 animate-pulse font-bold pt-1 text-xs">⚡ Étape en cours...</div>
             {/if}
           </div>
         </div>

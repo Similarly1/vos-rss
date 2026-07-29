@@ -235,6 +235,7 @@ async def create_podcast_stream(payload: PodcastGenerateRequest, request: Reques
             if item is None:
                 break
             yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
+            await asyncio.sleep(0.01)
         
         await task
 

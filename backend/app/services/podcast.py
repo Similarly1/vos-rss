@@ -317,11 +317,34 @@ async def generate_podcast_show(
         if only_verified and c.get("distinct_feed_count", 1) < 3:
             continue
 
+    for c in clusters:
+        if only_verified and c.get("distinct_feed_count", 1) < 3:
+            continue
+
         if theme and theme.strip():
             clean_t = theme.strip().lower()
+            theme_keywords = [clean_t]
+            if clean_t in ["ia", "ai", "intelligence artificielle"]:
+                theme_keywords.extend(["ia", "ai", "intelligence artificielle", "artificial intelligence", "tech", "technologie", "algorithme", "robot", "données"])
+            
+            match_found = False
             cat = (c.get("category") or "").lower()
             title = (c.get("topic_title") or "").lower()
-            if clean_t not in cat and clean_t not in title:
+            
+            for kw in theme_keywords:
+                if kw in cat or kw in title:
+                    match_found = True
+                    break
+                for a in c.get("articles", []):
+                    art_title = (a.get("title") or "").lower()
+                    art_content = (a.get("content") or a.get("description") or "").lower()
+                    if kw in art_title or kw in art_content:
+                        match_found = True
+                        break
+                if match_found:
+                    break
+
+            if not match_found:
                 continue
 
         first_art = c["articles"][0]
@@ -376,7 +399,10 @@ async def generate_podcast_show(
         "debat": "Un style vivant avec des nuances et du recul sur chaque actualité."
     }
     tone_instruction = tones_prompts.get(tone, tones_prompts["journal_matinal"])
-    theme_note = f" (Focus thématique : {theme})" if theme and theme.strip() else ""
+    
+    theme_note = ""
+    if theme and theme.strip():
+        theme_note = f"\n\nTHÈME OBLIGATOIRE DU PODCAST : L'utilisateur exige que l'émission soit axée sur le thème '{theme}'. Tu dois traiter chaque sujet sous l'angle de '{theme}' et faire ressortir cet enjeu thématique dans tes analyses !"
 
     is_dynamic_voice = "dynamic" in (voice_key or "").lower() or "auto" in (voice_key or "").lower()
     
@@ -394,24 +420,25 @@ async def generate_podcast_show(
     system_prompt = (
         f"{custom_system_prompt.strip()}\n\n"
         f"Aujourd'hui nous sommes le {date_fr}.\n"
-        f"Style d'antenne souhaité : {tone_instruction}\n"
-        f"{theme_note}\n"
+        f"Style d'antenne souhaité : {tone_instruction}"
+        f"{theme_note}"
         f"{emotion_instruction}"
     )
 
     await emit_log("📜 Prompt Système assemblé avec les consignes strictes (Pas d'heure, pas de sommaire).")
 
     user_prompt = f"""
-    Voici les {actual_topics_count} actualités majeures sélectionnées aujourd'hui ({date_fr}) :
+    Voici les actualités sélectionnées aujourd'hui ({date_fr}) :
 
     {all_topics_text}
+
+    CONSIGNE NOMBRE DE SUJETS : Tu dois rédiger EXCLUSIVEMENT ET EXACTEMENT {topics_count} sujet(s) distincts dans le tableau 'script_topics' (de topic_index 1 à {topics_count}).
 
     Rédige l'émission sous forme d'un objet JSON strict avec la structure suivante :
     {{
       "show_title": "Titre clair et percutant résumant les sujets phares de l'édition",
       "key_points": [
-        "1 phrase de résumé du sujet #1",
-        "1 phrase de résumé du sujet #2"
+        "1 phrase de résumé du sujet #1"
       ],
       "script_topics": [
         {{
@@ -421,10 +448,10 @@ async def generate_podcast_show(
           "content": "Texte intégral du premier sujet..."
         }},
         {{
-          "topic_index": 2,
-          "topic_title": "Titre du sujet 2",
-          "emotion": "Marie - Excited",
-          "content": "Texte intégral du deuxième sujet..."
+          "topic_index": {topics_count},
+          "topic_title": "Titre du sujet {topics_count}",
+          "emotion": "Marie - Curious",
+          "content": "Texte intégral du dernier sujet..."
         }}
       ]
     }}

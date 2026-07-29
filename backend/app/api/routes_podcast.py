@@ -249,7 +249,7 @@ async def create_podcast_stream(payload: PodcastGenerateRequest, request: Reques
         }
     )
 
-@router.delete("/{podcast_id}")
+@router.delete("/{podcast_id:int}")
 def delete_podcast(podcast_id: int):
     try:
         conn = get_db_connection()

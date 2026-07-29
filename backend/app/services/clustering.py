@@ -189,34 +189,57 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
     clusters.sort(key=lambda c: (c["distinct_feed_count"] > 1, c["latest_published_date"], c["distinct_feed_count"], c["article_count"]), reverse=True)
     return clusters
 
+def clean_html_tags(raw_html: str) -> str:
+    if not raw_html:
+        return ""
+    text = re.sub(r'<(script|style|header|nav|footer|form|svg|img)[^>]*>[\s\S]*?<\/\1>', ' ', raw_html, flags=re.IGNORECASE)
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = re.sub(r'&#\d+;', ' ', text)
+    text = re.sub(r'&[a-zA-Z]+;', ' ', text)
+    return re.sub(r'\s+', ' ', text).strip()
+
 async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True, mistral_model: str = None, gemini_model: str = None):
     """
     Uses Mistral AI or Gemini to create a unified cross-referenced news summary from multiple articles in different languages.
     """
     from app.config import settings
+    m_key = (mistral_key or settings.mistral_api_key or "").strip()
+    g_key = (gemini_key or settings.gemini_api_key or "").strip()
+
     m_model = mistral_model or settings.mistral_discover_model or settings.mistral_model or "mistral-small-latest"
     g_model = gemini_model or settings.gemini_discover_model or settings.gemini_model or "gemini-1.5-flash"
 
-    articles_text = "\n\n".join([
-        f"--- Source : {a.get('feed_title', 'RSS')} (Langue: {a.get('language', 'fr').upper()}) ---\nTitre: {a.get('title')}\nContenu: {(a.get('content') or a.get('description') or '')[:1500]}"
-        for a in cluster_articles[:6]  # Max 6 articles to stay within token limits
-    ])
+    articles_text_parts = []
+    for a in cluster_articles[:6]:
+        raw_text = a.get('content') or a.get('description') or a.get('title') or ''
+        clean_text = clean_html_tags(raw_text)[:1500]
+        articles_text_parts.append(
+            f"--- Source : {a.get('feed_title', 'RSS')} (Langue d'origine: {a.get('language', 'fr').upper()}) ---\n"
+            f"Titre: {clean_html_tags(a.get('title') or '')}\n"
+            f"Contenu: {clean_text}"
+        )
+
+    articles_text = "\n\n".join(articles_text_parts)
 
     system_prompt = (
-        "Tu es un journaliste et analyste d'actualités internationales pour l'application francophone 'Vos'. "
-        "Ton objectif est de croiser les informations issues de médias rédigés en n'importe quelle langue (anglais, allemand, espagnol, etc.) "
-        "qui traitent du MÊME sujet ou événement précis pour rédiger une synthèse globale unifiée, neutre, captivante, complète et sans doublons. "
-        "CONSIGNE CAPITALE ABSOLUE : Tu dois TOUJOURS traduire et rédiger IMPÉRATIVEMENT le titre (synthesis_title), le résumé (summary) ET les points clés (key_takeaways) STRICTEMENT ET 100% EN FRANÇAIS, quelle que soit la langue des articles sources d'origine."
+        "Tu es un grand journaliste et analyste d'actualités internationales pour l'application francophone 'Vos'. "
+        "Ton objectif est de croiser les informations issues de médias rédigés en n'importe quelle langue (anglais, allemand, espagnol, français, etc.) "
+        "qui traitent du MÊME sujet ou événement précis pour rédiger une synthèse globale unifiée, neutre, captivante, complète et sans doublons.\n\n"
+        "CONSIGNES STRICTES :\n"
+        "1. TRADUCTION OBLIGATOIRE EN FRANÇAIS : Tu dois TOUJOURS traduire et rédiger IMPÉRATIVEMENT le titre (synthesis_title), le résumé (summary) ET les points clés (key_takeaways) STRICTEMENT ET 100% EN FRANÇAIS, quelle que soit la langue des articles sources (même s'ils sont en anglais).\n"
+        "2. DÉVELOPPEMENT DU RÉSUMÉ : Le résumé (summary) doit être riche, bien développé et complet (2 à 3 paragraphes détaillés expliquant les faits, les causes et le contexte), et JAMAIS une simple phrase courte.\n"
+        "3. TEXTE PUR SANS BALISES HTML : Ne mets aucune balise HTML (pas de <p>, <img>, <div>). Rédige uniquement du texte brut avec des retours à la ligne naturels."
     )
 
     user_prompt = f"""
-    Voici les articles recensés sur ce sujet en différentes langues :
+    Voici les articles recensés sur cet événement en différentes langues :
+
     {articles_text}
 
-    Rédige une synthèse croisée précise entièrement traduite et structurée en français au format JSON suivant :
+    Rédige une synthèse croisée complète entièrement traduite et structurée en français au format JSON suivant :
     {{
       "synthesis_title": "Titre synthétique, captivant et 100% en français résumant l'événement",
-      "summary": "Résumé journalistique structuré et captivant de l'événement entièrement rédigé en français...",
+      "summary": "Résumé journalistique bien développé (2 à 3 paragraphes complets en français)...",
       "key_takeaways": [
         "Point clé 1 en français...",
         "Point clé 2 en français...",
@@ -227,13 +250,13 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
     """
 
     async def call_mistral():
-        if not mistral_key:
-            raise ValueError("Clé API Mistral manquante.")
+        if not m_key:
+            raise ValueError("Clé API Mistral manquante dans la configuration.")
         async with httpx.AsyncClient() as client:
             res = await client.post(
                 "https://api.mistral.ai/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {mistral_key}",
+                    "Authorization": f"Bearer {m_key}",
                     "Content-Type": "application/json"
                 },
                 json={
@@ -243,21 +266,23 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
                         {"role": "user", "content": user_prompt}
                     ],
                     "response_format": {"type": "json_object"},
-                    "max_tokens": 600
+                    "max_tokens": 1500
                 },
-                timeout=45.0
+                timeout=55.0
             )
             if res.status_code != 200:
-                raise ValueError(f"Erreur Mistral: {res.text}")
-            data = res.json()["choices"][0]["message"]["content"]
-            return json.loads(data)
+                raise ValueError(f"Erreur API Mistral ({res.status_code}): {res.text}")
+            raw_data = res.json()["choices"][0]["message"]["content"]
+            cleaned = re.sub(r"^```json\s*", "", raw_data.strip(), flags=re.IGNORECASE)
+            cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
+            return json.loads(cleaned)
 
     async def call_gemini():
-        if not gemini_key:
-            raise ValueError("Clé API Gemini manquante.")
+        if not g_key:
+            raise ValueError("Clé API Gemini manquante dans la configuration.")
         async with httpx.AsyncClient() as client:
             res = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}",
+                f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={g_key}",
                 headers={"Content-Type": "application/json"},
                 json={
                     "system_instruction": {
@@ -270,12 +295,14 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
                         "responseMimeType": "application/json"
                     }
                 },
-                timeout=45.0
+                timeout=55.0
             )
             if res.status_code != 200:
-                raise ValueError(f"Erreur Gemini: {res.text}")
-            data = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(data)
+                raise ValueError(f"Erreur API Gemini ({res.status_code}): {res.text}")
+            raw_data = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+            cleaned = re.sub(r"^```json\s*", "", raw_data.strip(), flags=re.IGNORECASE)
+            cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
+            return json.loads(cleaned)
 
     async def try_provider(p_name: str):
         if p_name == "mistral":
@@ -283,7 +310,7 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
         elif p_name == "gemini":
             return await call_gemini()
         else:
-            raise ValueError("Fournisseur inconnu.")
+            raise ValueError(f"Fournisseur IA inconnu ({p_name}).")
 
     try:
         return await try_provider(provider)
@@ -291,16 +318,22 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
         print(f"Erreur synthèse avec {provider} : {e}")
         if fallback_enabled:
             fallback_provider = "gemini" if provider == "mistral" else "mistral"
-            print(f"Fallback activé : tentative avec {fallback_provider}...")
-            try:
-                return await try_provider(fallback_provider)
-            except Exception as e2:
-                print(f"Erreur Fallback {fallback_provider} : {e2}")
-                pass
+            has_fb_key = bool(g_key) if fallback_provider == "gemini" else bool(m_key)
+            if has_fb_key:
+                print(f"Fallback activé : tentative avec {fallback_provider}...")
+                try:
+                    return await try_provider(fallback_provider)
+                except Exception as e2:
+                    print(f"Erreur Fallback {fallback_provider} : {e2}")
+        
+        main_art = cluster_articles[0] if cluster_articles else {}
+        clean_title = clean_html_tags(main_art.get("title") or "Événement d'actualité")
+        raw_desc = main_art.get("content") or main_art.get("description") or ""
+        clean_desc = clean_html_tags(raw_desc)[:400]
         
         return {
-            "synthesis_title": cluster_articles[0].get("title"),
-            "summary": f"Erreur de génération du résumé ({provider}).",
+            "synthesis_title": clean_title,
+            "summary": clean_desc or "Synthese en cours de traitement...",
             "key_takeaways": []
         }
 

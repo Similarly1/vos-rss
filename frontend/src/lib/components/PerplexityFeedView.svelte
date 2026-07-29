@@ -55,27 +55,30 @@
     return feeds.size;
   }
 
+  function decodeHtmlEntities(str) {
+    if (!str) return '';
+    let text = str;
+    text = text.replace(/&#(\d+);/g, (m, dec) => String.fromCharCode(dec));
+    text = text.replace(/&#x([0-9a-fA-F]+);/g, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
+    text = text.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#039;/g, "'").replace(/&nbsp;/g, ' ');
+    return text;
+  }
+
   function cleanTextBoilerplate(str) {
     if (!str) return '';
-    // Strip HTML tags and their inner content for scripts, styles, headers, navs, footers
-    let text = str.replace(/<(script|style|header|nav|footer|form|svg)[^>]*>[\s\S]*?<\/\1>/gi, ' ');
-    // Strip header navigation noise strings
+    let text = decodeHtmlEntities(str);
+    text = text.replace(/<(script|style|header|nav|footer|form|svg|img)[^>]*>[\s\S]*?<\/\1>/gi, ' ');
     text = text.replace(/(?:BBC Homepage|Skip to content|Accessibility Help|Your account|Search BBC|More menu|Close menu)[\s\S]*?(?:News|Sport|Weather|Sounds)/gi, ' ');
-    // Strip remaining HTML tags
     text = text.replace(/<[^>]+>/g, ' ');
-    // Collapse spaces
     return text.replace(/\s+/g, ' ').trim();
   }
 
   function renderMarkdownHtml(text) {
     if (!text) return '';
-    let html = text;
-    // Format bold headers & titles (**Text**) with clean styling
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-black text-cyan-200 bg-cyan-950/50 px-1.5 py-0.5 rounded border border-cyan-800/40">$1</strong>');
-    // Format italic text (*Text*)
-    html = html.replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>');
-    // Format paragraph breaks
-    const paragraphs = html.split(/\n\s*\n/);
+    let clean = cleanTextBoilerplate(text);
+    clean = clean.replace(/\*\*(.*?)\*\*/g, '<strong class="font-black text-cyan-200 bg-cyan-950/50 px-1.5 py-0.5 rounded border border-cyan-800/40">$1</strong>');
+    clean = clean.replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>');
+    const paragraphs = clean.split(/\n\s*\n/);
     return paragraphs.map(p => `<p class="leading-relaxed mb-3">${p.trim()}</p>`).join('');
   }
 

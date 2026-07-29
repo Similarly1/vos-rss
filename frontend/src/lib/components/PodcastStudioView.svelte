@@ -729,7 +729,9 @@
               <div class="font-mono text-[11px] leading-relaxed whitespace-pre-wrap">{log}</div>
             {/each}
             {#if isGenerating}
-              <div class="text-purple-400 animate-pulse font-bold pt-1 text-xs">⚡ Étape en cours...</div>
+              <div class="text-purple-400 animate-pulse font-bold pt-1 text-xs">
+                ⚡ {generationLogs.length ? generationLogs[generationLogs.length - 1] : "Initialisation de l'émission..."}
+              </div>
             {/if}
           </div>
         </div>

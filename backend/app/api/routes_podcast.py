@@ -230,6 +230,9 @@ async def create_podcast_stream(payload: PodcastGenerateRequest, request: Reques
 
         task = asyncio.create_task(run_gen())
 
+        # Immediate 4KB SSE comment padding to bypass Nginx proxy buffer
+        yield ": " + (" " * 4096) + "\n\n"
+
         while True:
             item = await queue.get()
             if item is None:

@@ -185,6 +185,26 @@ def format_duration_rss(seconds: int) -> str:
         return f"{h:02d}:{m:02d}:{s:02d}"
     return f"{m:02d}:{s:02d}"
 
+def clean_script_text_content(val) -> str:
+    if not val:
+        return ""
+    if isinstance(val, dict):
+        return str(val.get("content") or val.get("texte") or val.get("text") or " ".join(str(v) for v in val.values()))
+    if isinstance(val, list):
+        return "\n".join(clean_script_text_content(x) for x in val)
+    s = str(val).strip()
+    if s.startswith("{") and s.endswith("}"):
+        try:
+            import ast
+            d = ast.literal_eval(s)
+            if isinstance(d, dict):
+                return str(d.get("content") or d.get("texte") or d.get("text") or " ".join(str(v) for v in d.values()))
+        except Exception:
+            pass
+    s = re.sub(r"^\{['\"](?:intonation|emotion)['\"]\s*:\s*['\"][^'\"]*['\"]\s*,\s*['\"](?:texte|text|content)['\"]\s*:\s*['\"]", "", s)
+    s = re.sub(r"['\"]\}\s*$", "", s)
+    return s.strip()
+
 async def generate_podcast_show(
     topics_count: int = 5,
     max_days: int = 7,
@@ -240,8 +260,8 @@ async def generate_podcast_show(
     await emit_log(f"📅 Date dynamique injectée dans le prompt : {date_fr}")
     await emit_log("📥 Analyse des clusters d'actualités récentes dans SQLite...")
 
-    # Fetch recent clusters from SQLite
-    clusters = compute_article_clusters(similarity_threshold=0.91)
+    # Fetch recent clusters from SQLite (off-thread to avoid freezing asyncio loop)
+    clusters = await asyncio.to_thread(compute_article_clusters, 0.91)
     if not clusters:
         raise ValueError("Aucun article disponible pour composer le podcast.")
 
@@ -514,7 +534,7 @@ async def generate_podcast_show(
     for idx, top in enumerate(script_topics, 1):
         top_title = top.get("topic_title") or f"Sujet #{idx}"
         top_emotion = top.get("emotion") or voice_key
-        top_content = top.get("content") or ""
+        top_content = clean_script_text_content(top.get("content") or top.get("texte") or top.get("text") or top)
         await emit_log(f"  • Sujet [{idx}/{len(script_topics)}] : '{top_title}' | Intonation: [{top_emotion}] | Longueur: {len(top_content)} car.")
 
     audio_chunks = []
@@ -524,7 +544,7 @@ async def generate_podcast_show(
     for idx, top in enumerate(script_topics, 1):
         top_title = top.get("topic_title") or f"Sujet #{idx}"
         top_emotion = top.get("emotion") or voice_key
-        top_content = top.get("content") or ""
+        top_content = clean_script_text_content(top.get("content") or top.get("texte") or top.get("text") or top)
         clean_text = sanitize_text_for_speech(top_content)
         
         if not clean_text:

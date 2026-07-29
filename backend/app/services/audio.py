@@ -252,9 +252,32 @@ async def generate_podcast_audio(text: str, voice_key: str = "Marie - Neutral", 
 
     return combine_audio_chunks(audio_chunks)
 
+def strip_id3_tags(data: bytes) -> bytes:
+    """
+    Strips ID3v2 header and ID3v1 footer from raw MP3 bytes.
+    This guarantees clean MP3 frame concatenation without mid-stream ID3 tags
+    that cause HTML5 audio players and podcast apps to stop playing mid-track.
+    """
+    if not data or not isinstance(data, bytes):
+        return b""
+    # Strip ID3v2 header if present
+    if data.startswith(b"ID3") and len(data) > 10:
+        header_size = 10 + (
+            ((data[6] & 0x7F) << 21) |
+            ((data[7] & 0x7F) << 14) |
+            ((data[8] & 0x7F) << 7) |
+            (data[9] & 0x7F)
+        )
+        if header_size < len(data):
+            data = data[header_size:]
+    # Strip ID3v1 footer if present
+    if len(data) >= 128 and data[-128:-125] == b"TAG":
+        data = data[:-128]
+    return data
+
 def combine_audio_chunks(audio_chunks: list[bytes]) -> str:
     """
-    Concatenates multiple MP3 byte streams into a single combined MP3 file.
+    Concatenates multiple MP3 byte streams into a single combined MP3 file safely.
     """
     from app.database import get_db_connection
     
@@ -279,11 +302,15 @@ def combine_audio_chunks(audio_chunks: list[bytes]) -> str:
         with open(AUDIO_DIR / "whoosh_default.mp3", "rb") as f:
             jingle_bytes = f.read()
 
+    clean_jingle = strip_id3_tags(jingle_bytes)
+
     combined_list = []
     for i, chunk in enumerate(audio_chunks):
-        combined_list.append(chunk)
-        if i < len(audio_chunks) - 1 and jingle_bytes:
-            combined_list.append(jingle_bytes)
+        clean_chunk = strip_id3_tags(chunk)
+        if clean_chunk:
+            combined_list.append(clean_chunk)
+            if i < len(audio_chunks) - 1 and clean_jingle:
+                combined_list.append(clean_jingle)
 
     combined_bytes = b"".join(combined_list)
     combined_hash = hashlib.md5(combined_bytes).hexdigest()

@@ -146,14 +146,16 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
     is_paywalled = False
     is_full_text_available = True
 
-    # CSS selectors for known paywalled media (requires BeautifulSoup)
+    # CSS selectors for known media (requires BeautifulSoup)
     SITE_SELECTORS = {
-        'lemonde.fr':    ['article.article__content p', 'div.article__body p', '.article__paragraph', 'section[data-component="ArticleBody"] p'],
-        'mediapart.fr':  ['div.content-article p', '.article-content p', 'div.text-article p'],
-        'lefigaro.fr':   ['div.fig-content-body p', '.article__text p'],
-        'lesechos.fr':   ['div.content-article p', '.article-body p'],
-        'wsj.com':       ['div.article-content p', 'section.article__content p'],
-        'nytimes.com':   ['section[name="articleBody"] p', 'div.StoryBodyCompanionColumn p'],
+        'lemonde.fr':      ['article.article__content p', 'div.article__body p', '.article__paragraph', 'section[data-component="ArticleBody"] p'],
+        'mediapart.fr':    ['div.content-article p', '.article-content p', 'div.text-article p'],
+        'lefigaro.fr':     ['div.fig-content-body p', '.article__text p'],
+        'lesechos.fr':     ['div.content-article p', '.article-body p'],
+        'wsj.com':         ['div.article-content p', 'section.article__content p'],
+        'nytimes.com':     ['section[name="articleBody"] p', 'div.StoryBodyCompanionColumn p'],
+        'francetvinfo.fr': ['section.body p', 'article p', '.c-body p', 'div.text p', '.content p'],
+        'rts.ch':          ['.article-body p', 'article p', '.content p'],
     }
 
     try:
@@ -176,32 +178,50 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
             headers=headers
         )
         if res.status_code == 200:
-            html = res.text
+            html_text = res.text
             scraped_text = ""
 
             # Try domain-specific CSS selectors first (requires BeautifulSoup)
             if BeautifulSoup:
+                soup = BeautifulSoup(html_text, 'html.parser')
+                # Remove unwanted elements (scripts, styles, nav, header, footer, ads)
+                for s in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'form', 'iframe']):
+                    s.decompose()
+
                 selectors = []
                 for site_key, site_selectors in SITE_SELECTORS.items():
                     if site_key in domain:
                         selectors = site_selectors
                         break
+
                 if selectors:
-                    soup = BeautifulSoup(html, 'html.parser')
                     for sel in selectors:
                         parts = [el.get_text(separator=' ', strip=True)
                                  for el in soup.select(sel)
-                                 if len(el.get_text(strip=True)) > 40]
+                                 if len(el.get_text(strip=True)) > 30]
                         if parts:
                             scraped_text = "\n\n".join(parts)
                             break
 
-            # Generic fallback: paragraph extraction
+                # If no domain selector matched or extracted nothing, try generic soup extraction
+                if not scraped_text:
+                    generic_elements = soup.select('article p, main p, div[class*="article"] p, div[class*="content"] p, p')
+                    parts = []
+                    for el in generic_elements:
+                        txt = el.get_text(separator=' ', strip=True)
+                        if len(txt) > 40 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner", "droits réservés", "tous droits"]):
+                            parts.append(txt)
+                    if len(parts) >= 2:
+                        scraped_text = "\n\n".join(parts)
+
+            # Generic fallback: regex paragraph extraction if BeautifulSoup is not available or returned nothing
             if not scraped_text:
-                paragraphs = re.findall(r'<p[^>]*>(.*?)</p>', html, re.DOTALL | re.IGNORECASE)
+                paragraphs = re.findall(r'<p[^>]*>(.*?)</p>', html_text, re.DOTALL | re.IGNORECASE)
                 clean_paragraphs = []
                 for p in paragraphs:
                     txt = re.sub(r'<[^>]+>', '', p).strip()
+                    import html
+                    txt = html.unescape(txt)
                     if len(txt) > 40 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner"]):
                         clean_paragraphs.append(txt)
                 if len(clean_paragraphs) >= 2:

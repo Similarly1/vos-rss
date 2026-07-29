@@ -148,14 +148,26 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
 
     # CSS selectors for known media (requires BeautifulSoup)
     SITE_SELECTORS = {
-        'lemonde.fr':      ['article.article__content p', 'div.article__body p', '.article__paragraph', 'section[data-component="ArticleBody"] p'],
-        'mediapart.fr':    ['div.content-article p', '.article-content p', 'div.text-article p'],
-        'lefigaro.fr':     ['div.fig-content-body p', '.article__text p'],
-        'lesechos.fr':     ['div.content-article p', '.article-body p'],
-        'wsj.com':         ['div.article-content p', 'section.article__content p'],
-        'nytimes.com':     ['section[name="articleBody"] p', 'div.StoryBodyCompanionColumn p'],
-        'francetvinfo.fr': ['section.body p', 'article p', '.c-body p', 'div.text p', '.content p'],
-        'rts.ch':          ['.article-body p', 'article p', '.content p'],
+        'lemonde.fr':               ['article.article__content p', 'div.article__body p', '.article__paragraph', 'section[data-component="ArticleBody"] p'],
+        'mediapart.fr':             ['div.content-article p', '.article-content p', 'div.text-article p'],
+        'lefigaro.fr':              ['div.fig-content-body p', '.article__text p'],
+        'lesechos.fr':              ['div.content-article p', '.article-body p'],
+        'wsj.com':                  ['div.article-content p', 'section.article__content p'],
+        'nytimes.com':              ['section[name="articleBody"] p', 'div.StoryBodyCompanionColumn p'],
+        'francetvinfo.fr':          ['section.body p', 'article p', '.c-body p', 'div.text p', '.content p'],
+        'rts.ch':                   ['.article-body p', 'article p', '.content p'],
+        'ouest-france.fr':          ['article p', '.article-body p', '.content-body p', 'main p', '.text p'],
+        'rfi.fr':                   ['.t-content__body p', 'article p', '.c-article-content p', '.m-article-text p'],
+        'ladepeche.fr':             ['.article-full__body p', 'article p', '.article__content p'],
+        'letelegramme.fr':          ['.article-body p', 'article p', '.content p'],
+        'courrierinternational.com':['.article-text p', 'article p', '.content p'],
+        'slate.fr':                 ['.article-body p', 'article p', '.content p'],
+        'theconversation.com':      ['.grid-ten p', 'article p', '.content-body p'],
+        'liberation.fr':            ['.article-body p', 'article p', '.story-body p'],
+        'leparisien.fr':            ['.article-section p', 'article p', '.content p'],
+        '20minutes.fr':             ['.content p', 'article p', '.text p'],
+        'bfmtv.com':                ['.article-body p', 'article p', '.content p'],
+        'huffingtonpost.fr':        ['.entry-body p', 'article p', '.content p'],
     }
 
     try:
@@ -185,7 +197,7 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
             if BeautifulSoup:
                 soup = BeautifulSoup(html_text, 'html.parser')
                 # Remove unwanted elements (scripts, styles, nav, header, footer, ads)
-                for s in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'form', 'iframe']):
+                for s in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', 'form', 'iframe', 'noscript']):
                     s.decompose()
 
                 selectors = []
@@ -203,13 +215,26 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
                             scraped_text = "\n\n".join(parts)
                             break
 
-                # If no domain selector matched or extracted nothing, try generic soup extraction
+                # Universal Container Search if domain selector didn't return text
                 if not scraped_text:
-                    generic_elements = soup.select('article p, main p, div[class*="article"] p, div[class*="content"] p, p')
+                    # Look for main content containers (Readability-like algorithm)
+                    containers = soup.select('article, main, div[class*="article"], div[class*="content"], div[class*="body"], div[class*="story"], div[class*="text"], section[class*="content"]')
+                    best_container = None
+                    best_score = 0
+                    
+                    for container in containers:
+                        ps = container.find_all('p')
+                        total_len = sum(len(p.get_text(strip=True)) for p in ps)
+                        if total_len > best_score:
+                            best_score = total_len
+                            best_container = container
+
+                    target = best_container or soup
+                    generic_elements = target.find_all('p')
                     parts = []
                     for el in generic_elements:
                         txt = el.get_text(separator=' ', strip=True)
-                        if len(txt) > 40 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner", "droits réservés", "tous droits"]):
+                        if len(txt) > 35 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner", "droits réservés", "tous droits"]):
                             parts.append(txt)
                     if len(parts) >= 2:
                         scraped_text = "\n\n".join(parts)

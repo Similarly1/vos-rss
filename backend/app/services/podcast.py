@@ -39,7 +39,7 @@ MONTHS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "
 DAYS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 
 def get_french_date_str() -> str:
-    now = datetime.now()
+    now = datetime.now().astimezone()
     day_name = DAYS_FR[now.weekday()]
     month_name = MONTHS_FR[now.month - 1]
     return f"{day_name} {now.day} {month_name} {now.year}"
@@ -226,7 +226,7 @@ async def generate_podcast_show(
     Generates a full podcast episode with streaming logs callback support.
     """
     async def emit_log(msg: str):
-        now_str = datetime.now().strftime("%H:%M:%S")
+        now_str = datetime.now().astimezone().strftime("%H:%M:%S")
         full_msg = f"[{now_str}] {msg}"
         print(f"[Podcast Log] {full_msg}")
         if log_callback:
@@ -260,10 +260,55 @@ async def generate_podcast_show(
     await emit_log(f"📅 Date dynamique injectée dans le prompt : {date_fr}")
     await emit_log("📥 Analyse des clusters d'actualités récentes dans SQLite...")
 
-    # Fetch recent clusters from SQLite (off-thread to avoid freezing asyncio loop)
-    clusters = await asyncio.to_thread(compute_article_clusters, 0.91)
+    # Fetch recent clusters from SQLite (off-thread)
+    try:
+        clusters = await asyncio.to_thread(compute_article_clusters, 0.91)
+    except Exception as e_clus:
+        await emit_log(f"⚠️ Note sur les clusters vectoriels : {e_clus}")
+        clusters = []
+
+    # Fallback to direct recent articles query if no vector clusters exist
     if not clusters:
-        raise ValueError("Aucun article disponible pour composer le podcast.")
+        await emit_log("ℹ️ Aucun cluster vectoriel pré-calculé. Récupération directe des articles récents en base...")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, f.title as feed_title, f.category
+            FROM articles a
+            JOIN feeds f ON a.feed_id = f.id
+            ORDER BY a.published_date DESC
+            LIMIT 30
+        """)
+        art_rows = cursor.fetchall()
+        conn.close()
+
+        if not art_rows:
+            raise ValueError("Aucun article trouvé dans votre base. Veuillez ajouter des flux RSS.")
+
+        cat_map = {}
+        for r in art_rows:
+            cat = r["category"] or "Général"
+            if cat not in cat_map:
+                cat_map[cat] = []
+            cat_map[cat].append({
+                "id": r["id"],
+                "title": r["title"],
+                "content": r["content"] or r["title"],
+                "url": r["url"],
+                "published_date": r["published_date"],
+                "image_url": r["image_url"],
+                "feed_title": r["feed_title"]
+            })
+
+        clusters = []
+        for cat_name, items in cat_map.items():
+            distinct_feeds = len(set(x["feed_title"] for x in items))
+            clusters.append({
+                "topic_title": f"{items[0]['title']}",
+                "category": cat_name,
+                "distinct_feed_count": distinct_feeds,
+                "articles": items
+            })
 
     filtered_clusters = []
     cutoff_date = datetime.now() - timedelta(days=max_days)

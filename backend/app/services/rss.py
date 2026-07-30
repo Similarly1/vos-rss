@@ -19,6 +19,11 @@ try:
 except ImportError:
     BeautifulSoup = None
 
+try:
+    from curl_cffi import requests as curl_requests
+except ImportError:
+    curl_requests = None
+
 from app.database import get_db_connection
 from app.config import settings
 from app.services.feed_analyzer import analyze_feed_completeness, detect_language_from_text
@@ -188,14 +193,27 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
         headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
         headers["Accept-Language"] = "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
 
-        res = httpx.get(
-            article_url, 
-            follow_redirects=True, 
-            timeout=12.0, 
-            headers=headers
-        )
-        if res.status_code == 200:
-            html_text = res.text.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
+        html_text = ""
+        if curl_requests:
+            try:
+                r_curl = curl_requests.get(article_url, impersonate="chrome", timeout=10.0, headers=headers)
+                if r_curl.status_code == 200:
+                    html_text = r_curl.text
+            except Exception:
+                pass
+
+        if not html_text:
+            res = httpx.get(
+                article_url, 
+                follow_redirects=True, 
+                timeout=12.0, 
+                headers=headers
+            )
+            if res.status_code == 200:
+                html_text = res.text
+
+        if html_text:
+            html_text = html_text.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
             scraped_text = ""
 
             # Try domain-specific CSS selectors first (requires BeautifulSoup)

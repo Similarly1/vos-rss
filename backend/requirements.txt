@@ -9,5 +9,6 @@ gTTS
 beautifulsoup4
 cryptography
 python-multipart
+curl_cffi
 
 

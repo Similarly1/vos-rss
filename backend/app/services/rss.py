@@ -222,30 +222,37 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
 
                 # Universal Container Search if domain selector didn't return text
                 if not scraped_text:
-                    # Look for main content containers (Readability-like algorithm)
-                    containers = soup.select('article, main, div[class*="article"], div[class*="content"], div[class*="body"], div[class*="story"], div[class*="text"], section[class*="content"]')
-                    best_container = None
-                    best_score = 0
+                    candidate = (
+                        soup.find('article') or 
+                        soup.find('main') or 
+                        soup.select_one('div[class*="article-body"], div[class*="article-content"], div[class*="entry-content"], div[class*="story-body"], div[class*="content-body"], div[class*="post-content"], section[class*="article"]')
+                    )
                     
-                    for container in containers:
-                        ps = container.find_all('p')
-                        total_len = sum(len(p.get_text(strip=True)) for p in ps)
-                        if total_len > best_score:
-                            best_score = total_len
-                            best_container = container
+                    if not candidate:
+                        containers = soup.select('div[class*="content"], div[class*="body"], div[class*="story"], div[class*="text"], section')
+                        best_score = 0
+                        for c in containers:
+                            txt_len = len(c.get_text(strip=True))
+                            if txt_len > best_score:
+                                best_score = txt_len
+                                candidate = c
 
-                    target = best_container or soup
-                    generic_elements = target.find_all(['p', 'div'])
-                    parts = []
-                    for el in generic_elements:
-                        # Skip containers that have sub-paragraphs to avoid duplicate text
-                        if el.name == 'div' and el.find_all('p'):
-                            continue
-                        txt = el.get_text(separator=' ', strip=True)
-                        if len(txt) > 30 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner", "droits réservés", "tous droits"]):
-                            parts.append(txt)
-                    if parts and sum(len(p) for p in parts) >= 100:
-                        scraped_text = "\n\n".join(parts)
+                    target = candidate or soup.body or soup
+                    
+                    raw_paragraphs = [el.get_text(separator=' ', strip=True) for el in target.find_all(['p', 'h2', 'h3', 'li'])]
+                    clean_parts = []
+                    for txt in raw_paragraphs:
+                        txt_clean = re.sub(r'\s+', ' ', txt).strip()
+                        if len(txt_clean) > 25 and not any(skip in txt_clean.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner", "droits réservés", "tous droits", "mentions légales"]):
+                            clean_parts.append(txt_clean)
+
+                    if clean_parts and sum(len(p) for p in clean_parts) >= 90:
+                        scraped_text = "\n\n".join(clean_parts)
+                    else:
+                        direct_text = target.get_text(separator='\n', strip=True)
+                        lines = [line.strip() for line in direct_text.split('\n') if len(line.strip()) > 30 and not any(skip in line.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner"])]
+                        if lines and sum(len(l) for l in lines) >= 90:
+                            scraped_text = "\n\n".join(lines)
 
             # Generic fallback: regex paragraph extraction if BeautifulSoup is not available or returned nothing
             if not scraped_text:

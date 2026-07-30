@@ -100,23 +100,33 @@
     setTimeout(() => copied = false, 2000);
   }
   let rescrapingState = {};
+  let rescrapeStatus = {};
+
   async function handleRescrape(articleId) {
     if (!articleId) return;
     rescrapingState[articleId] = true;
+    rescrapeStatus[articleId] = null;
     rescrapingState = { ...rescrapingState };
+    rescrapeStatus = { ...rescrapeStatus };
+
     try {
       const res = await fetch(`/api/articles/${articleId}/rescrape`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         if (data.content) {
           articlesList.update(list => list.map(a => a.id === articleId ? { ...a, content: data.content } : a));
+          const count = data.content_length || data.content.length;
+          rescrapeStatus[articleId] = `✓ Texte extrait avec succès (${count} caractères).`;
         }
+      } else {
+        rescrapeStatus[articleId] = "Impossible d'extraire davantage de texte pour cet article.";
       }
     } catch (e) {
-      console.error("Erreur rescrape article:", e);
+      rescrapeStatus[articleId] = "Erreur de connexion lors de la ré-extraction.";
     } finally {
       rescrapingState[articleId] = false;
       rescrapingState = { ...rescrapingState };
+      rescrapeStatus = { ...rescrapeStatus };
     }
   }
 </script>
@@ -291,20 +301,27 @@
       </div>
 
       {#if (selectedArticle.content || '').length < 400}
-        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl">
-          <span class="text-xs text-gray-500 font-medium">Contenu court détecté. Ré-extraire le texte intégral depuis le web ?</span>
-          <button 
-            on:click={() => handleRescrape(selectedArticle.id)}
-            disabled={rescrapingState[selectedArticle.id]}
-            class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
-          >
-            {#if rescrapingState[selectedArticle.id]}
-              <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-              <span>Extraction web...</span>
-            {:else}
-              <span>⚡ Ré-extraire le texte intégral</span>
-            {/if}
-          </button>
+        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 space-y-2 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <span class="text-xs text-gray-500 font-medium">Contenu court détecté. Ré-extraire le texte intégral depuis le web ?</span>
+            <button 
+              on:click={() => handleRescrape(selectedArticle.id)}
+              disabled={rescrapingState[selectedArticle.id]}
+              class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+            >
+              {#if rescrapingState[selectedArticle.id]}
+                <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <span>Extraction web...</span>
+              {:else}
+                <span>⚡ Ré-extraire le texte intégral</span>
+              {/if}
+            </button>
+          </div>
+          {#if rescrapeStatus[selectedArticle.id]}
+            <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              {rescrapeStatus[selectedArticle.id]}
+            </p>
+          {/if}
         </div>
       {/if}
 

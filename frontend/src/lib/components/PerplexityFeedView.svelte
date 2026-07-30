@@ -60,6 +60,9 @@
     let text = decodeHtmlEntities(str);
     text = text.replace(/<(script|style|header|nav|footer|form|svg|img)[^>]*>[\s\S]*?<\/\1>/gi, ' ');
     text = text.replace(/(?:BBC Homepage|Skip to content|Accessibility Help|Your account|Search BBC|More menu|Close menu)[\s\S]*?(?:News|Sport|Weather|Sounds)/gi, ' ');
+    text = text.replace(/\$publish\([^)]*\)/gi, ' ');
+    text = text.replace(/\$swiper\.[a-zA-Z0-9_.]+\([^)]*\)/gi, ' ');
+    text = text.replace(/(?:data-[a-zA-Z0-9_-]+|:[a-zA-Z0-9_-]+|x-[a-zA-Z0-9_-]+)=["'][^"']*["']/gi, ' ');
     text = text.replace(/<[^>]+>/g, ' ');
     return text.replace(/\s+/g, ' ').trim();
   }

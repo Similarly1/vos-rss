@@ -1,5 +1,6 @@
 import json
 import math
+import re
 import httpx
 from datetime import datetime
 from app.database import get_db_connection
@@ -193,6 +194,9 @@ def clean_html_tags(raw_html: str) -> str:
     if not raw_html:
         return ""
     text = re.sub(r'<(script|style|header|nav|footer|form|svg|img)[^>]*>[\s\S]*?<\/\1>', ' ', raw_html, flags=re.IGNORECASE)
+    text = re.sub(r'\$publish\([^)]*\)', ' ', text)
+    text = re.sub(r'\$swiper\.[a-zA-Z0-9_.]+\([^)]*\)', ' ', text)
+    text = re.sub(r'(?:data-[a-zA-Z0-9_-]+|:[a-zA-Z0-9_-]+|x-[a-zA-Z0-9_-]+)="[^"]*"', ' ', text)
     text = re.sub(r'<[^>]+>', ' ', text)
     text = re.sub(r'&#\d+;', ' ', text)
     text = re.sub(r'&[a-zA-Z]+;', ' ', text)

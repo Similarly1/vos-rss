@@ -195,7 +195,7 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
             headers=headers
         )
         if res.status_code == 200:
-            html_text = res.text
+            html_text = res.text.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
             scraped_text = ""
 
             # Try domain-specific CSS selectors first (requires BeautifulSoup)
@@ -215,7 +215,7 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
                     for sel in selectors:
                         parts = [el.get_text(separator=' ', strip=True)
                                  for el in soup.select(sel)
-                                 if len(el.get_text(strip=True)) > 30]
+                                 if len(el.get_text(strip=True)) > 25]
                         if parts:
                             scraped_text = "\n\n".join(parts)
                             break
@@ -235,13 +235,16 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
                             best_container = container
 
                     target = best_container or soup
-                    generic_elements = target.find_all('p')
+                    generic_elements = target.find_all(['p', 'div'])
                     parts = []
                     for el in generic_elements:
+                        # Skip containers that have sub-paragraphs to avoid duplicate text
+                        if el.name == 'div' and el.find_all('p'):
+                            continue
                         txt = el.get_text(separator=' ', strip=True)
-                        if len(txt) > 35 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner", "droits réservés", "tous droits"]):
+                        if len(txt) > 30 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner", "droits réservés", "tous droits"]):
                             parts.append(txt)
-                    if len(parts) >= 2:
+                    if parts and sum(len(p) for p in parts) >= 100:
                         scraped_text = "\n\n".join(parts)
 
             # Generic fallback: regex paragraph extraction if BeautifulSoup is not available or returned nothing
@@ -252,9 +255,9 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
                     txt = re.sub(r'<[^>]+>', '', p).strip()
                     import html
                     txt = html.unescape(txt)
-                    if len(txt) > 40 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner"]):
+                    if len(txt) > 30 and not any(skip in txt.lower() for skip in ["cookie", "privacy", "subscribe", "newsletter", "s'abonner"]):
                         clean_paragraphs.append(txt)
-                if len(clean_paragraphs) >= 2:
+                if clean_paragraphs and sum(len(p) for p in clean_paragraphs) >= 100:
                     scraped_text = "\n\n".join(clean_paragraphs)
                 
             is_paywalled = detect_paywall(html_text, scraped_text)

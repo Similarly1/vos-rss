@@ -17,7 +17,7 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
     # 2. Fetch all catalog feeds with tags
     catalog_query = """
         SELECT cf.id, cf.url, cf.site_url, cf.title, cf.description, cf.icon_url, cf.category, cf.is_verified,
-               cf.is_jti_certified, cf.factuality_rating, cf.bias_rating, cf.media_type,
+               cf.is_full_text, cf.is_jti_certified, cf.factuality_rating, cf.bias_rating, cf.media_type,
                GROUP_CONCAT(t.name) as tags
         FROM catalog_feeds cf
         LEFT JOIN catalog_feed_tags cft ON cf.id = cft.catalog_feed_id
@@ -73,7 +73,7 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
         if row['url'] in user_urls:
             continue
             
-        if is_feed_paywalled(row['url'], row['site_url']):
+        if is_feed_paywalled(row['url'], row['site_url'], row.get('is_full_text', 1)):
             continue
             
         cat = row['category']
@@ -101,7 +101,7 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
     if len(best) < limit:
         for row in catalog_rows:
             if row['url'] not in user_urls and row['url'] not in [b['url'] for b in best]:
-                if not is_feed_paywalled(row['url'], row['site_url']):
+                if not is_feed_paywalled(row['url'], row['site_url'], row.get('is_full_text', 1)):
                     rec = dict(row)
                     rec['tags'] = row['tags'].split(',') if row['tags'] else []
                     rec['explanation'] = "Recommandation découverte (Accès Libre)"

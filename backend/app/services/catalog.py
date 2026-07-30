@@ -195,6 +195,13 @@ def search_catalog(
     }
 
     user_cred_domains = set()
+    if not hide_paywalled:
+        try:
+            row_set = cursor.execute("SELECT value FROM app_settings WHERE key = 'hide_paywalled_without_cookie'").fetchone()
+            if row_set and str(row_set['value']).lower() == 'true':
+                hide_paywalled = True
+        except Exception:
+            pass
     try:
         cursor.execute("SELECT domain FROM media_credentials")
         user_cred_domains = {r["domain"].lower() for r in cursor.fetchall()}

@@ -277,12 +277,12 @@ def search_catalog(
         url_text = f"{row_dict.get('url', '')} {row_dict.get('site_url', '')}".lower()
         # Normalize: strip www. for comparison
         url_text_norm = url_text.replace('www.', '')
+        is_pw = any(p_dom in url_text_norm for p_dom in PAYWALLED_DOMAINS) or row_dict.get('is_full_text') == 0 or row_dict.get('is_full_text') is False
+        norm_cred_domains = {d.replace('www.', '') for d in user_cred_domains}
+        has_cookie = any(c_dom in url_text_norm for c_dom in norm_cred_domains)
+
         if hide_paywalled:
-            is_pw = any(p_dom in url_text_norm for p_dom in PAYWALLED_DOMAINS)
             if is_pw:
-                # Normalize cookie domains too
-                norm_cred_domains = {d.replace('www.', '') for d in user_cred_domains}
-                has_cookie = any(c_dom in url_text_norm for c_dom in norm_cred_domains)
                 row_dict['is_paid'] = True
                 row_dict['has_cookie'] = has_cookie
                 if not has_cookie:
@@ -291,10 +291,8 @@ def search_catalog(
                 row_dict['is_paid'] = False
                 row_dict['has_cookie'] = False
         else:
-            norm_cred_domains = {d.replace('www.', '') for d in user_cred_domains}
-            is_pw = any(p_dom in url_text_norm for p_dom in PAYWALLED_DOMAINS)
             row_dict['is_paid'] = is_pw
-            row_dict['has_cookie'] = is_pw and any(c_dom in url_text_norm for c_dom in norm_cred_domains)
+            row_dict['has_cookie'] = is_pw and has_cookie
         filtered_rows.append(row_dict)
 
     total_count = len(filtered_rows)

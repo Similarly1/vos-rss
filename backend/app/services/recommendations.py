@@ -42,8 +42,12 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
         'lefigaro.fr', 'lesechos.fr'
     }
 
-    def is_feed_paywalled(url: str, site_url: str) -> bool:
+    def is_feed_paywalled(url: str, site_url: str, is_full_text: int = 1) -> bool:
         combined = f"{url or ''} {site_url or ''}".lower()
+        if is_full_text == 0 or is_full_text is False:
+            if any(u_dom in combined for u_dom in user_cred_domains):
+                return False
+            return True
         if 'next.ink/feed/feed' in combined or 'next.ink/feed/' in combined:
             if 'next.ink/feed/free' not in combined:
                 return True

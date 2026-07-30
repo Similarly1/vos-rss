@@ -60,10 +60,11 @@
     let text = decodeHtmlEntities(str);
     text = text.replace(/<(script|style|header|nav|footer|form|svg|img)[^>]*>[\s\S]*?<\/\1>/gi, ' ');
     text = text.replace(/(?:BBC Homepage|Skip to content|Accessibility Help|Your account|Search BBC|More menu|Close menu)[\s\S]*?(?:News|Sport|Weather|Sounds)/gi, ' ');
-    text = text.replace(/\$publish\([^)]*\)/gi, ' ');
-    text = text.replace(/\$swiper\.[a-zA-Z0-9_.]+\([^)]*\)/gi, ' ');
-    text = text.replace(/(?:data-[a-zA-Z0-9_-]+|:[a-zA-Z0-9_-]+|x-[a-zA-Z0-9_-]+)=["'][^"']*["']/gi, ' ');
+    text = text.replace(/\$[a-zA-Z0-9_.]+\([^)]*\)/g, ' ');
+    text = text.replace(/(?:data-[a-zA-Z0-9_-]+|:[a-zA-Z0-9_-]+|x-[a-zA-Z0-9_-]+|@[a-zA-Z0-9_-]+)=["'][^"']*["']/gi, ' ');
+    text = text.replace(/(?:Menü öffnen|watchOverflow|isCollapsed|swiper-init|data-app-hidden|x-lazyload)/gi, ' ');
     text = text.replace(/<[^>]+>/g, ' ');
+    text = text.replace(/[^a-zA-Z0-9àâáäãåçéèêëìíîïñòóôöõøùúûüýÿÀÂÁÄÃÅÇÉÈÊËÌÍÎÏÑÒÓÔÖÕØÙÚÛÜÝŸæÆœŒ\s.,!?'"–-]/g, ' ');
     return text.replace(/\s+/g, ' ').trim();
   }
 
@@ -220,12 +221,12 @@
   }
 
   async function autoSynthesizeClusters(clustersList) {
-    for (const cluster of clustersList.slice(0, 8)) {
+    const toSynthesize = clustersList.slice(0, 6).filter(cluster => {
       const cId = cluster.cluster_id;
       const existing = syntheses[cId] || cluster.precomputed_synthesis;
-      if ((existing && !isLowQualityOrEnglish(existing)) || synthLoading[cId]) continue;
-      await fetchSynthesisForCluster(cluster);
-    }
+      return !(existing && !isLowQualityOrEnglish(existing)) && !synthLoading[cId];
+    });
+    await Promise.all(toSynthesize.map(c => fetchSynthesisForCluster(c)));
   }
 
   async function handleListenSummary(clusterId, title, summaryText) {

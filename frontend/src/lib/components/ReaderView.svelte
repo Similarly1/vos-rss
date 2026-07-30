@@ -99,6 +99,26 @@
     copied = true;
     setTimeout(() => copied = false, 2000);
   }
+  let rescrapingState = {};
+  async function handleRescrape(articleId) {
+    if (!articleId) return;
+    rescrapingState[articleId] = true;
+    rescrapingState = { ...rescrapingState };
+    try {
+      const res = await fetch(`/api/articles/${articleId}/rescrape`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.content) {
+          articlesList.update(list => list.map(a => a.id === articleId ? { ...a, content: data.content } : a));
+        }
+      }
+    } catch (e) {
+      console.error("Erreur rescrape article:", e);
+    } finally {
+      rescrapingState[articleId] = false;
+      rescrapingState = { ...rescrapingState };
+    }
+  }
 </script>
 
 <div class="flex-1 h-full bg-white dark:bg-dark-card overflow-y-auto">
@@ -269,6 +289,24 @@
           <p class="text-gray-400 italic">Aucun contenu disponible pour cet article.</p>
         {/if}
       </div>
+
+      {#if (selectedArticle.content || '').length < 400}
+        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl">
+          <span class="text-xs text-gray-500 font-medium">Contenu court détecté. Ré-extraire le texte intégral depuis le web ?</span>
+          <button 
+            on:click={() => handleRescrape(selectedArticle.id)}
+            disabled={rescrapingState[selectedArticle.id]}
+            class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+          >
+            {#if rescrapingState[selectedArticle.id]}
+              <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              <span>Extraction web...</span>
+            {:else}
+              <span>⚡ Ré-extraire le texte intégral</span>
+            {/if}
+          </button>
+        </div>
+      {/if}
 
     </div>
   {:else}

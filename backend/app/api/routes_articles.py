@@ -63,8 +63,37 @@ def get_article(article_id: int):
     row = cursor.fetchone()
     conn.close()
     if not row:
-        raise HTTPException(status_code=404, detail="Article introuvable")
+        raise HTTPException(status_code=404, detail="Article non trouvé")
     return dict(row)
+
+@router.post("/{article_id}/rescrape")
+def rescrape_article(article_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title, url, content FROM articles WHERE id = ?", (article_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Article introuvable.")
+
+    art = dict(row)
+    from app.services.rss import extract_full_article_content
+    scraped_text, is_pw, is_ft = extract_full_article_content(art["url"], art["content"] or "")
+    
+    if scraped_text:
+        cursor.execute(
+            "UPDATE articles SET content = ?, is_paywalled = ?, is_full_text_available = ? WHERE id = ?",
+            (scraped_text, 1 if is_pw else 0, 1 if is_ft else 0, article_id)
+        )
+        conn.commit()
+
+    conn.close()
+    return {
+        "status": "success",
+        "article_id": article_id,
+        "content": scraped_text or art["content"],
+        "content_length": len(scraped_text or art["content"] or "")
+    }
 
 @router.post("/{article_id}/summarize")
 async def summarize_article(article_id: int, payload: SummarizeRequest):

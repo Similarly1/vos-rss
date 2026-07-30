@@ -14,6 +14,11 @@ try:
 except ImportError:
     HAS_FEEDPARSER = False
 
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
+
 from app.database import get_db_connection
 from app.config import settings
 from app.services.feed_analyzer import analyze_feed_completeness, detect_language_from_text

@@ -11,7 +11,7 @@ def rescrape_all():
     cursor = conn.cursor()
 
     short_arts = cursor.execute("SELECT id, title, url, content FROM articles WHERE LENGTH(content) < 400 AND url LIKE 'http%'").fetchall()
-    print(f"[Re-scraper] Trouvé {len(short_arts)} articles avec contenu court à ré-extraire.")
+    print(f"[Re-scraper] Trouve {len(short_arts)} articles avec contenu court.")
 
     updated_count = 0
     for a in short_arts:
@@ -23,13 +23,14 @@ def rescrape_all():
                     (full_text, 1 if is_pw else 0, 1 if is_ft else 0, a['id'])
                 )
                 updated_count += 1
-                print(f"  ✓ [{a['id']}] Mis à jour ({len(a['content'])} -> {len(full_text)} caractères) : {a['title'][:50]}")
+                title_clean = a['title'][:40].encode('ascii', 'ignore').decode('ascii')
+                print(f"  + [{a['id']}] Mis a jour ({len(a['content'])} -> {len(full_text)} chars) : {title_clean}")
         except Exception as e:
-            print(f"  ✗ Erreur pour {a['id']} : {e}")
+            print(f"  - Erreur pour {a['id']} : {e}")
 
     conn.commit()
     conn.close()
-    print(f"[Re-scraper] Terminé : {updated_count}/{len(short_arts)} articles ré-enrichis en texte intégral.")
+    print(f"[Re-scraper] Termine : {updated_count}/{len(short_arts)} articles re-enrichis en texte integral.")
 
 if __name__ == '__main__':
     rescrape_all()

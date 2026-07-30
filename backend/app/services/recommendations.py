@@ -24,7 +24,7 @@ def get_smart_feed_recommendations(limit: int = 6) -> List[Dict[str, Any]]:
         LEFT JOIN tags t ON cft.tag_id = t.id
         GROUP BY cf.id
     """
-    catalog_rows = cursor.execute(catalog_query).fetchall()
+    catalog_rows = [dict(r) for r in cursor.execute(catalog_query).fetchall()]
     
     # Fetch active user media credentials
     user_cred_domains = set()
@@ -124,6 +124,21 @@ def get_triad_pack_for_category(category: str) -> Dict[str, Any]:
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    PAYWALLED_DOMAINS = {
+        'nzz.ch', 'letemps.ch', 'lemonde.fr', 'mediapart.fr', 'nature.com', 
+        'lqj.ch', 'wsj.com', 'nytimes.com', 'ft.com', 'economist.com',
+        'lefigaro.fr', 'lesechos.fr'
+    }
+
+    user_cred_domains = set()
+    try:
+        cred_rows = cursor.execute("SELECT domain FROM media_credentials").fetchall()
+        for c in cred_rows:
+            if c['domain']:
+                user_cred_domains.add(c['domain'].lower().replace('www.', ''))
+    except Exception:
+        pass
+
     query = """
         SELECT cf.*
         FROM catalog_feeds cf
@@ -135,6 +150,17 @@ def get_triad_pack_for_category(category: str) -> Dict[str, Any]:
     if not rows:
         query_fallback = "SELECT cf.* FROM catalog_feeds cf ORDER BY cf.is_verified DESC, cf.is_jti_certified DESC LIMIT 10"
         rows = [dict(r) for r in cursor.execute(query_fallback).fetchall()]
+
+    valid_rows = []
+    for r in rows:
+        combined = f"{r.get('url', '')} {r.get('site_url', '')}".lower().replace('www.', '')
+        is_pw = any(p_dom in combined for p_dom in PAYWALLED_DOMAINS) or r.get('is_full_text') == 0
+        has_cookie = any(c_dom in combined for c_dom in user_cred_domains)
+        if is_pw and not has_cookie:
+            continue
+        valid_rows.append(r)
+
+    rows = valid_rows
 
     agencies = [r for r in rows if r.get('media_type') == 'Agence' or r.get('is_jti_certified')]
     analysis = [r for r in rows if r.get('media_type') == 'Analyse']

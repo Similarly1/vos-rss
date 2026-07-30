@@ -360,6 +360,22 @@ def get_all_tags() -> List[Dict[str, Any]]:
 def fetch_focus_of_the_day() -> Optional[Dict[str, Any]]:
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    PAYWALLED_DOMAINS = {
+        'nzz.ch', 'letemps.ch', 'lemonde.fr', 'mediapart.fr', 'nature.com', 
+        'lqj.ch', 'wsj.com', 'nytimes.com', 'ft.com', 'economist.com',
+        'lefigaro.fr', 'lesechos.fr'
+    }
+
+    user_cred_domains = set()
+    try:
+        cred_rows = cursor.execute("SELECT domain FROM media_credentials").fetchall()
+        for c in cred_rows:
+            if c['domain']:
+                user_cred_domains.add(c['domain'].lower().replace('www.', ''))
+    except Exception:
+        pass
+
     cursor.execute("SELECT * FROM catalog_feeds WHERE is_verified = 1 ORDER BY id")
     rows = cursor.fetchall()
     if not rows:
@@ -369,9 +385,22 @@ def fetch_focus_of_the_day() -> Optional[Dict[str, Any]]:
     
     if not rows:
         return None
+
+    valid_rows = []
+    for r in rows:
+        row_dict = dict(r)
+        url_text = f"{row_dict.get('url', '')} {row_dict.get('site_url', '')}".lower().replace('www.', '')
+        is_pw = any(p_dom in url_text for p_dom in PAYWALLED_DOMAINS) or row_dict.get('is_full_text') == 0
+        has_cookie = any(c_dom in url_text for c_dom in user_cred_domains)
+        if is_pw and not has_cookie:
+            continue
+        valid_rows.append(row_dict)
+
+    if not valid_rows:
+        return None
         
     day_index = datetime.date.today().toordinal()
-    selected = dict(rows[day_index % len(rows)])
+    selected = dict(valid_rows[day_index % len(valid_rows)])
     selected['category'] = normalize_category(selected.get('category'))
     selected['is_full_text'] = bool(selected.get('is_full_text', 1))
     selected['is_verified'] = bool(selected.get('is_verified', 1))

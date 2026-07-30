@@ -109,6 +109,7 @@ export async function fetchVpsSettings() {
       if (data.article_retention_days) articleRetentionDays.set(data.article_retention_days);
       if (data.article_language) articleLanguageFilter.set(data.article_language);
       if (data.full_text_only !== undefined) fullTextOnlyFilter.set(data.full_text_only);
+      if (data.hide_paywalled_without_cookie !== undefined) hidePaywalledWithoutCookie.set(data.hide_paywalled_without_cookie);
       
       if (data.default_landing_tab) {
         defaultLandingTab.set(data.default_landing_tab);
@@ -207,6 +208,7 @@ export async function saveSettings(
         article_retention_days: retentionDays,
         article_language: langFilter,
         full_text_only: fullTextOnly,
+        hide_paywalled_without_cookie: get(hidePaywalledWithoutCookie),
         default_landing_tab: get(defaultLandingTab),
         nav_tabs_order: JSON.stringify(get(navTabsOrder))
       })
@@ -262,10 +264,14 @@ export async function fetchArticles() {
   try {
     const lang = get(articleLanguageFilter);
     const fullText = get(fullTextOnlyFilter);
+    const hidePaywall = get(hidePaywalledWithoutCookie);
 
     let url = `/api/articles?lang=${lang}`;
     if (fullText) {
       url += `&full_text_only=true`;
+    }
+    if (hidePaywall) {
+      url += `&hide_paywalled=true`;
     }
 
     const res = await fetch(url);

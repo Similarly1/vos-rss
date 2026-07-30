@@ -3,6 +3,9 @@ import { writable } from 'svelte/store';
 export const statsStore = writable({
     listeningTimeMinutes: 0,
     followedFeedsCount: 0,
+    total_articles_count: 0,
+    ingestion_sources: {},
+    podcasts_generated_count: 0,
     articlesRead: 0,
     articlesListened: 0,
     activityHistory: [],
@@ -14,8 +17,11 @@ export const statsStore = writable({
 export async function fetchStats() {
     statsStore.update(s => ({ ...s, loading: true, error: null }));
     try {
-        const res = await fetch('/api/stats');
-        if (!res.ok) throw new Error('Failed to fetch stats');
+        let res = await fetch('/api/v1/stats');
+        if (!res.ok) {
+            res = await fetch('/api/stats');
+        }
+        if (!res.ok) throw new Error('Impossible de charger les statistiques');
         const data = await res.json();
         statsStore.update(s => ({ ...s, ...data, loading: false }));
     } catch (err) {

@@ -17,13 +17,16 @@ class SummarizeRequest(BaseModel):
 @router.get("/")
 def get_articles(
     lang: Optional[str] = Query(None, description="Language filter (fr, en, de, es, all)"),
-    full_text_only: Optional[bool] = Query(False, description="Show only full text articles")
+    full_text_only: Optional[bool] = Query(False, description="Show only full text articles"),
+    hide_paywalled: Optional[bool] = Query(False, description="Hide paywalled articles")
 ):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     query = """
-        SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.category
+        SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, 
+               COALESCE(a.is_paywalled, 0) as is_paywalled, COALESCE(a.is_full_text_available, 1) as is_full_text_available, 
+               f.title as feed_title, f.category
         FROM articles a
         JOIN feeds f ON a.feed_id = f.id
         WHERE 1=1
@@ -36,6 +39,9 @@ def get_articles(
 
     if full_text_only:
         query += " AND (a.is_full_text = 1 OR f.is_full_text = 1)"
+
+    if hide_paywalled:
+        query += " AND (a.is_paywalled = 0 OR a.is_paywalled IS NULL)"
 
     query += " ORDER BY a.id DESC LIMIT 60"
 

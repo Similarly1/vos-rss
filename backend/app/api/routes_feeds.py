@@ -123,6 +123,7 @@ class AppSettingsRequest(BaseModel):
     nav_tabs_order: Optional[str] = None
     default_landing_tab: Optional[str] = None
     webhook_model: Optional[str] = None
+    hide_paywalled_without_cookie: Optional[bool] = None
 
 @router.get("")
 @router.get("/")
@@ -179,6 +180,7 @@ def get_settings():
             "nav_tabs_order": get_app_setting("nav_tabs_order", ""),
             "default_landing_tab": get_app_setting("default_landing_tab", "articles"),
             "webhook_model": get_app_setting("webhook_model", ""),
+            "hide_paywalled_without_cookie": get_app_setting("hide_paywalled_without_cookie", "true").lower() == "true",
         }
     }
 
@@ -265,6 +267,8 @@ def save_settings(payload: AppSettingsRequest):
         set_app_setting("default_landing_tab", payload.default_landing_tab)
     if payload.webhook_model is not None:
         set_app_setting("webhook_model", payload.webhook_model)
+    if payload.hide_paywalled_without_cookie is not None:
+        set_app_setting("hide_paywalled_without_cookie", "true" if payload.hide_paywalled_without_cookie else "false")
         
     return {"status": "success", "message": "Paramètres enregistrés dans le fichier .env et en base !"}
 

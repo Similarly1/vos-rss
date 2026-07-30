@@ -1,6 +1,7 @@
 import os
 import sys
 import asyncio
+import json
 
 # Ensure backend root is in sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -581,6 +582,31 @@ async def seed_massive_catalog_async():
         conn.close()
     except Exception as e:
         print(f"[Catalogue Cleanup Note]: {e}")
+
+    # 4. Appliquer les descriptions enrichies gravées en dur
+    seed_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "enriched_descriptions_seed.json")
+    if os.path.exists(seed_file_path):
+        try:
+            with open(seed_file_path, "r", encoding="utf-8") as f:
+                seed_data = json.load(f)
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            updated_count = 0
+            for item in seed_data:
+                feed_id = item.get("id")
+                new_desc = item.get("new_description")
+                if feed_id and new_desc:
+                    cursor.execute(
+                        "UPDATE catalog_feeds SET enriched_description = ? WHERE id = ?",
+                        (new_desc, feed_id)
+                    )
+                    updated_count += cursor.rowcount
+            conn.commit()
+            conn.close()
+            print(f"[Catalogue Massive Seed] {updated_count} descriptions mises à jour depuis le fichier seed.")
+        except Exception as e:
+            print(f"[Catalogue Enriched Descriptions Note]: {e}")
 
     print(f"[Catalogue Massive Seed] [OK] Insertion effectuée avec succès.")
 

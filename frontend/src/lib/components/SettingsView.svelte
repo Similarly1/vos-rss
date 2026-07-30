@@ -326,6 +326,22 @@
           </div>
 
           <div class="bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">📖 Préférences de Lecture & Filtres</label>
+            <label class="flex items-center gap-3 p-3 bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-primary-300 transition-colors">
+              <input 
+                type="checkbox" 
+                bind:checked={$hidePaywalledWithoutCookie} 
+                on:change={handleSave}
+                class="w-5 h-5 accent-primary-500 rounded" 
+              />
+              <div>
+                <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">Masquer les contenus payants / tronqués</span>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Filtre automatiquement les extraits d'articles payants si vous ne possédez pas d'abonnement actif dans Vos.</p>
+              </div>
+            </label>
+          </div>
+
+          <div class="bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
             <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Onglets Visibles (Menu)</label>
             <div class="grid grid-cols-2 gap-3">
               {#each [

@@ -33,7 +33,7 @@
             </div>
         {:else}
             <!-- KPI Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <!-- Temps d'écoute -->
                 <div class="bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-700/50 hover:border-indigo-500/50 transition-colors">
                     <div class="flex items-center space-x-3 mb-4">
@@ -44,6 +44,9 @@
                     </div>
                     <div class="text-4xl font-bold">
                         {hours}<span class="text-xl text-slate-400 ml-1 mr-2">h</span>{minutes}<span class="text-xl text-slate-400 ml-1">m</span>
+                    </div>
+                    <div class="mt-2 text-xs text-slate-400 font-medium">
+                        🎙️ {$statsStore.podcasts_generated_count || 0} podcasts générés
                     </div>
                 </div>
 
@@ -56,9 +59,31 @@
                         <h3 class="text-lg font-medium text-slate-300">Flux suivis</h3>
                     </div>
                     <div class="text-4xl font-bold">{ $statsStore.followedFeedsCount }</div>
+                    <div class="mt-2 text-xs text-slate-400 font-medium">
+                        📡 Flux RSS actifs en base
+                    </div>
                 </div>
 
-                <!-- Total Articles -->
+                <!-- Volume Articles & Ingestions -->
+                <div class="bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-700/50 hover:border-blue-500/50 transition-colors">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="p-3 bg-blue-500/20 rounded-lg text-blue-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-medium text-slate-300">Articles stockés</h3>
+                    </div>
+                    <div class="text-4xl font-bold">{ $statsStore.total_articles_count || 0 }</div>
+                    <div class="mt-2 text-xs flex gap-2">
+                        <span class="px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-400 border border-blue-500/30">
+                            RSS: {$statsStore.ingestion_sources?.['RSS'] || 0}
+                        </span>
+                        <span class="px-1.5 py-0.5 rounded bg-purple-900/50 text-purple-400 border border-purple-500/30">
+                            OCR/Webhook: {$statsStore.ingestion_sources?.['Webhook / OCR'] || 0}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Total Interactions -->
                 <div class="bg-slate-800 rounded-2xl p-6 shadow-lg border border-slate-700/50 hover:border-amber-500/50 transition-colors">
                     <div class="flex items-center space-x-3 mb-4">
                         <div class="p-3 bg-amber-500/20 rounded-lg text-amber-400">
@@ -67,6 +92,9 @@
                         <h3 class="text-lg font-medium text-slate-300">Interactions</h3>
                     </div>
                     <div class="text-4xl font-bold">{ totalInteractions }</div>
+                    <div class="mt-2 text-xs text-slate-400 font-medium">
+                        📖 {$statsStore.articlesRead || 0} lus • 🔊 {$statsStore.articlesListened || 0} écoutés
+                    </div>
                 </div>
             </div>
 

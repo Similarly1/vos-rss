@@ -135,7 +135,16 @@
     '📷 Photographie', '🧪 Science', '🏛️ Politique'
   ];
 
-  $: groupedCatalogFeeds = catalogFeeds.reduce((acc, feed) => {
+  $: filteredCatalogFeeds = catalogFeeds.filter(feed => {
+    if ($hidePaywalledWithoutCookie) {
+      if (feed.is_paid || feed.is_full_text === 0 || feed.is_full_text === false) {
+        if (!feed.has_cookie) return false;
+      }
+    }
+    return true;
+  });
+
+  $: groupedCatalogFeeds = filteredCatalogFeeds.reduce((acc, feed) => {
     const cat = feed.category || 'Général';
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(feed);
@@ -161,9 +170,15 @@
   async function loadFocusOfTheDay() {
     loadingFocus = true;
     try {
-      const res = await fetch('/api/catalog/focus-of-the-day');
+      const hidePw = $hidePaywalledWithoutCookie ? '?hide_paywalled=true' : '';
+      const res = await fetch(`/api/catalog/focus-of-the-day${hidePw}`);
       if (res.ok) {
-        focusFeed = await res.json();
+        const data = await res.json();
+        if ($hidePaywalledWithoutCookie && data && (data.is_paid || data.is_full_text === 0 || data.is_full_text === false) && !data.has_cookie) {
+          focusFeed = null;
+        } else {
+          focusFeed = data;
+        }
       }
     } catch (e) {
       console.error("Erreur chargement Focus du jour:", e);
@@ -175,10 +190,15 @@
   async function loadRecommendations() {
     loadingRecommendations = true;
     try {
-      const res = await fetch('/api/catalog/recommendations?limit=6');
+      const hidePw = $hidePaywalledWithoutCookie ? '&hide_paywalled=true' : '';
+      const res = await fetch(`/api/catalog/recommendations?limit=6${hidePw}`);
       if (res.ok) {
         const data = await res.json();
-        recommendations = Array.isArray(data) ? data : (data.recommendations || data.feeds || []);
+        let rawRecs = Array.isArray(data) ? data : (data.recommendations || data.feeds || []);
+        if ($hidePaywalledWithoutCookie) {
+          rawRecs = rawRecs.filter(r => !( (r.is_paid || r.is_full_text === 0 || r.is_full_text === false) && !r.has_cookie ));
+        }
+        recommendations = rawRecs;
       }
     } catch (e) {
       console.error("Erreur chargement recommandations:", e);

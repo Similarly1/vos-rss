@@ -252,7 +252,7 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
                 if len(clean_paragraphs) >= 2:
                     scraped_text = "\n\n".join(clean_paragraphs)
                 
-            is_paywalled = detect_paywall(html, scraped_text)
+            is_paywalled = detect_paywall(html_text, scraped_text)
             
             if is_paywalled:
                 is_full_text_available = False

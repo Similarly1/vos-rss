@@ -18,15 +18,6 @@
   let activeCluster = null;
   let modalContainer = null;
 
-  function openCluster(cluster) {
-    activeCluster = cluster;
-    setTimeout(() => {
-      if (modalContainer) {
-        modalContainer.scrollTop = 0;
-      }
-    }, 20);
-  }
-
   let syntheses = {};
   let synthLoading = {};
 
@@ -98,14 +89,78 @@
     return text.startsWith('Erreur') || text.includes('génération du résumé');
   }
 
+  function isLowQualityOrEnglish(synth) {
+    if (!synth) return true;
+    if (synth.is_fallback) return true;
+    const text = synth.summary || '';
+    if (isErrorSummary(text) || text.length < 220 || text.includes('Synthèse IA en cours') || text.includes('<img') || text.includes('<p>')) return true;
+
+    const enWords = [' the ', ' this ', ' after ', ' said ', ' with ', ' from ', ' reported ', ' market ', ' profit ', ' beat ', ' strikes ', ' island ', ' people ', ' killed ', ' live: ', ' quarterly '];
+    const lower = text.toLowerCase();
+    let matches = 0;
+    for (const w of enWords) {
+      if (lower.includes(w)) matches++;
+    }
+    return matches >= 2;
+  }
+
+  function openCluster(cluster) {
+    activeCluster = cluster;
+    const cId = cluster.cluster_id;
+    const existing = syntheses[cId] || cluster.precomputed_synthesis;
+    if (!existing || isLowQualityOrEnglish(existing)) {
+      fetchSynthesisForCluster(cluster);
+    }
+    setTimeout(() => {
+      if (modalContainer) {
+        modalContainer.scrollTop = 0;
+      }
+    }, 20);
+  }
+
+  async function fetchSynthesisForCluster(cluster) {
+    const cId = cluster.cluster_id;
+    if (synthLoading[cId]) return;
+
+    synthLoading[cId] = true;
+    synthLoading = { ...synthLoading };
+
+    try {
+      const activeProvider = $synthesisProvider || ($mistralApiKey ? 'mistral' : 'gemini');
+      const activeKey = activeProvider === 'gemini' ? $geminiApiKey : $mistralApiKey;
+      const activeModel = activeProvider === 'gemini' ? $selectedGeminiDiscoverModel : $selectedMistralDiscoverModel;
+
+      const res = await fetch('/api/clustering/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articles: cluster.articles,
+          provider: activeProvider,
+          api_key: activeKey || null,
+          model: activeModel
+        })
+      });
+
+      const result = await res.json();
+      if (res.ok && result.data) {
+        syntheses[cId] = result.data;
+        syntheses = { ...syntheses };
+      }
+    } catch (err) {
+      console.error(`Erreur synthèse cluster ${cId}:`, err);
+    } finally {
+      synthLoading[cId] = false;
+      synthLoading = { ...synthLoading };
+    }
+  }
+
   function getTeaserSentence(cluster) {
     const cId = cluster.cluster_id;
     const synth = syntheses[cId] || cluster.precomputed_synthesis;
-    if (synth && synth.summary && !isErrorSummary(synth.summary)) {
+    if (synth && synth.summary && !isErrorSummary(synth.summary) && !isLowQualityOrEnglish(synth)) {
       const parts = synth.summary.split('. ');
       return parts.slice(0, 2).join('. ') + (parts.length > 2 ? '.' : '');
     }
-    // Fallback: use first article's content or title
     const raw = cluster.articles[0]?.content || cluster.articles[0]?.description || cluster.articles[0]?.title || '';
     const clean = cleanTextBoilerplate(raw);
     return clean.slice(0, 200) + (clean.length > 200 ? '...' : '');
@@ -132,15 +187,13 @@
         const data = await res.json();
         clusters = data.clusters || [];
 
-        // Load precomputed syntheses immediately!
         clusters.forEach(c => {
-          if (c.precomputed_synthesis) {
+          if (c.precomputed_synthesis && !isLowQualityOrEnglish(c.precomputed_synthesis)) {
             syntheses[c.cluster_id] = c.precomputed_synthesis;
           }
         });
         syntheses = { ...syntheses };
 
-        // Auto-synthesize top clusters in background
         autoSynthesizeClusters(clusters);
       }
     } catch (err) {
@@ -157,43 +210,11 @@
   }
 
   async function autoSynthesizeClusters(clustersList) {
-    for (const cluster of clustersList.slice(0, 10)) {
+    for (const cluster of clustersList.slice(0, 8)) {
       const cId = cluster.cluster_id;
       const existing = syntheses[cId] || cluster.precomputed_synthesis;
-      const isLowQuality = existing && (isErrorSummary(existing.summary) || (existing.summary || '').length < 120 || (existing.summary || '').includes('<img') || (existing.summary || '').includes('<p>'));
-      
-      if (syntheses[cId] || (existing && !isLowQuality) || synthLoading[cId]) continue;
-
-      synthLoading[cId] = true;
-      synthLoading = { ...synthLoading };
-
-      try {
-        const activeProvider = $synthesisProvider || ($mistralApiKey ? 'mistral' : 'gemini');
-        const activeKey = activeProvider === 'gemini' ? $geminiApiKey : $mistralApiKey;
-        const activeModel = activeProvider === 'gemini' ? $selectedGeminiDiscoverModel : $selectedMistralDiscoverModel;
-
-        const res = await fetch('/api/clustering/synthesize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            articles: cluster.articles,
-            provider: activeProvider,
-            api_key: activeKey || null,
-            model: activeModel
-          })
-        });
-
-        const result = await res.json();
-        if (res.ok && result.data) {
-          syntheses[cId] = result.data;
-          syntheses = { ...syntheses };
-        }
-      } catch (err) {
-        console.error(`Erreur synthèse cluster ${cId}:`, err);
-      } finally {
-        synthLoading[cId] = false;
-        synthLoading = { ...synthLoading };
-      }
+      if ((existing && !isLowQualityOrEnglish(existing)) || synthLoading[cId]) continue;
+      await fetchSynthesisForCluster(cluster);
     }
   }
 

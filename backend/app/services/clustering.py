@@ -328,13 +328,12 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
         
         main_art = cluster_articles[0] if cluster_articles else {}
         clean_title = clean_html_tags(main_art.get("title") or "Événement d'actualité")
-        raw_desc = main_art.get("content") or main_art.get("description") or ""
-        clean_desc = clean_html_tags(raw_desc)[:400]
         
         return {
             "synthesis_title": clean_title,
-            "summary": clean_desc or "Synthese en cours de traitement...",
-            "key_takeaways": []
+            "summary": "Synthèse IA en cours de préparation...",
+            "key_takeaways": [],
+            "is_fallback": True
         }
 
 def clear_cluster_cache():
@@ -374,7 +373,8 @@ async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str =
                     mistral_model=settings.mistral_discover_model,
                     gemini_model=settings.gemini_discover_model
                 )
-                c["precomputed_synthesis"] = synth
+                if synth and not synth.get("is_fallback") and len(synth.get("summary", "")) >= 180:
+                    c["precomputed_synthesis"] = synth
             except Exception as e:
                 print(f"[Pre-synthesis note for {c['cluster_id']}]: {e}")
 

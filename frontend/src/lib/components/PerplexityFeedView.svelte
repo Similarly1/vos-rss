@@ -145,6 +145,13 @@
       if (res.ok && result.data) {
         syntheses[cId] = result.data;
         syntheses = { ...syntheses };
+      } else if (result.detail) {
+        syntheses[cId] = {
+          synthesis_title: cluster.topic_title,
+          summary: `⚠️ ${result.detail}`,
+          is_fallback: true
+        };
+        syntheses = { ...syntheses };
       }
     } catch (err) {
       console.error(`Erreur synthèse cluster ${cId}:`, err);

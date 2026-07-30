@@ -307,12 +307,22 @@ def init_db():
         except Exception as e:
             print(f"[Attention] Note sur vec0: {e}")
     
+    # Default setting for hiding paywalled content without cookies
+    try:
+        cursor.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('hide_paywalled_without_cookie', 'true')")
+        cursor.execute("DELETE FROM cluster_cache")
+    except Exception as e:
+        print(f"[Init DB note] {e}")
+
     conn.commit()
     conn.close()
 
     # Run enrichment/seed tasks in background thread so FastAPI starts immediately
     def _background_startup():
         try:
+            from app.services.rss import rescrape_short_articles_in_db
+            rescrape_short_articles_in_db()
+
             from enrich_journalism_trust_batch import enrich_trust_metadata
             from normalize_categories_batch import normalize_all_db_categories
             from seed_quality_catalog import seed as seed_quality_feeds
@@ -321,7 +331,7 @@ def init_db():
             normalize_all_db_categories()
             seed_quality_feeds()
             import_github_catalogs()
-            print("[Startup] Background enrichment/seed/import complete.")
+            print("[Startup] Background enrichment/seed/import/re-scrape complete.")
         except Exception as e:
             print(f"[Startup background note] {e}")
 

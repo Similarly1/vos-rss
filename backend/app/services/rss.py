@@ -273,6 +273,35 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
     # If we didn't scrape anything better, use fallback content
     return fallback_content, is_paywalled, is_full_text_available
 
+def rescrape_short_articles_in_db(limit: int = 60):
+    """
+    Background worker function that rescrapes existing articles in the database that have short excerpts.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, title, url, content FROM articles WHERE LENGTH(content) < 400 AND url LIKE 'http%' LIMIT ?", (limit,))
+        rows = cursor.fetchall()
+        updated_count = 0
+        for r in rows:
+            try:
+                full_text, is_pw, is_ft = extract_full_article_content(r["url"], r["content"] or "")
+                if full_text and len(full_text) > len(r["content"] or ""):
+                    cursor.execute(
+                        "UPDATE articles SET content = ?, is_paywalled = ?, is_full_text_available = ? WHERE id = ?",
+                        (full_text, 1 if is_pw else 0, 1 if is_ft else 0, r["id"])
+                    )
+                    updated_count += 1
+            except Exception:
+                pass
+        conn.commit()
+        if updated_count > 0:
+            print(f"[Auto-Rescraper] {updated_count} articles ré-enrichis en texte intégral.")
+    except Exception as e:
+        print(f"[Auto-Rescraper note] {e}")
+    finally:
+        conn.close()
+
 def clean_old_articles(retention_days: int = 14) -> dict:
     """
     Deletes articles older than retention_days along with their vector embeddings and clears cluster cache.

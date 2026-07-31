@@ -28,6 +28,10 @@
   $: displaySynth = activeSynth || fetchedSynth || cluster?.precomputed_synthesis;
   $: isSynthLoading = synthLoading || localSynthLoading;
 
+  $: if (cluster) {
+    checkAndFetchSynthesis(cluster);
+  }
+
   function isLowQualityOrEnglish(synth, c) {
     if (!synth) return true;
     const text = (synth.synthesis_title || '') + ' ' + (synth.summary || '');

@@ -58,7 +58,7 @@
       </div>
     {:else if activeTab === 'carte'}
       <div transition:fade={{ duration: 200 }} class="absolute inset-0 p-2 sm:p-6">
-        <div class="h-full w-full bg-gray-900 rounded-3xl border border-gray-800 overflow-hidden shadow-2xl flex flex-col items-center justify-center relative">
+        <div class="h-full w-full bg-gray-900 rounded-3xl border border-gray-800 shadow-2xl flex flex-col items-center justify-center relative">
             <GeoMapView />
         </div>
       </div>

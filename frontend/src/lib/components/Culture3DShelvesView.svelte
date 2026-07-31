@@ -26,16 +26,23 @@
   ];
 
   let selectedItem = null;
+  let cultureArticles = [];
   let clusters = [];
   let isLoading = false;
 
   onMount(async () => {
     isLoading = true;
     try {
-      const res = await fetch('/api/clustering/clusters?threshold=0.78&cluster_type=themes');
-      if (res.ok) {
-        const data = await res.json();
-        clusters = data.clusters || [];
+      const [resArts, resClust] = await Promise.allSettled([
+        fetch('/api/articles/culture').then(r => r.ok ? r.json() : []),
+        fetch('/api/clustering/clusters?threshold=0.78&cluster_type=themes').then(r => r.ok ? r.json() : { clusters: [] })
+      ]);
+
+      if (resArts.status === 'fulfilled' && Array.isArray(resArts.value)) {
+        cultureArticles = resArts.value;
+      }
+      if (resClust.status === 'fulfilled' && resClust.value && resClust.value.clusters) {
+        clusters = resClust.value.clusters;
       }
     } catch (err) {
       console.error("Erreur lors de la récupération des éléments culturels:", err);
@@ -43,6 +50,63 @@
       isLoading = false;
     }
   });
+
+  function parseArticleToMedia(art, idx) {
+    const title = art.title || "Titre inconnu";
+    const rawContent = art.content || art.description || "";
+    const lower = (title + " " + rawContent + " " + (art.feed_title || "") + " " + (art.feed_url || "")).toLowerCase();
+    const feedTitleUrl = ((art.feed_title || '') + ' ' + (art.feed_url || '')).toLowerCase();
+
+    const activeFeedUrls = cultureFeeds.filter(f => f.active).map(f => f.url);
+    if (activeFeedUrls.length > 0 && art.feed_url) {
+      const isUrlActive = activeFeedUrls.some(u => art.feed_url.includes(u) || u.includes(art.feed_url));
+      if (!isUrlActive) return null;
+    }
+
+    let type = null;
+    if (/film|cin[eé]ma|s[eé]rie|r[eé]alisateur|acteur|actrice|netflix|streaming|saison|[eé]pisode|box-office|salles|ecranlarge|allocine|cineserie|premiere/i.test(lower)) {
+      type = 'cinema';
+    } else if (/bd|manga|comics|roman graphique|tome|bande dessin[eé]e|illustration|dessinateur|planetebd|bdgest|actuabd/i.test(lower)) {
+      type = 'bd';
+    } else if (/album|musique|chanson|concert|disque|vinyle|mp3|pochette|single|clip|artiste|chanteur|groupe|jazz|francemusique|musicbrainz|pitchfork|citizenjazz|lesinrocks/i.test(lower)) {
+      type = 'music';
+    } else if (/livre|roman|essai|auteur|parution|[eé]dition|bouquin|prix litt[eé]raire|polar|fiction|actualitte|livreshebdo/i.test(lower)) {
+      type = 'book';
+    }
+
+    if (!type) {
+      if (/ecranlarge|allocine|cineserie|premiere|telerama|senscritique/i.test(feedTitleUrl)) type = 'cinema';
+      else if (/planetebd|bdgest|actuabd/i.test(feedTitleUrl)) type = 'bd';
+      else if (/citizenjazz|francemusique|musicbrainz|pitchfork|lesinrocks/i.test(feedTitleUrl)) type = 'music';
+      else type = 'book';
+    }
+
+    const coverUrl = art.image_url || "";
+    const artist = art.feed_title || "Média RSS";
+    const releaseDate = art.published_date ? new Date(art.published_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "Récents";
+
+    const accentColors = ['#4f6ef7', '#f59e0b', '#e879f9', '#10b981', '#ec4899', '#8b5cf6'];
+    const accentColor = accentColors[idx % accentColors.length];
+
+    return {
+      id: `art_${art.id}`,
+      title,
+      artist,
+      type,
+      coverUrl,
+      accentColor,
+      color: '#1a1a24',
+      releaseDate,
+      description: rawContent || "Aucun résumé disponible.",
+      clusterObj: {
+        cluster_id: `art_${art.id}`,
+        topic_title: title,
+        category: art.category || 'Culture',
+        articles: [art],
+        precomputed_synthesis: { summary: rawContent, key_takeaways: [artist, releaseDate] }
+      }
+    };
+  }
 
   // Helper to map a cluster or article to a 3D MediaItem structure
   function parseClusterToMedia(cluster, idx) {
@@ -98,18 +162,11 @@
   }
 
   $: allMediaItems = (() => {
+    if (cultureArticles.length > 0) {
+      return cultureArticles.map((a, i) => parseArticleToMedia(a, i)).filter(Boolean);
+    }
     if (clusters.length > 0) {
       return clusters.map((c, i) => parseClusterToMedia(c, i)).filter(Boolean);
-    }
-    // Fallback on raw articles list if clusters are empty
-    if ($articlesList && $articlesList.length > 0) {
-      return $articlesList.slice(0, 50).map((a, i) => parseClusterToMedia({
-        cluster_id: `art_${a.id}`,
-        topic_title: a.title,
-        category: a.category,
-        articles: [a],
-        precomputed_synthesis: { summary: a.content || a.description || "" }
-      }, i)).filter(Boolean);
     }
     return [];
   })();

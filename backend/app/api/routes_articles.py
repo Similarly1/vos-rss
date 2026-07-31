@@ -50,6 +50,23 @@ def get_articles(
     conn.close()
     return [dict(row) for row in rows]
 
+@router.get("/culture")
+def get_culture_articles():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, 
+               COALESCE(a.is_paywalled, 0) as is_paywalled, COALESCE(a.is_full_text_available, 1) as is_full_text_available, 
+               f.title as feed_title, f.url as feed_url, f.category
+        FROM articles a
+        JOIN feeds f ON a.feed_id = f.id
+        WHERE f.category = 'Étagère Culture'
+        ORDER BY a.published_date DESC LIMIT 100
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
 @router.get("/{article_id}")
 def get_article(article_id: int):
     conn = get_db_connection()

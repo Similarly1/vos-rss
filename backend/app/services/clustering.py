@@ -91,7 +91,42 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
     conn.close()
 
     if not rows:
-        return []
+        # Fallback: if no embeddings exist yet in DB, fetch recent raw articles as basic clusters
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.category
+            FROM articles a
+            JOIN feeds f ON a.feed_id = f.id
+            ORDER BY a.published_date DESC
+            LIMIT 100
+        """)
+        raw_rows = cursor.fetchall()
+        conn.close()
+
+        fallback_clusters = []
+        for r in raw_rows:
+            fallback_clusters.append({
+                "cluster_id": f"cluster_raw_{r['id']}",
+                "topic_title": r["title"],
+                "category": r["category"] or "Général",
+                "article_count": 1,
+                "distinct_feed_count": 1,
+                "distinct_feeds": [r["feed_title"]],
+                "latest_published_date": r["published_date"],
+                "articles": [{
+                    "id": r["id"],
+                    "title": r["title"],
+                    "content": r["content"],
+                    "feed_title": r["feed_title"],
+                    "url": r["url"],
+                    "published_date": r["published_date"],
+                    "image_url": r["image_url"],
+                    "language": r["language"] or "fr",
+                    "is_full_text": bool(r["is_full_text"])
+                }]
+            })
+        return fallback_clusters
 
     articles = []
     for row in rows:

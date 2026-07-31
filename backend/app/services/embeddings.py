@@ -181,7 +181,10 @@ async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", pro
     """
     Vectorizes articles. If force_revectorize is True, clears existing embeddings
     and re-computes vectors for all articles with clean text.
+    Uses asyncio concurrency (Semaphore = 10) to process hundreds of articles in seconds.
     """
+    import asyncio
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -206,19 +209,30 @@ async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", pro
     pending_articles = cursor.fetchall()
     conn.close()
 
+    if not pending_articles:
+        return {"processed_count": 0, "articles": [], "errors": []}
+
     results = []
     errors = []
+    semaphore = asyncio.Semaphore(10)
 
-    for art in pending_articles:
-        try:
-            res = await vectorize_article(art["id"], mistral_key, gemini_key, provider, fallback_provider, mistral_model, gemini_model)
-            results.append(res)
-        except Exception as e:
-            print(f"Erreur vectorisation article {art['id']}: {e}")
-            errors.append(str(e))
+    async def sem_vectorize(art):
+        async with semaphore:
+            try:
+                res = await vectorize_article(art["id"], mistral_key, gemini_key, provider, fallback_provider, mistral_model, gemini_model)
+                return ("ok", res)
+            except Exception as e:
+                print(f"Erreur vectorisation article {art['id']}: {e}")
+                return ("err", str(e))
 
-    if errors and len(results) == 0:
-        raise ValueError(f"Échec de la vectorisation: {errors[0]}")
+    tasks = [sem_vectorize(art) for art in pending_articles]
+    outcomes = await asyncio.gather(*tasks)
+
+    for status, data in outcomes:
+        if status == "ok":
+            results.append(data)
+        else:
+            errors.append(data)
 
     return {
         "processed_count": len(results),

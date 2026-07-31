@@ -43,6 +43,23 @@ def get_vector_status():
         "pending_articles": total_articles - vectorized_count
     }
 
+async def background_vectorize_and_precompute(api_key: str, force_revectorize: bool):
+    try:
+        res = await vectorize_all_pending(
+            mistral_key=api_key,
+            gemini_key=settings.gemini_api_key,
+            provider=settings.vectorization_provider,
+            fallback_provider=settings.vectorization_fallback_provider,
+            mistral_model=settings.mistral_embed_model,
+            gemini_model=settings.gemini_embed_model,
+            force_revectorize=force_revectorize
+        )
+        print(f"[Vectorisation IA] {res.get('processed_count', 0)} articles vectorisés avec succès.")
+        await precompute_and_cache_clusters(mistral_key=api_key)
+        print("[Précalcul Grappes] Grappes et synthèses calculées et mises en cache !")
+    except Exception as e:
+        print(f"[Vectorisation & Grappes Erreur] {e}")
+
 @router.post("/vectorize")
 async def trigger_vectorization(payload: VectorizeRequest, background_tasks: BackgroundTasks):
     api_key = get_vps_api_key(payload.api_key)
@@ -53,20 +70,17 @@ async def trigger_vectorization(payload: VectorizeRequest, background_tasks: Bac
         )
 
     try:
-        res = await vectorize_all_pending(
-            mistral_key=api_key,
-            gemini_key=settings.gemini_api_key,
-            provider=settings.vectorization_provider,
-            fallback_provider=settings.vectorization_fallback_provider,
-            mistral_model=settings.mistral_embed_model,
-            gemini_model=settings.gemini_embed_model,
-            force_revectorize=payload.force_revectorize or False
+        # Launch vectorization AND cluster precomputation in the background to avoid Nginx 504 Gateway Timeout
+        background_tasks.add_task(
+            background_vectorize_and_precompute,
+            api_key,
+            payload.force_revectorize or False
         )
         
-        # Schedule cluster & AI summary pre-computation in the background
-        background_tasks.add_task(precompute_and_cache_clusters, api_key)
-        
-        return {"status": "success", "data": res}
+        return {
+            "status": "success", 
+            "message": "La vectorisation et le calcul des grappes ont été lancés en arrière-plan avec succès !"
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

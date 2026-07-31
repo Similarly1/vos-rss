@@ -335,8 +335,9 @@ def init_db():
         ]
         for url, title in culture_feeds:
             cursor.execute('''
-                INSERT OR IGNORE INTO feeds (url, title, category, language, is_full_text)
+                INSERT INTO feeds (url, title, category, language, is_full_text)
                 VALUES (?, ?, 'Étagère Culture', 'fr', 1)
+                ON CONFLICT(url) DO UPDATE SET category = 'Étagère Culture'
             ''', (url, title))
     except Exception as e:
         print(f"[Init DB note] Culture feeds: {e}")

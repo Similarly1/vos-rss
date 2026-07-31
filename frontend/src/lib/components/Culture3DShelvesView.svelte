@@ -51,18 +51,7 @@
     const category = (cluster.category || "").toLowerCase();
     const lower = (title + " " + rawContent + " " + category).toLowerCase();
     
-    const isCulturalCategory = /culture|livre|musique|cin[eé]ma|bd|art|sorties|m[eé]dia|roman|film|s[eé]rie|spectacle/i.test(category);
-    
-    let type = null;
-    if (/album|musique|chanson|concert|disque|vinyle|mp3|pochette|single|clip|artiste|chanteur|groupe/i.test(lower)) {
-      type = 'music';
-    } else if (/bd|manga|comics|roman graphique|tome|bande dessin[eé]e|illustration|dessinateur/i.test(lower)) {
-      type = 'bd';
-    } else if (/film|cin[eé]ma|s[eé]rie|r[eé]alisateur|acteur|actrice|netflix|streaming|saison|[eé]pisode|box-office|salles/i.test(lower)) {
-      type = 'cinema';
-    } else if (isCulturalCategory || /livre|roman|essai|auteur|parution|[eé]dition|bouquin|prix litt[eé]raire|polar|fiction/i.test(lower)) {
-      type = 'book';
-    }
+    const feedTitleUrl = ((cluster.articles?.[0]?.feed_title || '') + ' ' + (cluster.articles?.[0]?.feed_url || '')).toLowerCase();
 
     const activeFeedUrls = cultureFeeds.filter(f => f.active).map(f => f.url);
     const isCategoryCulture = cluster.category === "Étagère Culture" || (cluster.articles && cluster.articles.some(a => a.category === "Étagère Culture"));
@@ -72,8 +61,19 @@
       return null;
     }
 
-    // Strictly exclude general news, accidents, fires, politics, sports, and weather from culture shelves
-    if (!type) return null;
+    // Determine shelf type from content or feed keywords
+    let type = null;
+    if (/film|cin[eé]ma|s[eé]rie|r[eé]alisateur|acteur|actrice|netflix|streaming|saison|[eé]pisode|box-office|salles|ecranlarge|allocine|cineserie|premiere/i.test(lower + " " + feedTitleUrl)) {
+      type = 'cinema';
+    } else if (/bd|manga|comics|roman graphique|tome|bande dessin[eé]e|illustration|dessinateur|planetebd|bdgest|actuabd/i.test(lower + " " + feedTitleUrl)) {
+      type = 'bd';
+    } else if (/album|musique|chanson|concert|disque|vinyle|mp3|pochette|single|clip|artiste|chanteur|groupe|jazz|francemusique|musicbrainz|pitchfork/i.test(lower + " " + feedTitleUrl)) {
+      type = 'music';
+    } else if (isCulturalCategory || /livre|roman|essai|auteur|parution|[eé]dition|bouquin|prix litt[eé]raire|polar|fiction|actualitte|livreshebdo/i.test(lower + " " + feedTitleUrl)) {
+      type = 'book';
+    }
+
+    if (!type) type = 'book';
 
     const firstArt = cluster.articles?.[0] || {};
     const coverUrl = firstArt.image_url || cluster.image_url || "";

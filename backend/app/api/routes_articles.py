@@ -29,7 +29,7 @@ def get_articles(
                f.title as feed_title, f.category
         FROM articles a
         JOIN feeds f ON a.feed_id = f.id
-        WHERE 1=1
+        WHERE f.category != 'Étagère Culture'
     """
     params = []
 

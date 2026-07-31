@@ -66,7 +66,7 @@ def save_clusters_to_cache(threshold_key: str, clusters: list):
     conn.commit()
     conn.close()
 
-def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_hours: float = None):
+def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_hours: float = None, exclude_culture: bool = False) -> list[dict]:
     """
     Reads all embeddings from DB, computes pairwise cosine similarities across all languages (FR, EN, DE, ES),
     and groups articles into clusters of related news with Centroid Matching & strict temporal proximity.
@@ -78,12 +78,17 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT e.article_id, e.embedding_json, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.category
+    
+    where_clause = "WHERE e.provider = ?"
+    if exclude_culture:
+        where_clause += " AND f.category != 'Étagère Culture'"
+
+    cursor.execute(f"""
+        SELECT e.article_id, e.embedding_json, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.url as feed_url, f.category
         FROM article_embeddings e
         JOIN articles a ON e.article_id = a.id
         JOIN feeds f ON a.feed_id = f.id
-        WHERE e.provider = ?
+        {where_clause}
         ORDER BY a.published_date DESC
         LIMIT 350
     """, (settings.vectorization_provider,))
@@ -94,10 +99,12 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
         # Fallback: if no embeddings exist yet in DB, fetch recent raw articles as basic clusters
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.category
+        raw_where = "WHERE f.category != 'Étagère Culture'" if exclude_culture else ""
+        cursor.execute(f"""
+            SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.url as feed_url, f.category
             FROM articles a
             JOIN feeds f ON a.feed_id = f.id
+            {raw_where}
             ORDER BY a.published_date DESC
             LIMIT 100
         """)
@@ -119,6 +126,7 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
                     "title": r["title"],
                     "content": r["content"],
                     "feed_title": r["feed_title"],
+                    "feed_url": r["feed_url"],
                     "url": r["url"],
                     "published_date": r["published_date"],
                     "image_url": r["image_url"],
@@ -139,6 +147,7 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
                 "content": row["content"],
                 "url": row["url"],
                 "feed_title": row["feed_title"],
+                "feed_url": row["feed_url"],
                 "category": row["category"],
                 "published_date": row["published_date"],
                 "published_dt": pub_dt,
@@ -216,6 +225,7 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
                 "title": a["title"],
                 "content": a["content"],
                 "feed_title": a["feed_title"],
+                "feed_url": a.get("feed_url"),
                 "url": a["url"],
                 "published_date": a["published_date"],
                 "image_url": a["image_url"],

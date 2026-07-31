@@ -324,7 +324,13 @@
         on:mouseenter={() => { if (tooltipTimer) clearTimeout(tooltipTimer); }}
         on:mouseleave={handleMarkerLeave}
       >
-        <div class="w-72 rounded-2xl overflow-hidden shadow-2xl border border-white/10 text-white" style="background: rgba(8, 16, 32, 0.97); backdrop-filter: blur(16px);">
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div 
+          on:click={() => handleMarkerClick(c)}
+          class="w-72 rounded-2xl overflow-hidden shadow-2xl border border-white/10 text-white cursor-pointer hover:border-cyan-500/60 transition-all" 
+          style="background: rgba(8, 16, 32, 0.97); backdrop-filter: blur(16px);"
+        >
           <div class="p-3.5 space-y-2">
             <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style="background-color: {cfg.color}">
               {cfg.label}
@@ -336,7 +342,7 @@
               {getClusterTeaser(c)}
             </p>
             <div class="pt-2 text-[10px] text-cyan-400 flex items-center gap-1 font-medium">
-              <span>Cliquez pour ouvrir la carte complète ➔</span>
+              <span>Cliquez pour lire la synthèse complète ➔</span>
             </div>
           </div>
         </div>

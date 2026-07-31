@@ -33,14 +33,22 @@
   function parseClusterToMedia(cluster, idx) {
     const title = cluster.topic_title || cluster.title || "Titre inconnu";
     const rawContent = cluster.precomputed_synthesis?.summary || cluster.articles?.[0]?.content || "";
-    const lower = (title + " " + rawContent + " " + (cluster.category || "")).toLowerCase();
+    const category = (cluster.category || "").toLowerCase();
+    const lower = (title + " " + rawContent + " " + category).toLowerCase();
     
-    let type = 'book';
-    if (/album|musique|chanson|concert|disque|vinyle|mp3|pochette|single|clip/i.test(lower)) {
+    const isCulturalCategory = /culture|livre|musique|cin[eé]ma|bd|art|sorties|m[eé]dia|roman|film|s[eé]rie|spectacle/i.test(category);
+    
+    let type = null;
+    if (/album|musique|chanson|concert|disque|vinyle|mp3|pochette|single|clip|artiste|chanteur|groupe/i.test(lower)) {
       type = 'music';
-    } else if (/bd|manga|comics|roman graphique|tome|bande dessin[eé]e|illustration/i.test(lower)) {
+    } else if (/bd|manga|comics|roman graphique|tome|bande dessin[eé]e|illustration|dessinateur/i.test(lower)) {
       type = 'bd';
+    } else if (isCulturalCategory || /livre|roman|essai|auteur|parution|[eé]dition|bouquin|prix litt[eé]raire|polar|fiction/i.test(lower)) {
+      type = 'book';
     }
+
+    // Strictly exclude general news, accidents, fires, politics, sports, and weather from culture shelves
+    if (!type) return null;
 
     const firstArt = cluster.articles?.[0] || {};
     const coverUrl = firstArt.image_url || cluster.image_url || "";
@@ -66,17 +74,17 @@
 
   $: allMediaItems = (() => {
     if (clusters.length > 0) {
-      return clusters.map((c, i) => parseClusterToMedia(c, i));
+      return clusters.map((c, i) => parseClusterToMedia(c, i)).filter(Boolean);
     }
     // Fallback on raw articles list if clusters are empty
     if ($articlesList && $articlesList.length > 0) {
-      return $articlesList.slice(0, 30).map((a, i) => parseClusterToMedia({
+      return $articlesList.slice(0, 50).map((a, i) => parseClusterToMedia({
         cluster_id: `art_${a.id}`,
         topic_title: a.title,
         category: a.category,
         articles: [a],
         precomputed_synthesis: { summary: a.content || a.description || "" }
-      }, i));
+      }, i)).filter(Boolean);
     }
     return [];
   })();

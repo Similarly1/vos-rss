@@ -143,14 +143,18 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
             if time_diff_hours > max_allowed_hours:
                 continue
 
-            # Temporal decay penalty (mild reduction for articles further apart within window)
-            decay_factor = max(0.85, 1.0 - (time_diff_hours / max_allowed_hours) * 0.15)
+            # Cap maximum cluster size to prevent mega-clusters
+            if len(cluster_items) >= 15:
+                break
 
-            # Centroid Vector Similarity
+            # Dual Similarity Check: Compare against initial seed article AND current centroid
+            # to prevent centroid drift (snowballing unrelated news into one cluster)
+            sim_seed = cosine_similarity(art_j["vector"], art_i["vector"]) * decay_factor
             centroid = compute_centroid([item["vector"] for item in cluster_items])
-            sim = cosine_similarity(art_j["vector"], centroid) * decay_factor
+            sim_centroid = cosine_similarity(art_j["vector"], centroid) * decay_factor
 
-            if sim >= similarity_threshold:
+            # Both seed similarity and centroid similarity must meet threshold
+            if sim_seed >= similarity_threshold and sim_centroid >= (similarity_threshold * 0.95):
                 cluster_items.append(art_j)
                 visited.add(art_j["id"])
 

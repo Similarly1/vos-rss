@@ -171,6 +171,16 @@
     }
   }
 
+  function getDistinctFeedCount(c) {
+    if (!c) return 0;
+    if (c.distinct_feed_count) return c.distinct_feed_count;
+    if (c.articles && Array.isArray(c.articles)) {
+      const feeds = new Set(c.articles.map(a => a.feed_title || 'RSS'));
+      return feeds.size;
+    }
+    return 1;
+  }
+
   $: activeImg = cluster ? getClusterImage(cluster) : '';
   $: activeTitle = cluster ? getClusterTitle(cluster) : '';
   $: activeFeedsCount = cluster ? getDistinctFeedCount(cluster) : 0;

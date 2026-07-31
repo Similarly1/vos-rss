@@ -9,15 +9,17 @@
     music: { w: 124, h: 124 },
     book: { w: 92, h: 138 },
     bd: { w: 105, h: 140 },
+    cinema: { w: 110, h: 145 },
   };
   const spineW = {
     music: 10,
     book: 16,
     bd: 12,
+    cinema: 14,
   };
 
-  $: d = dims[item.type];
-  $: sw = spineW[item.type];
+  $: d = (item && item.type && dims[item.type]) ? dims[item.type] : dims.cinema;
+  $: sw = (item && item.type && spineW[item.type]) ? spineW[item.type] : 12;
   $: sign = index % 2 === 0 ? -1 : 1;
 </script>
 

@@ -171,6 +171,15 @@
     }
   }
 
+  function getLanguageFlag(lang) {
+    if (!lang) return "🇫🇷";
+    const l = lang.toLowerCase();
+    if (l === "en") return "🇬🇧";
+    if (l === "de") return "🇩🇪";
+    if (l === "es") return "🇪🇸";
+    return "🇫🇷";
+  }
+
   function getDistinctFeedCount(c) {
     if (!c) return 0;
     if (c.distinct_feed_count) return c.distinct_feed_count;

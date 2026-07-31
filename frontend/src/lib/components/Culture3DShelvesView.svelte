@@ -69,7 +69,7 @@
       type = 'bd';
     } else if (/album|musique|chanson|concert|disque|vinyle|mp3|pochette|single|clip|artiste|chanteur|groupe|jazz|francemusique|musicbrainz|pitchfork/i.test(lower + " " + feedTitleUrl)) {
       type = 'music';
-    } else if (isCulturalCategory || /livre|roman|essai|auteur|parution|[eé]dition|bouquin|prix litt[eé]raire|polar|fiction|actualitte|livreshebdo/i.test(lower + " " + feedTitleUrl)) {
+    } else if (isCategoryCulture || /livre|roman|essai|auteur|parution|[eé]dition|bouquin|prix litt[eé]raire|polar|fiction|actualitte|livreshebdo/i.test(lower + " " + feedTitleUrl)) {
       type = 'book';
     }
 

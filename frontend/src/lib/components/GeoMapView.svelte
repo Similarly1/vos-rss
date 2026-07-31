@@ -56,6 +56,7 @@
   let topoData = null;
   let clusters = [];
   let isLoading = false;
+  let totalGeolocated = 0;
 
   let hoveredId = null;
   let tooltip = null;
@@ -153,6 +154,7 @@
       }
 
       markerPositions = grouped;
+      totalGeolocated = rawPoints.length;
     }
   }
 
@@ -164,7 +166,15 @@
         fetch('/api/clustering/clusters?threshold=0.85&cluster_type=events').then(res => res.json())
       ]);
       topoData = rGeo;
-      clusters = rClust.clusters || [];
+      
+      const allC = rClust.clusters || [];
+      clusters = allC.filter(c => {
+         const text = (c.precomputed_synthesis?.synthesis_title || c.topic_title || "") + " " + (c.precomputed_synthesis?.summary || "");
+         const enDeWords = /\b(the|and|is|in|at|which|were|der|die|das|und|ist|nicht)\b/i;
+         const frWords = /\b(le|la|les|des|du|dans|un|une|est)\b/i;
+         if (enDeWords.test(text) && !frWords.test(text)) return false;
+         return true;
+      });
     } catch (e) {
       console.error("Erreur chargement carte/clusters:", e);
     } finally {
@@ -265,8 +275,8 @@
   {:else}
     <!-- Status indicator top banner -->
     <div class="absolute top-4 left-4 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full bg-gray-900/85 border border-white/10 text-xs backdrop-blur-md text-gray-200 shadow-xl">
-      <span class="w-2.5 h-2.5 rounded-full {clusters.length > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
-      <span class="font-semibold">{clusters.length} événement(s) géolocalisé(s)</span>
+      <span class="w-2.5 h-2.5 rounded-full {totalGeolocated > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
+      <span class="font-semibold">{totalGeolocated} événement(s) géolocalisé(s)</span>
       <span class="text-gray-400 text-[11px]">({markerPositions.length} zones sur la carte)</span>
     </div>
 
@@ -408,9 +418,12 @@
             <p class="text-gray-400 text-[11px] leading-relaxed line-clamp-3">
               {getClusterTeaser(c)}
             </p>
-            <div class="pt-2 text-[10px] text-cyan-400 flex items-center gap-1 font-medium">
+            <button 
+              on:click|stopPropagation={() => handleMarkerClick(item)}
+              class="w-full pt-2 text-[10px] text-cyan-400 flex items-center gap-1 font-medium hover:text-cyan-300 hover:underline text-left cursor-pointer"
+            >
               <span>{item.count > 1 ? `Voir les ${item.count} événements de cette zone ➔` : 'Cliquez pour lire la synthèse complète ➔'}</span>
-            </div>
+            </button>
           </div>
         </div>
       </div>

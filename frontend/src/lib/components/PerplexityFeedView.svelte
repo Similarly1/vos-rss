@@ -201,8 +201,14 @@
       const res = await fetch(`/api/clustering/clusters?threshold=${threshold}&cluster_type=${perplexityMode}`);
       if (res.ok) {
         const data = await res.json();
-        clusters = data.clusters || [];
-
+        const allC = data.clusters || [];
+        clusters = allC.filter(c => {
+           const text = (c.precomputed_synthesis?.synthesis_title || c.topic_title || "") + " " + (c.precomputed_synthesis?.summary || "");
+           const enDeWords = /\b(the|and|is|in|at|which|were|der|die|das|und|ist|nicht)\b/i;
+           const frWords = /\b(le|la|les|des|du|dans|un|une|est)\b/i;
+           if (enDeWords.test(text) && !frWords.test(text)) return false;
+           return true;
+        });
         clusters.forEach(c => {
           if (c.precomputed_synthesis && !isLowQualityOrEnglish(c.precomputed_synthesis)) {
             syntheses[c.cluster_id] = c.precomputed_synthesis;

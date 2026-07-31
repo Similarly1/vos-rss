@@ -5,7 +5,7 @@
 
   const ALL_TABS = {
     podcast: { id: 'podcast', view: 'podcast', icon: '🎙️', label: 'Studio Podcast', extra: '<span class="text-[9px] bg-purple-500 text-white font-black px-1.5 py-0.5 rounded-full uppercase">Émission</span>', activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' },
-    perplexity: { id: 'perplexity', view: 'perplexity', icon: '⚡', label: 'Fil Perplexity', activeClass: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500' },
+    perplexity: { id: 'perplexity', view: 'perplexity', icon: '🧭', label: 'Explorer', activeClass: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500' },
     feeds: { id: 'feeds', view: 'articles', icon: '📰', label: 'Articles', activeClass: 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' },
     webhooks: { id: 'webhooks', view: 'webhooks', icon: '🔌', label: 'Webhooks Ingestion', activeClass: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500' },
     synthesis: { id: 'synthesis', view: 'synthesis', icon: '🧪', label: 'Synthèses IA', activeClass: 'bg-primary-50 dark:bg-primary-900/50 text-primary-500' },

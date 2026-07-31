@@ -31,3 +31,6 @@ vos.db
 # Audio cache
 backend/audio_cache/*
 !backend/audio_cache/whoosh_default.mp3
+
+# Script Gtask
+Tools/

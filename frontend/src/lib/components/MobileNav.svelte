@@ -5,7 +5,7 @@
 
   const ALL_TABS = {
     podcast: { id: 'podcast', view: 'podcast', iconPath: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z', label: 'Podcast', activeClass: 'text-purple-400 font-semibold' },
-    perplexity: { id: 'perplexity', view: 'perplexity', iconPath: 'M13 10V3L4 14h7v7l9-11h-7z', label: 'Fil', activeClass: 'text-cyan-400 font-semibold' },
+    perplexity: { id: 'perplexity', view: 'perplexity', iconPath: 'M12 2a10 10 0 1010 10A10 10 0 0012 2zm0 18a8 8 0 118-8 8 8 0 01-8 8zm-1-13l-2 6 6 2 2-6-6-2z', label: 'Explorer', activeClass: 'text-cyan-400 font-semibold' },
     feeds: { id: 'feeds', view: 'articles', iconPath: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10', label: 'Articles', activeClass: 'text-primary-400 font-semibold' },
     webhooks: { id: 'webhooks', view: 'webhooks', iconPath: 'M13 10V3L4 14h7v7l9-11h-7z', label: 'Webhooks', activeClass: 'text-emerald-400 font-semibold' },
     discover: { id: 'discover', view: 'discover', iconPath: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z', label: 'Catalogue', activeClass: 'text-indigo-400 font-semibold' },

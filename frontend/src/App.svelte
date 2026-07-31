@@ -8,7 +8,7 @@
   import MobileNav from './lib/components/MobileNav.svelte';
   import DiscoverView from './lib/components/DiscoverView.svelte';
   import SynthesisView from './lib/components/SynthesisView.svelte';
-  import PerplexityFeedView from './lib/components/PerplexityFeedView.svelte';
+  import ExplorerView from './lib/components/ExplorerView.svelte';
   import PodcastStudioView from './lib/components/PodcastStudioView.svelte';
   import SettingsView from './lib/components/SettingsView.svelte';
   import AddFeedModal from './lib/components/AddFeedModal.svelte';
@@ -43,7 +43,7 @@
       {#if $currentView === 'podcast'}
         <PodcastStudioView />
       {:else if $currentView === 'perplexity'}
-        <PerplexityFeedView />
+        <ExplorerView />
       {:else if $currentView === 'webhooks'}
         <WebhookManagerView />
       {:else if $currentView === 'discover'}
@@ -66,7 +66,7 @@
       {#if $currentView === 'podcast'}
         <PodcastStudioView />
       {:else if $currentView === 'perplexity'}
-        <PerplexityFeedView />
+        <ExplorerView />
       {:else if $currentView === 'webhooks'}
         <WebhookManagerView />
       {:else if $currentView === 'discover'}

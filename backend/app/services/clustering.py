@@ -233,7 +233,8 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
         "CONSIGNES STRICTES :\n"
         "1. TRADUCTION OBLIGATOIRE EN FRANÇAIS : Tu dois TOUJOURS traduire et rédiger IMPÉRATIVEMENT le titre (synthesis_title), le résumé (summary) ET les points clés (key_takeaways) STRICTEMENT ET 100% EN FRANÇAIS, quelle que soit la langue des articles sources (même s'ils sont en anglais).\n"
         "2. DÉVELOPPEMENT DU RÉSUMÉ : Le résumé (summary) doit être riche, bien développé et complet (2 à 3 paragraphes détaillés expliquant les faits, les causes et le contexte), et JAMAIS une simple phrase courte.\n"
-        "3. TEXTE PUR SANS BALISES HTML : Ne mets aucune balise HTML (pas de <p>, <img>, <div>). Rédige uniquement du texte brut avec des retours à la ligne naturels."
+        "3. TEXTE PUR SANS BALISES HTML : Ne mets aucune balise HTML (pas de <p>, <img>, <div>). Rédige uniquement du texte brut avec des retours à la ligne naturels.\n"
+        "4. GÉOLOCALISATION : Si l'événement possède un ancrage géographique très strict et précis (une ville, un pays précis, une région spécifique, par ex: 'Genève', 'Ukraine', 'Tokyo', 'Paris'), fournis `location_name`, `latitude` et `longitude`. Si l'événement est abstrait ou sans ancrage précis, retourne null pour ces 3 champs."
     )
 
     user_prompt = f"""
@@ -249,8 +250,12 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
         "Point clé 1 en français...",
         "Point clé 2 en français...",
         "Point clé 3 en français..."
-      ]
+      ],
+      "location_name": "Nom du lieu précis (ex: 'Genève') ou null",
+      "latitude": 46.2044,
+      "longitude": 6.1432
     }}
+    Remarque: latitude et longitude doivent être des float (ex: 46.2044) ou null.
     Réponds uniquement au format JSON valide.
     """
 

@@ -72,7 +72,7 @@
     if (!feed) return badges;
 
     if (feed.is_jti_certified) {
-      badges.push({ text: '🛡️ Certifié JTI (RSF)', class: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' });
+      badges.push({ text: '🛡️ Certifié JTI (RSF)', class: 'bg-primary text-primary-foreground/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' });
     }
     if (feed.factuality_rating === 'High' || feed.factuality_rating === 'Very High') {
       badges.push({ text: '⚖️ Factuel', class: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30' });
@@ -86,14 +86,14 @@
     } else if (bias === 'center' || bias === 'centre' || bias === 'least biased') {
       badges.push({ text: '🌐 Centre / Neutre', class: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30' });
     } else if (bias === 'right-center' || bias === 'centre-droit') {
-      badges.push({ text: '🟦 Centre-Droit', class: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' });
+      badges.push({ text: '🟦 Centre-Droit', class: 'bg-primary text-primary-foreground/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' });
     } else if (bias === 'right' || bias === 'droite') {
       badges.push({ text: '🟠 Droite', class: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30' });
     }
 
     const type = feed.media_type || 'Général';
     if (type === 'Agence') {
-      badges.push({ text: '📡 Agence', class: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30' });
+      badges.push({ text: '📡 Agence', class: 'bg-primary text-primary-foreground/15 text-purple-600 dark:text-purple-400 border-purple-500/30' });
     } else if (type === 'Analyse') {
       badges.push({ text: '📖 Analyse', class: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' });
     } else if (type === 'Régional') {
@@ -422,14 +422,14 @@
 </script>
 
 <!-- ═══════════════════════════════════════════════ MAIN LAYOUT ══ -->
-<div class="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-dark-bg scroll-smooth">
+<div class="flex-1 h-full overflow-y-auto bg-background scroll-smooth">
   <div class="max-w-5xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-10 space-y-8">
 
     <!-- ── Focus du Jour (Hero Banner HD) ── -->
     {#if focusFeed}
       {@const isSubbedFocus = alreadySubscribedUrls.includes((focusFeed.url || '').toLowerCase()) || subscribedSuccessMap[focusFeed.url]}
       {@const heroBg = getHeroBackgroundImage(focusFeed)}
-      <div class="relative w-full rounded-3xl overflow-hidden shadow-2xl group border border-gray-100 dark:border-gray-800/80">
+      <div class="relative w-full rounded-3xl overflow-hidden shadow-2xl group border border-border/80">
         <!-- Background HD Wallpaper with Gradient Overlay -->
         <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-black/30 z-10"></div>
         <img 
@@ -482,7 +482,7 @@
             </button>
 
             {#if isSubbedFocus}
-              <span class="px-5 py-2.5 min-h-[44px] bg-emerald-500/90 text-white font-bold text-xs md:text-sm rounded-xl shadow-xl flex items-center justify-center gap-1.5 backdrop-blur-md border border-emerald-400/30">
+              <span class="px-5 py-2.5 min-h-[44px] bg-primary text-primary-foreground/90 text-white font-bold text-xs md:text-sm rounded-xl shadow-xl flex items-center justify-center gap-1.5 backdrop-blur-md border border-emerald-400/30">
                 ✓ Abonné
               </span>
             {:else}
@@ -518,7 +518,7 @@
             <!-- svelte-ignore a11y-click-events-have-key-events -->
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div 
-              class="group relative bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-2xl p-5 hover:border-cyan-300 dark:hover:border-purple-500/50 shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 dark:hover:shadow-purple-500/10 transition-all duration-300 flex flex-col gap-4 cursor-pointer overflow-hidden transform hover:-translate-y-1"
+              class="group relative bg-card text-card-foreground border border-border rounded-2xl p-5 hover:border-cyan-300 dark:hover:border-purple-500/50 shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 dark:hover:shadow-purple-500/10 transition-all duration-300 flex flex-col gap-4 cursor-pointer overflow-hidden transform hover:-translate-y-1"
               on:click={() => openPreview(rec)}
             >
               <!-- Gradient glow effect on hover -->
@@ -528,7 +528,7 @@
                 <img
                   src={rec.icon_url || `https://www.google.com/s2/favicons?domain=${rec.site_url || rec.url}&sz=128`}
                   alt=""
-                  class="w-14 h-14 rounded-xl object-contain bg-gray-50 dark:bg-gray-800/80 p-1.5 shrink-0 shadow-sm border border-gray-100 dark:border-gray-700/50 group-hover:scale-105 transition-transform duration-300"
+                  class="w-14 h-14 rounded-xl object-contain bg-gray-50 dark:bg-card/80 p-1.5 shrink-0 shadow-sm border border-gray-100 dark:border-gray-700/50 group-hover:scale-105 transition-transform duration-300"
                   on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=rss.com&sz=128'}
                 />
                 <div class="flex-1 min-w-0">
@@ -544,7 +544,7 @@
               </div>
 
               {#if rec.explanation}
-                <div class="relative z-10 px-3 py-2.5 rounded-xl bg-gray-50/50 dark:bg-gray-800/30 border border-gray-100/50 dark:border-gray-700/30">
+                <div class="relative z-10 px-3 py-2.5 rounded-xl bg-gray-50/50 dark:bg-card/30 border border-gray-100/50 dark:border-gray-700/30">
                   <p class="text-[13px] font-semibold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-purple-600 dark:from-cyan-400 dark:to-purple-400 italic">
                     « {rec.explanation} »
                   </p>
@@ -555,14 +555,14 @@
                 {rec.enriched_description || rec.description || `Découvrez les actualités de ${rec.title}.`}
               </p>
               
-              <div class="relative z-10 mt-auto pt-4 border-t border-gray-100 dark:border-gray-800/60 flex items-center justify-between" on:click|stopPropagation>
+              <div class="relative z-10 mt-auto pt-4 border-t border-border/60 flex items-center justify-between" on:click|stopPropagation>
                 <div class="flex items-center gap-1.5 flex-wrap">
                   <span class="text-xs">{getCountryFlag(rec.country, rec.language)}</span>
-                  <span class="text-[10px] uppercase font-black tracking-wider text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">{rec.category || 'Recommandation'}</span>
+                  <span class="text-[10px] uppercase font-black tracking-wider text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-card px-2 py-1 rounded-md">{rec.category || 'Recommandation'}</span>
                 </div>
                 
                 {#if isAlreadySub}
-                  <span class="inline-flex items-center gap-1.5 px-4 py-2 min-h-[38px] text-sm font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-100 dark:border-emerald-800/60 shadow-sm">
+                  <span class="inline-flex items-center gap-1.5 px-4 py-2 min-h-[38px] text-sm font-bold text-emerald-600 dark:text-emerald-400 bg-primary/10 dark:bg-emerald-950/40 rounded-xl border border-emerald-100 dark:border-emerald-800/60 shadow-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                     Abonné
                   </span>
@@ -614,10 +614,10 @@
             bind:value={searchQuery}
             on:input={handleSearchInput}
             on:keydown={handleKeydown}
-            class="w-full bg-white dark:bg-dark-card text-gray-900 dark:text-white border rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500
+            class="w-full bg-card text-card-foreground text-gray-900 dark:text-white border rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500
               {isWebMode
                 ? 'border-primary-300 dark:border-primary-700 focus:ring-primary-500 focus:border-transparent'
-                : 'border-gray-200 dark:border-gray-700 focus:ring-primary-500 focus:border-transparent'}"
+                : 'border-border focus:ring-primary-500 focus:border-transparent'}"
           />
         </div>
 
@@ -626,7 +626,7 @@
           <select
             bind:value={selectedCategory}
             on:change={() => selectCategory(selectedCategory)}
-            class="bg-white dark:bg-dark-card text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 px-3 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            class="bg-card text-card-foreground text-gray-700 dark:text-gray-300 border border-border rounded-xl py-2.5 px-3 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
           >
             {#each categories as cat}
               <option value={cat}>{cat === 'Tous' ? 'Catégorie' : cat}</option>
@@ -636,7 +636,7 @@
           <select
             bind:value={selectedLanguageFilter}
             on:change={() => selectLanguage(selectedLanguageFilter)}
-            class="bg-white dark:bg-dark-card text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 px-3 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            class="bg-card text-card-foreground text-gray-700 dark:text-gray-300 border border-border rounded-xl py-2.5 px-3 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
           >
             {#each languages as lang}
               <option value={lang.code}>{lang.label}</option>
@@ -650,7 +650,7 @@
             on:click={handleActionClick}
             disabled={discoveringFeed || searchingLocal}
             class="px-4 py-2.5 font-semibold text-sm rounded-xl shadow-sm transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50
-              {isWebMode ? 'bg-primary-500 hover:bg-primary-600 text-white' : 'bg-primary-500 hover:bg-primary-600 text-white'}"
+              {isWebMode ? 'bg-primary hover:opacity-90 text-primary-foreground' : 'bg-primary hover:opacity-90 text-primary-foreground'}"
           >
             {#if discoveringFeed || searchingLocal}
               <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -690,7 +690,7 @@
           {#each localSuggestions as pill}
             <button
               on:click={() => selectSuggestion(pill)}
-              class="px-2.5 py-1 text-xs bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-primary-400 hover:text-primary-500 rounded-lg font-medium transition-all"
+              class="px-2.5 py-1 text-xs bg-card text-card-foreground border border-border text-gray-600 dark:text-gray-300 hover:border-primary-400 hover:text-primary rounded-lg font-medium transition-all"
             >
               {pill}
             </button>
@@ -701,14 +701,14 @@
         <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
           <button
             on:click={() => selectTag('Tous')}
-            class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all shrink-0 {selectedTag === 'Tous' ? 'bg-primary-500 text-white' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300'}"
+            class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all shrink-0 {selectedTag === 'Tous' ? 'bg-primary-500 text-white' : 'bg-card text-card-foreground text-gray-600 dark:text-gray-300 border border-border hover:border-gray-300'}"
           >
             Tous
           </button>
           {#each availableTags as tagObj}
             <button
               on:click={() => selectTag(tagObj.name)}
-              class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all shrink-0 flex items-center gap-1 {selectedTag === tagObj.name ? 'bg-primary-500 text-white' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300'}"
+              class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all shrink-0 flex items-center gap-1 {selectedTag === tagObj.name ? 'bg-primary-500 text-white' : 'bg-card text-card-foreground text-gray-600 dark:text-gray-300 border border-border hover:border-gray-300'}"
             >
               {tagObj.name}<span class="opacity-50 text-[10px]">{tagObj.count}</span>
             </button>
@@ -722,7 +722,7 @@
     <!-- Auto-discovery feedback -->
     {#if discoveringFeed}
       <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-        <svg class="w-4 h-4 animate-spin text-primary-500 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        <svg class="w-4 h-4 animate-spin text-primary shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
         Analyse du site en cours…
       </div>
     {:else if discoveryError}
@@ -732,7 +732,7 @@
       </div>
     {:else if discoveredFeedResult}
       {@const isAlreadySub = alreadySubscribedUrls.includes(discoveredFeedResult.feed_url.toLowerCase()) || subscribedSuccessMap[discoveredFeedResult.feed_url]}
-      <div class="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between gap-4">
+      <div class="p-4 bg-primary/10 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between gap-4">
         <div class="flex items-center gap-3 min-w-0">
           <img src={discoveredFeedResult.icon_url} alt="" class="w-9 h-9 rounded-lg bg-white border border-emerald-100 dark:border-emerald-800 object-contain shrink-0 p-1" />
           <div class="min-w-0">
@@ -758,7 +758,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
           {#each discoveredFeedResult.preview_articles as art}
             <a href={art.link} target="_blank" rel="noopener noreferrer"
-              class="p-3 bg-white dark:bg-dark-card rounded-xl border border-gray-100 dark:border-gray-800 text-xs text-gray-700 dark:text-gray-300 hover:text-primary-500 transition-colors line-clamp-2 leading-relaxed"
+              class="p-3 bg-card text-card-foreground rounded-xl border border-border text-xs text-gray-700 dark:text-gray-300 hover:text-primary transition-colors line-clamp-2 leading-relaxed"
             >{art.title}</a>
           {/each}
         </div>
@@ -769,7 +769,7 @@
     {#if isWebMode}
       {#if searchingLocal}
         <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <svg class="w-4 h-4 animate-spin text-primary-500 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          <svg class="w-4 h-4 animate-spin text-primary shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
           Recherche de médias locaux…
         </div>
       {:else if localNewsError}
@@ -784,7 +784,7 @@
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             {#each localNewsResults as item}
-              <div class="bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-xl p-4 flex items-center gap-3">
+              <div class="bg-card text-card-foreground border border-border rounded-xl p-4 flex items-center gap-3">
                 <img src={item.favicon} alt="" class="w-8 h-8 rounded-lg object-cover shrink-0"
                   on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=' + item.site_url}
                 />
@@ -795,12 +795,12 @@
                   {/if}
                 </div>
                 {#if item.already_subscribed || subscribedSuccessMap[item.feed_url]}
-                  <span class="text-xs font-semibold text-emerald-500 shrink-0">✓</span>
+                  <span class="text-xs font-semibold text-primary shrink-0">✓</span>
                 {:else}
                   <button
                     on:click={() => subscribeToFeed(item.feed_url, 'Général', 'fr')}
                     disabled={subscribingMap[item.feed_url]}
-                    class="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-xs rounded-lg transition-all shrink-0 disabled:opacity-50"
+                    class="px-3 py-1.5 bg-primary hover:opacity-90 text-primary-foreground font-semibold text-xs rounded-lg transition-all shrink-0 disabled:opacity-50"
                   >{subscribingMap[item.feed_url] ? '…' : '+ Ajouter'}</button>
                 {/if}
               </div>
@@ -844,7 +844,7 @@
               {#each categoryFeeds as feed}
                 {@const isAlreadySubscribed = alreadySubscribedUrls.includes((feed.url || '').toLowerCase()) || subscribedSuccessMap[feed.url]}
 
-                <div class="group bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-xl p-4 hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm transition-all flex flex-col gap-3 relative">
+                <div class="group bg-card text-card-foreground border border-border rounded-xl p-4 hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-sm transition-all flex flex-col gap-3 relative">
                   
                   <!-- Tooltip explicatif (visible au hover via une classe ou un title global, ici sur le titre) -->
                   <!-- Feed header -->
@@ -852,7 +852,7 @@
                     <img
                       src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.site_url || feed.url}&sz=128`}
                       alt=""
-                      class="w-10 h-10 md:w-9 md:h-9 rounded-lg object-contain bg-gray-100 dark:bg-gray-800 p-0.5 shrink-0"
+                      class="w-10 h-10 md:w-9 md:h-9 rounded-lg object-contain bg-gray-100 dark:bg-card p-0.5 shrink-0"
                       on:error={(e) => e.target.src = 'https://www.google.com/s2/favicons?domain=rss.com&sz=128'}
                     />
                     <div class="flex-1 min-w-0">
@@ -870,7 +870,7 @@
                         {#if feed.is_full_text}
                           <span class="text-[10px] md:text-[11px] font-medium text-emerald-600 dark:text-emerald-400">· Natif</span>
                         {:else}
-                          <span class="text-[10px] md:text-[11px] font-medium text-indigo-500 dark:text-indigo-400">· Scrapé</span>
+                          <span class="text-[10px] md:text-[11px] font-medium text-primary dark:text-indigo-400">· Scrapé</span>
                         {/if}
                       </div>
                     </div>
@@ -887,7 +887,7 @@
                       {#each feed.tags.slice(0, 3) as tag}
                         <button
                           on:click={() => selectTag(tag)}
-                          class="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-2 py-1 rounded-md transition-all min-h-[32px] min-w-[32px] flex items-center"
+                          class="text-[10px] md:text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-card hover:bg-gray-200 dark:hover:bg-gray-700 px-2 py-1 rounded-md transition-all min-h-[32px] min-w-[32px] flex items-center"
                         >#{tag.replace(/^#+/, '')}</button>
                       {/each}
                     </div>
@@ -897,7 +897,7 @@
                   <div class="flex items-center gap-3 pt-2 border-t border-gray-50 dark:border-gray-800/60 mt-auto">
                     <button
                       on:click={() => openPreview(feed)}
-                      class="p-2 md:p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      class="p-2 md:p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-card transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
                       title="Aperçu des articles"
                     >
                       <svg class="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -909,7 +909,7 @@
                     <div class="flex-1"/>
 
                     {#if isAlreadySubscribed}
-                      <span class="inline-flex items-center gap-1 px-3 py-2 md:py-1.5 text-xs md:text-sm font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl md:rounded-lg border border-emerald-100 dark:border-emerald-800/60 min-h-[44px] md:min-h-0 flex items-center">
+                      <span class="inline-flex items-center gap-1 px-3 py-2 md:py-1.5 text-xs md:text-sm font-semibold text-emerald-600 dark:text-emerald-400 bg-primary/10 dark:bg-emerald-950/40 rounded-xl md:rounded-lg border border-emerald-100 dark:border-emerald-800/60 min-h-[44px] md:min-h-0 flex items-center">
                         <svg class="w-4 h-4 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         Abonné
                       </span>
@@ -917,7 +917,7 @@
                       <button
                         on:click={() => subscribeToFeed(feed.url, feed.category, feed.language)}
                         disabled={subscribingMap[feed.url]}
-                        class="px-4 py-2 md:py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-xs md:text-sm rounded-xl md:rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
+                        class="px-4 py-2 md:py-1.5 bg-primary hover:opacity-90 text-primary-foreground font-semibold text-xs md:text-sm rounded-xl md:rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 min-h-[44px]"
                       >
                         {#if subscribingMap[feed.url]}
                           <svg class="w-4 h-4 md:w-3.5 md:h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -941,10 +941,10 @@
               <button
                 on:click={loadMoreFeeds}
                 disabled={loadingMore}
-                class="px-6 py-2.5 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold text-sm rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                class="px-6 py-2.5 bg-card text-card-foreground hover:bg-gray-50 dark:hover:bg-card text-gray-700 dark:text-gray-300 font-semibold text-sm rounded-xl border border-border shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
               >
                 {#if loadingMore}
-                  <svg class="w-4 h-4 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  <svg class="w-4 h-4 animate-spin text-primary" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                   Chargement…
                 {:else}
                   Voir plus <span class="text-gray-400 font-normal ml-1">({totalFeedsCount - catalogFeeds.length} restants)</span>
@@ -964,13 +964,13 @@
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" on:click|self={() => previewFeedObj = null}>
-    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 rounded-2xl max-w-xl w-full shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
+    <div class="bg-card text-card-foreground border border-gray-200 dark:border-gray-800 rounded-2xl max-w-xl w-full shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
 
-      <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+      <div class="flex items-center gap-3 px-5 py-4 border-b border-border">
         <img
           src={previewFeedObj.icon_url || `https://www.google.com/s2/favicons?domain=${previewFeedObj.site_url || previewFeedObj.url}&sz=128`}
           alt=""
-          class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 object-contain p-0.5 shrink-0"
+          class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-card object-contain p-0.5 shrink-0"
         />
         <div class="flex-1 min-w-0">
           <h3 class="font-bold text-sm text-gray-900 dark:text-white truncate">{previewFeedObj.title}</h3>
@@ -978,14 +978,14 @@
         </div>
         <button
           on:click={() => previewFeedObj = null}
-          class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:text-gray-800 dark:hover:text-white text-xs transition-colors"
+          class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-card flex items-center justify-center text-gray-500 hover:text-gray-800 dark:hover:text-white text-xs transition-colors"
         >✕</button>
       </div>
 
       <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
         {#if previewLoading}
           <div class="py-10 flex items-center justify-center gap-2 text-sm text-gray-400">
-            <svg class="w-4 h-4 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            <svg class="w-4 h-4 animate-spin text-primary" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
             Chargement…
           </div>
         {:else if previewError}
@@ -994,10 +994,10 @@
           <div class="py-8 text-center text-xs text-gray-400">Aucun article disponible.</div>
         {:else}
           {#each previewArticles as art}
-            <div class="p-3 bg-gray-50 dark:bg-dark-bg rounded-xl border border-gray-100 dark:border-gray-800 space-y-1">
+            <div class="p-3 bg-background rounded-xl border border-border space-y-1">
               <div class="flex items-start justify-between gap-2">
                 <a href={art.link} target="_blank" rel="noopener noreferrer"
-                  class="font-semibold text-sm text-gray-900 dark:text-white hover:text-primary-500 transition-colors leading-snug line-clamp-2"
+                  class="font-semibold text-sm text-gray-900 dark:text-white hover:text-primary transition-colors leading-snug line-clamp-2"
                 >{art.title}</a>
                 {#if art.published}
                   <span class="text-[10px] text-gray-400 shrink-0">{art.published.slice(0, 10)}</span>
@@ -1011,18 +1011,18 @@
         {/if}
       </div>
 
-      <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-100 dark:border-gray-800">
+      <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-border">
         <button
           on:click={() => previewFeedObj = null}
-          class="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          class="px-4 py-2 bg-gray-100 dark:bg-card text-gray-700 dark:text-gray-300 font-semibold text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
         >Fermer</button>
 
         {#if alreadySubscribedUrls.includes((previewFeedObj.url || '').toLowerCase()) || subscribedSuccessMap[previewFeedObj.url]}
-          <span class="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 font-semibold text-sm rounded-lg border border-emerald-100 dark:border-emerald-800">✓ Abonné</span>
+          <span class="px-4 py-2 bg-primary/10 dark:bg-emerald-950/40 text-emerald-600 font-semibold text-sm rounded-lg border border-emerald-100 dark:border-emerald-800">✓ Abonné</span>
         {:else}
           <button
             on:click={() => { subscribeToFeed(previewFeedObj.url, previewFeedObj.category, previewFeedObj.language); previewFeedObj = null; }}
-            class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-sm rounded-lg shadow-sm transition-all"
+            class="px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground font-semibold text-sm rounded-lg shadow-sm transition-all"
           >+ S'abonner</button>
         {/if}
       </div>

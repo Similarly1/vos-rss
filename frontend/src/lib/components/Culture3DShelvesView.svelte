@@ -186,21 +186,17 @@
   }
 </script>
 
-<div class="relative rounded-2xl overflow-hidden p-6 md:p-10 h-full overflow-y-auto" style="background: linear-gradient(160deg, rgba(255,255,255,0.018) 0%, rgba(255,255,255,0.008) 100%); border: 1px solid rgba(255,255,255,0.05);">
-  <div class="absolute inset-0 pointer-events-none" style="background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 28px 28px; mask-image: radial-gradient(ellipse 100% 100% at 50% 0%, black 0%, transparent 75%);"></div>
-  <div class="absolute inset-0 pointer-events-none rounded-2xl" style="background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(79,110,247,0.05) 0%, transparent 70%);"></div>
-
-  <div class="flex justify-between items-center mb-6 relative z-10">
-    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200"></h2>
-    <button on:click={() => showFeedManager = true} class="px-4 py-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm">
+<div class="relative w-full h-full p-6 md:p-8 bg-background text-foreground overflow-y-auto">
+  <div class="flex justify-end items-center mb-6 relative z-10">
+    <button on:click={() => showFeedManager = true} class="px-4 py-2 bg-card text-card-foreground border border-border rounded-xl text-xs font-bold hover:border-primary/50 transition-colors shadow-sm">
       ⚙️ Gérer les flux de l'étagère
     </button>
   </div>
 
   {#if isLoading}
-    <div class="flex items-center justify-center h-64 text-gray-400 gap-3">
-      <div class="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-      <span class="text-sm font-medium">Chargement des œuvres culturelles depuis vos flux...</span>
+    <div class="flex items-center justify-center h-64 text-primary gap-3">
+      <div class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <span class="text-sm font-medium text-muted-foreground">Chargement des œuvres culturelles depuis vos flux...</span>
     </div>
   {:else}
     {#each shelfConfig as meta}
@@ -260,8 +256,8 @@
 
 {#if showFeedManager}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-    <div class="bg-white dark:bg-dark-card rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
-      <div class="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-dark-bg">
+    <div class="bg-card text-card-foreground rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="p-5 border-b border-border flex justify-between items-center bg-background">
         <h3 class="font-bold text-lg">⚙️ Flux du Pack Culture</h3>
         <button on:click={() => showFeedManager = false} class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
           ✕
@@ -270,7 +266,7 @@
       <div class="p-5 overflow-y-auto flex-1 space-y-3">
         <p class="text-xs text-gray-500 mb-4">Cochez les sources que vous souhaitez afficher sur les étagères 3D.</p>
         {#each cultureFeeds as feed}
-          <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-gray-800 rounded-xl cursor-pointer hover:border-primary-300 transition-colors">
+          <label class="flex items-center justify-between p-3 bg-background border border-border rounded-xl cursor-pointer hover:border-primary-300 transition-colors">
             <div class="flex flex-col">
               <span class="text-sm font-semibold text-gray-900 dark:text-white">{feed.title}</span>
               <span class="text-xs text-gray-500 truncate max-w-[250px]">{feed.url}</span>
@@ -279,8 +275,8 @@
           </label>
         {/each}
       </div>
-      <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-dark-bg text-right">
-        <button on:click={() => { showFeedManager = false; clusters = [...clusters]; }} class="px-5 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-xl text-sm transition-all shadow-sm">
+      <div class="p-4 border-t border-border bg-background text-right">
+        <button on:click={() => { showFeedManager = false; clusters = [...clusters]; }} class="px-5 py-2.5 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded-xl text-sm transition-all shadow-sm">
           Fermer et Appliquer
         </button>
       </div>

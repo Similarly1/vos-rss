@@ -43,6 +43,67 @@ export const visibleNavTabs = writable(['podcast', 'perplexity', 'feeds', 'webho
 export const defaultLandingTab = writable('articles');
 export const navTabsOrder = writable([]);
 
+// Local Transitions state (Stored in localStorage only)
+const initialTransType = typeof localStorage !== 'undefined' ? (localStorage.getItem('vos_transition_type') || 'fade') : 'fade';
+const initialTransDuration = typeof localStorage !== 'undefined' ? (localStorage.getItem('vos_transition_duration') !== null ? parseInt(localStorage.getItem('vos_transition_duration'), 10) : 150) : 150;
+
+export const transitionType = writable(initialTransType);
+export const transitionDuration = writable(initialTransDuration);
+export const mainNavDirection = writable(1); // 1 = down (higher index), -1 = up (lower index)
+
+let previousViewVal = 'articles';
+
+currentView.subscribe((newView) => {
+  if (!newView || newView === previousViewVal) return;
+  
+  const order = get(navTabsOrder).length > 0 
+    ? get(navTabsOrder) 
+    : ['podcast', 'perplexity', 'feeds', 'webhooks', 'synthesis', 'discover', 'stats', 'settings'];
+
+  const viewToTabId = {
+    'podcast': 'podcast',
+    'perplexity': 'perplexity',
+    'articles': 'feeds',
+    'feeds': 'feeds',
+    'webhooks': 'webhooks',
+    'synthesis': 'synthesis',
+    'discover': 'discover',
+    'stats': 'stats',
+    'settings': 'settings'
+  };
+
+  const prevId = viewToTabId[previousViewVal] || previousViewVal;
+  const newId = viewToTabId[newView] || newView;
+
+  const prevIdx = order.indexOf(prevId);
+  const newIdx = order.indexOf(newId);
+
+  if (prevIdx !== -1 && newIdx !== -1) {
+    if (newIdx > prevIdx) {
+      mainNavDirection.set(1); // Moving DOWN in menu list
+    } else if (newIdx < prevIdx) {
+      mainNavDirection.set(-1); // Moving UP in menu list
+    }
+  }
+
+  previousViewVal = newView;
+});
+
+export function setTransitionType(type) {
+  transitionType.set(type);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('vos_transition_type', type);
+  }
+}
+
+export function setTransitionDuration(duration) {
+  const dur = Math.max(0, parseInt(duration, 10) || 0);
+  transitionDuration.set(dur);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('vos_transition_duration', dur.toString());
+  }
+}
+
 // Notification state
 export const notificationsList = writable([]);
 export const unreadNotificationsCount = writable(0);

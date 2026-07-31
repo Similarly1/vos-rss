@@ -424,39 +424,39 @@
   });
 </script>
 
-<div class="flex-1 h-full overflow-y-auto bg-gray-950 text-gray-100 p-4 md:p-8 space-y-8">
+<div class="flex-1 h-full overflow-y-auto bg-background text-foreground p-4 md:p-8 space-y-8">
   <div class="max-w-4xl mx-auto space-y-8">
     
     <!-- Top Header -->
     <div class="space-y-2 pt-2">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-xs bg-purple-950/80 text-purple-400 font-extrabold px-3 py-1 rounded-full border border-purple-800/60 uppercase tracking-wider">
+        <span class="text-xs bg-primary/20 text-primary font-extrabold px-3 py-1 rounded-full border border-primary/40 uppercase tracking-wider">
           🎙️ Studio Radio Multi-Émotions
         </span>
-        <span class="text-xs bg-emerald-950/80 text-emerald-400 font-extrabold px-3 py-1 rounded-full border border-emerald-800/60 uppercase tracking-wider">
+        <span class="text-xs bg-primary/10 text-primary font-extrabold px-3 py-1 rounded-full border border-primary/30 uppercase tracking-wider">
           Flux AntennaPod XML (Sécurisé)
         </span>
       </div>
-      <h1 class="text-3xl md:text-4xl font-black text-white tracking-tight">Revue de Presse Audio</h1>
-      <p class="text-sm text-gray-400">
-        Gérez vos programmes radio automatiques, vos horaires de diffusion et écoutez vos émissions sur votre smartphone avec <strong class="text-emerald-400">AntennaPod</strong> !
+      <h1 class="text-3xl md:text-4xl font-black text-foreground tracking-tight">Revue de Presse Audio</h1>
+      <p class="text-sm text-muted-foreground">
+        Gérez vos programmes radio automatiques, vos horaires de diffusion et écoutez vos émissions sur votre smartphone avec <strong class="text-primary">AntennaPod</strong> !
       </p>
     </div>
 
     <!-- ANTENNAPOD BANNER & COPY LINK -->
-    <div class="bg-gradient-to-r from-emerald-950/40 via-gray-900 to-purple-950/40 border border-emerald-800/50 rounded-3xl p-5 md:p-6 shadow-xl space-y-3">
+    <div class="bg-card border border-border rounded-3xl p-5 md:p-6 shadow-xl space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="space-y-1 min-w-0">
-          <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <h2 class="text-base font-bold text-foreground flex items-center gap-2">
             <span>📡 Flux Podcast AntennaPod (Clé Sécurisée)</span>
           </h2>
-          <p class="text-xs text-gray-400">Copiez cette URL avec clé privée dans AntennaPod pour écouter vos émissions sur votre smartphone.</p>
+          <p class="text-xs text-muted-foreground">Copiez cette URL avec clé privée dans AntennaPod pour écouter vos émissions sur votre smartphone.</p>
         </div>
 
         <div class="flex items-center gap-2">
           <button 
             on:click={regenerateToken}
-            class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-xs rounded-xl border border-gray-700 transition-all flex items-center gap-1 shrink-0"
+            class="px-3 py-2 bg-background hover:bg-accent text-foreground font-bold text-xs rounded-xl border border-border transition-all flex items-center gap-1 shrink-0"
             title="Régénérer la clé secrète"
           >
             <span>🔄 Clé Secrète</span>
@@ -464,7 +464,7 @@
 
           <button 
             on:click={copyFeedUrl}
-            class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0"
+            class="px-4 py-2 bg-primary text-primary-foreground font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0"
           >
             {#if feedCopied}
               <span>✓ URL Copiée !</span>
@@ -476,28 +476,28 @@
         </div>
       </div>
 
-      <div class="p-3 bg-gray-950/90 rounded-2xl border border-gray-800 flex items-center justify-between gap-3 text-xs font-mono text-emerald-400">
+      <div class="p-3 bg-background rounded-2xl border border-border flex items-center justify-between gap-3 text-xs font-mono text-primary">
         <span class="truncate">{feedUrl}</span>
-        <span class="text-[10px] bg-emerald-950 text-emerald-300 font-sans px-2.5 py-1 rounded-full border border-emerald-800 uppercase font-bold shrink-0">
+        <span class="text-[10px] bg-primary/20 text-primary font-sans px-2.5 py-1 rounded-full border border-primary/40 uppercase font-bold shrink-0">
           RSS 2.0 / iTunes
         </span>
       </div>
     </div>
 
     <!-- TABLEAU DE BORD DES PROGRAMMATIONS (MULTI-PROGRAMMES) -->
-    <div class="bg-gray-900/90 border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+    <div class="bg-card border border-border rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
       
-      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-800 pb-4">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div class="space-y-1">
-          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <h2 class="text-lg font-bold text-foreground flex items-center gap-2">
             <span>📻 Tableau de Bord des Programmations Radio</span>
           </h2>
-          <p class="text-xs text-gray-400">Gérez vos rendez-vous audio automatiques et consultez le compte à rebours de la prochaine émission.</p>
+          <p class="text-xs text-muted-foreground">Gérez vos rendez-vous audio automatiques et consultez le compte à rebours de la prochaine émission.</p>
         </div>
 
         <button 
           on:click={openCreateModal}
-          class="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5 shrink-0"
+          class="px-4 py-2.5 bg-primary text-primary-foreground font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5 shrink-0"
         >
           <span>+ Créer un programme</span>
         </button>
@@ -506,54 +506,54 @@
       <!-- PROGRAMMING CARDS GRID -->
       <div class="space-y-4">
         {#if schedulesList.length === 0}
-          <div class="p-8 text-center bg-gray-950/50 rounded-2xl border border-gray-800 text-gray-400 text-xs space-y-3">
+          <div class="p-8 text-center bg-background rounded-2xl border border-border text-muted-foreground text-xs space-y-3">
             <p>Aucun programme radio automatique configuré.</p>
-            <button on:click={openCreateModal} class="px-4 py-2 bg-purple-600 text-white font-bold text-xs rounded-xl">
+            <button on:click={openCreateModal} class="px-4 py-2 bg-primary text-primary-foreground font-bold text-xs rounded-xl">
               + Ajouter votre première matinale ou flash info
             </button>
           </div>
         {:else}
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             {#each schedulesList as prog}
-              <div class="bg-gray-950 border border-gray-800 hover:border-purple-800/80 rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between relative group">
+              <div class="bg-background border border-border hover:border-primary/60 rounded-2xl p-5 space-y-4 transition-all flex flex-col justify-between relative group">
                 
                 <div class="space-y-3">
                   <!-- Header with status badge -->
                   <div class="flex items-center justify-between gap-2">
-                    <span class="font-extrabold text-sm text-white truncate">{prog.name}</span>
+                    <span class="font-extrabold text-sm text-foreground truncate">{prog.name}</span>
 
                     <button 
                       on:click={() => toggleProgram(prog.id)}
-                      class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border transition-all shrink-0 {prog.enabled ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800' : 'bg-gray-800 text-gray-400 border-gray-700'}"
+                      class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border transition-all shrink-0 {prog.enabled ? 'bg-primary/20 text-primary border-primary/60' : 'bg-card text-muted-foreground border-border'}"
                     >
                       {prog.enabled ? '🟢 Actif' : '⚪ Désactivé'}
                     </button>
                   </div>
 
                   <!-- Next Run Display Countdown -->
-                  <div class="p-2.5 bg-gray-900/80 rounded-xl border border-gray-800/80 flex items-center justify-between text-xs">
-                    <span class="text-gray-400 font-semibold">Prochaine diffusion :</span>
-                    <span class="font-bold text-emerald-400">{prog.next_run_display || 'Désactivé'}</span>
+                  <div class="p-2.5 bg-card rounded-xl border border-border flex items-center justify-between text-xs">
+                    <span class="text-muted-foreground font-semibold">Prochaine diffusion :</span>
+                    <span class="font-bold text-primary">{prog.next_run_display || 'Désactivé'}</span>
                   </div>
 
                   <!-- Details Badges -->
-                  <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-gray-400">
-                    <span class="bg-gray-900 px-2 py-0.5 rounded-lg border border-gray-800">⏰ {prog.time}</span>
-                    <span class="bg-gray-900 px-2 py-0.5 rounded-lg border border-gray-800">
+                  <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span class="bg-card px-2 py-0.5 rounded-lg border border-border">⏰ {prog.time}</span>
+                    <span class="bg-card px-2 py-0.5 rounded-lg border border-border">
                       {prog.frequency === 'daily' ? 'Tous les jours' : prog.frequency === 'weekdays' ? 'Du lun. au ven.' : 'Hebdomadaire'}
                     </span>
                     {#if prog.theme}
-                      <span class="bg-purple-950/60 text-purple-300 px-2 py-0.5 rounded-lg border border-purple-800/60 font-bold">🎯 {prog.theme}</span>
+                      <span class="bg-primary/20 text-primary px-2 py-0.5 rounded-lg border border-primary/40 font-bold">🎯 {prog.theme}</span>
                     {/if}
-                    <span class="bg-gray-900 px-2 py-0.5 rounded-lg border border-gray-800">📊 {prog.topics_count} sujets</span>
+                    <span class="bg-card px-2 py-0.5 rounded-lg border border-border">📊 {prog.topics_count} sujets</span>
                   </div>
                 </div>
 
                 <!-- Action buttons -->
-                <div class="pt-3 border-t border-gray-900 flex items-center justify-between gap-2">
+                <div class="pt-3 border-t border-border flex items-center justify-between gap-2">
                   <button 
                     on:click={() => runProgramNow(prog.id, prog.name)}
-                    class="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white font-bold text-xs rounded-xl border border-purple-800/60 transition-all flex items-center gap-1"
+                    class="px-3 py-1.5 bg-primary/20 hover:bg-primary text-primary hover:text-primary-foreground font-bold text-xs rounded-xl border border-primary/40 transition-all flex items-center gap-1"
                     title="Générer cette émission immédiatement"
                   >
                     <span>⚡ {runMessageMap[prog.id] || 'Lancer'}</span>
@@ -562,7 +562,7 @@
                   <div class="flex items-center gap-2">
                     <button 
                       on:click={() => openEditModal(prog)}
-                      class="px-2.5 py-1.5 bg-gray-900 hover:bg-gray-800 text-gray-300 font-bold text-xs rounded-xl border border-gray-800 transition-all"
+                      class="px-2.5 py-1.5 bg-card hover:bg-accent text-foreground font-bold text-xs rounded-xl border border-border transition-all"
                       title="Modifier les paramètres du programme"
                     >
                       ✏️ Éditer
@@ -570,7 +570,7 @@
 
                     <button 
                       on:click={() => deleteProgram(prog.id, prog.name)}
-                      class="px-2.5 py-1.5 bg-rose-950/40 hover:bg-rose-600 text-rose-400 hover:text-white font-bold text-xs rounded-xl border border-rose-800/40 transition-all"
+                      class="px-2.5 py-1.5 bg-destructive/10 hover:bg-destructive text-destructive hover:text-destructive-foreground font-bold text-xs rounded-xl border border-destructive/30 transition-all"
                       title="Supprimer ce programme"
                     >
                       🗑️
@@ -587,18 +587,18 @@
     </div>
 
     <!-- CARD 2: IMMEDIATE PODCAST RECIPE GENERATION -->
-    <div class="bg-gray-900/90 border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+    <div class="bg-card border border-border rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
       
-      <div class="space-y-1 border-b border-gray-800 pb-3">
-        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+      <div class="space-y-1 border-b border-border pb-3">
+        <h2 class="text-lg font-bold text-foreground flex items-center gap-2">
           <span>⚡ Créer une émission immédiatement (À la demande)</span>
         </h2>
-        <p class="text-xs text-purple-400">Configurez votre thème et vos sujets pour produire une émission sur-le-champ !</p>
+        <p class="text-xs text-primary">Configurez votre thème et vos sujets pour produire une émission sur-le-champ !</p>
       </div>
 
       <!-- KEYWORD / THEME FOCUS INPUT -->
       <div class="space-y-2">
-        <label for="theme-input" class="block text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+        <label for="theme-input" class="block text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
           <span>🎯 Axer l'émission sur un thème / mot-clé précis (Optionnel)</span>
         </label>
         <div class="relative">
@@ -607,12 +607,12 @@
             type="text"
             placeholder="Ex: Intelligence Artificielle, Suisse, Économie, Climat..."
             bind:value={themeInput}
-            class="w-full bg-gray-950 border border-purple-800/60 focus:border-purple-500 rounded-2xl py-3 pl-4 pr-10 text-xs font-semibold text-white focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all placeholder:text-gray-600"
+            class="w-full bg-background border border-border focus:border-primary rounded-2xl py-3 pl-4 pr-10 text-xs font-semibold text-foreground focus:ring-2 focus:ring-primary focus:outline-none transition-all placeholder:text-muted-foreground"
           />
           {#if themeInput}
             <button 
               on:click={() => themeInput = ''} 
-              class="absolute right-3 top-3 text-gray-400 hover:text-white text-xs font-bold"
+              class="absolute right-3 top-3 text-muted-foreground hover:text-foreground text-xs font-bold"
               title="Effacer le thème"
             >
               ✕
@@ -625,13 +625,13 @@
         
         <!-- TOPICS COUNT -->
         <div class="space-y-2">
-          <label for="topics-count" class="block text-xs font-bold text-gray-300 uppercase tracking-wider">
+          <label for="topics-count" class="block text-xs font-bold text-foreground uppercase tracking-wider">
             📊 Nombre de sujets
           </label>
           <select 
             id="topics-count"
             bind:value={topicsCount}
-            class="w-full bg-gray-950 border border-gray-800 rounded-2xl py-3 px-4 text-xs font-bold text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+            class="w-full bg-background border border-border rounded-2xl py-3 px-4 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
           >
             <option value={3}>3 sujets (Flash)</option>
             <option value={5}>5 sujets (Recommandé)</option>
@@ -642,13 +642,13 @@
 
         <!-- MAX DAYS -->
         <div class="space-y-2">
-          <label for="max-days" class="block text-xs font-bold text-gray-300 uppercase tracking-wider">
+          <label for="max-days" class="block text-xs font-bold text-foreground uppercase tracking-wider">
             📅 Récence des articles
           </label>
           <select 
             id="max-days"
             bind:value={maxDays}
-            class="w-full bg-gray-950 border border-gray-800 rounded-2xl py-3 px-4 text-xs font-bold text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+            class="w-full bg-background border border-border rounded-2xl py-3 px-4 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
           >
             <option value={1}>Dernières 24h</option>
             <option value={3}>3 derniers jours</option>
@@ -660,13 +660,13 @@
 
         <!-- TONE / STYLE -->
         <div class="space-y-2">
-          <label for="podcast-tone" class="block text-xs font-bold text-gray-300 uppercase tracking-wider">
+          <label for="podcast-tone" class="block text-xs font-bold text-foreground uppercase tracking-wider">
             📻 Style de présentation
           </label>
           <select 
             id="podcast-tone"
             bind:value={tone}
-            class="w-full bg-gray-950 border border-gray-800 rounded-2xl py-3 px-4 text-xs font-bold text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+            class="w-full bg-background border border-border rounded-2xl py-3 px-4 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
           >
             <option value="journal_matinal">Matinal Dynamique</option>
             <option value="analyse_profonde">Décryptage Posé</option>
@@ -677,13 +677,13 @@
 
         <!-- VOICE SELECTION -->
         <div class="space-y-2">
-          <label for="podcast-voice" class="block text-xs font-bold text-gray-300 uppercase tracking-wider">
+          <label for="podcast-voice" class="block text-xs font-bold text-foreground uppercase tracking-wider">
             🎭 Voix & Multi-Émotions
           </label>
           <select 
             id="podcast-voice"
             bind:value={voiceKey}
-            class="w-full bg-gray-950 border border-purple-600 rounded-2xl py-3 px-4 text-xs font-bold text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+            class="w-full bg-background border border-primary/60 rounded-2xl py-3 px-4 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
           >
             <option value="Marie - Dynamic">🎭 Auto (Changement d'intonation automatique)</option>
             <option value="Marie - Neutral">🧘 Marie - Neutral (Calme & Posée)</option>
@@ -698,20 +698,20 @@
       </div>
 
       <!-- FILTER ONLY VERIFIED SOURCES TOGGLE -->
-      <div class="flex items-center justify-between p-4 bg-gray-950/60 rounded-2xl border border-gray-800">
+      <div class="flex items-center justify-between p-4 bg-background rounded-2xl border border-border">
         <div class="flex items-center gap-3">
           <span class="text-xl">🛡️</span>
           <div>
-            <span class="block text-xs font-bold text-white">
+            <span class="block text-xs font-bold text-foreground">
               Informations Vérifiées uniquement (3+ médias distants)
             </span>
-            <span class="text-[11px] text-gray-400">Ne retenir que les actualités confirmées par au moins 3 sources différentes</span>
+            <span class="text-[11px] text-muted-foreground">Ne retenir que les actualités confirmées par au moins 3 sources différentes</span>
           </div>
         </div>
         <input 
           type="checkbox" 
           bind:checked={onlyVerified}
-          class="w-5 h-5 accent-purple-500 rounded cursor-pointer"
+          class="w-5 h-5 accent-primary rounded cursor-pointer"
         />
       </div>
 
@@ -719,10 +719,10 @@
       <button 
         on:click={handleGeneratePodcast}
         disabled={isGenerating}
-        class="w-full py-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white font-extrabold text-sm rounded-2xl shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+        class="w-full py-3.5 bg-primary text-primary-foreground font-extrabold text-sm rounded-2xl shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-3"
       >
         {#if isGenerating}
-          <svg class="w-5 h-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 animate-spin text-primary-foreground" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
           </svg>
@@ -734,36 +734,36 @@
       </button>
 
       {#if errorMsg}
-        <p class="text-xs text-rose-400 font-medium text-center">{errorMsg}</p>
+        <p class="text-xs text-destructive font-medium text-center">{errorMsg}</p>
       {/if}
 
       <!-- TERMINAL LOGS CONSOLE UI -->
       {#if isGenerating || generationLogs.length > 0}
-        <div class="bg-gray-950 border border-purple-800/60 rounded-3xl p-5 shadow-2xl space-y-3 font-mono text-xs">
-          <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <div class="bg-background border border-primary/60 rounded-3xl p-5 shadow-2xl space-y-3 font-mono text-xs">
+          <div class="flex items-center justify-between border-b border-border pb-3">
             <div class="flex items-center gap-2">
-              <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-destructive inline-block"></span>
               <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
-              <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
-              <span class="text-gray-300 font-bold ml-2">Console d'exécution du Podcast (SSE Temps Réel)</span>
+              <span class="w-3 h-3 rounded-full bg-primary text-primary-foreground inline-block"></span>
+              <span class="text-foreground font-bold ml-2">Console d'exécution du Podcast (SSE Temps Réel)</span>
             </div>
 
             {#if generationLogs.length > 0}
               <button 
                 on:click={copyLogs}
-                class="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-emerald-400 font-bold text-xs rounded-xl border border-gray-700 transition-all shadow-sm flex items-center gap-1.5"
+                class="px-3.5 py-1.5 bg-card hover:bg-accent text-primary font-bold text-xs rounded-xl border border-border transition-all shadow-sm flex items-center gap-1.5"
               >
                 <span>{logsCopied ? '✓ Logs Copiés !' : '📋 Copier les logs'}</span>
               </button>
             {/if}
           </div>
 
-          <div bind:this={logContainer} class="max-h-96 overflow-y-auto space-y-1.5 pr-2 text-gray-300 select-text leading-relaxed font-mono">
+          <div bind:this={logContainer} class="max-h-96 overflow-y-auto space-y-1.5 pr-2 text-foreground select-text leading-relaxed font-mono">
             {#each generationLogs as log}
               <div class="font-mono text-[11px] leading-relaxed whitespace-pre-wrap">{log}</div>
             {/each}
             {#if isGenerating}
-              <div class="text-purple-400 animate-pulse font-bold pt-1 text-xs">
+              <div class="text-primary animate-pulse font-bold pt-1 text-xs">
                 ⚡ {generationLogs.length ? generationLogs[generationLogs.length - 1] : "Initialisation de l'émission..."}
               </div>
             {/if}
@@ -774,38 +774,38 @@
     </div>
 
     <!-- CARD 3: PERSONNALISATION -->
-    <div class="bg-gray-900/90 border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
-      <div class="space-y-1 border-b border-gray-800 pb-3">
-        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+    <div class="bg-card border border-border rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+      <div class="space-y-1 border-b border-border pb-3">
+        <h2 class="text-lg font-bold text-foreground flex items-center gap-2">
           <span>⚙️ Personnalisation du Podcast</span>
         </h2>
-        <p class="text-xs text-gray-400">Modifiez le prompt système de l'IA et l'audio de transition.</p>
+        <p class="text-xs text-muted-foreground">Modifiez le prompt système de l'IA et l'audio de transition.</p>
       </div>
 
       <!-- SYSTEM PROMPT -->
       <div class="space-y-2">
         <div class="flex justify-between items-center">
-          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider">Prompt Système (IA)</label>
-          <button on:click={resetSystemPrompt} class="text-xs text-rose-400 hover:text-rose-300 font-bold">Réinitialiser</button>
+          <label class="block text-xs font-bold text-foreground uppercase tracking-wider">Prompt Système (IA)</label>
+          <button on:click={resetSystemPrompt} class="text-xs text-destructive hover:underline font-bold">Réinitialiser</button>
         </div>
         <textarea
           bind:value={podcastSystemPrompt}
           rows="5"
           placeholder="Laissez vide pour utiliser le prompt par défaut..."
-          class="w-full bg-gray-950 border border-gray-800 rounded-2xl py-3 px-4 text-xs font-semibold text-gray-200 focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all"
+          class="w-full bg-background border border-border rounded-2xl py-3 px-4 text-xs font-semibold text-foreground focus:ring-2 focus:ring-primary focus:outline-none transition-all"
         ></textarea>
-        <button on:click={saveSettings} class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md transition-all">Enregistrer le prompt</button>
+        <button on:click={saveSettings} class="px-4 py-2 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-md transition-all">Enregistrer le prompt</button>
       </div>
 
       <!-- CUSTOM JINGLE -->
       <div class="space-y-3">
         <div class="flex justify-between items-center">
-          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider">Jingle de transition</label>
-          <button on:click={resetJingle} class="text-xs text-rose-400 hover:text-rose-300 font-bold">Réinitialiser</button>
+          <label class="block text-xs font-bold text-foreground uppercase tracking-wider">Jingle de transition</label>
+          <button on:click={resetJingle} class="text-xs text-destructive hover:underline font-bold">Réinitialiser</button>
         </div>
         
-        <p class="text-[10px] text-gray-400">
-          Fichier de transition actif : <span class="text-purple-400 font-extrabold">{podcastJingleFilename}</span>
+        <p class="text-[10px] text-muted-foreground">
+          Fichier de transition actif : <span class="text-primary font-extrabold">{podcastJingleFilename}</span>
         </p>
 
         <div class="flex items-center gap-3">
@@ -818,13 +818,13 @@
           />
           <label 
             for="jingle-upload-input" 
-            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5"
+            class="px-4 py-2 bg-primary text-primary-foreground font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center gap-1.5"
           >
             📂 Téléverser un fichier MP3 (jingle court)
           </label>
           
           {#if isUploadingJingle}
-            <span class="text-[10px] text-purple-400 animate-pulse font-bold">Envoi...</span>
+            <span class="text-[10px] text-primary animate-pulse font-bold">Envoi...</span>
           {/if}
         </div>
       </div>
@@ -832,54 +832,54 @@
 
     <!-- PLAYER & HISTORIQUE DES ÉMISSIONS -->
     {#if podcastHistory.length > 0}
-      <div class="bg-gray-900/90 border border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+      <div class="bg-card border border-border rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
         
-        <div class="flex items-center justify-between border-b border-gray-800 pb-3">
-          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+        <div class="flex items-center justify-between border-b border-border pb-3">
+          <h2 class="text-lg font-bold text-foreground flex items-center gap-2">
             <span>🎧 Historique des Émissions Audio ({podcastHistory.length})</span>
           </h2>
         </div>
 
         <!-- ACTIVE PODCAST PLAYER -->
         {#if currentPodcast}
-          <div class="bg-gradient-to-b from-gray-900 to-gray-950 border border-purple-800/60 rounded-3xl p-6 shadow-2xl space-y-4">
+          <div class="bg-background border border-primary/60 rounded-3xl p-6 shadow-2xl space-y-4">
             
             <div class="flex items-start justify-between gap-4">
               <div class="flex items-center gap-4 min-w-0">
                 {#if currentPodcast.image_url}
-                  <div class="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 border border-gray-800 shadow-md">
+                  <div class="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden shrink-0 border border-border shadow-md">
                     <img src={currentPodcast.image_url} alt="Cover" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1 / 1;" />
                   </div>
                 {/if}
                 <div class="space-y-1 min-w-0">
-                  <span class="text-[10px] uppercase tracking-wider font-extrabold bg-purple-950 text-purple-400 px-2.5 py-1 rounded-full border border-purple-800">
+                  <span class="text-[10px] uppercase tracking-wider font-extrabold bg-primary/20 text-primary px-2.5 py-1 rounded-full border border-primary/40">
                     Émission sélectionnée
                   </span>
-                  <h3 class="text-xl font-extrabold text-white leading-snug truncate">{currentPodcast.title}</h3>
-                  <p class="text-xs text-gray-400">Généré le {currentPodcast.created_at || 'récemment'} • Voix: {currentPodcast.voice || 'Marie'}</p>
+                  <h3 class="text-xl font-extrabold text-foreground leading-snug truncate">{currentPodcast.title}</h3>
+                  <p class="text-xs text-muted-foreground">Généré le {currentPodcast.created_at || 'récemment'} • Voix: {currentPodcast.voice || 'Marie'}</p>
                 </div>
               </div>
 
               <button 
                 on:click={() => playPodcastItem(currentPodcast)}
-                class="p-3 bg-emerald-500 hover:bg-emerald-400 text-gray-950 rounded-2xl shadow-lg transition-all shrink-0 font-bold text-xs flex items-center gap-2"
+                class="p-3 bg-primary text-primary-foreground rounded-2xl shadow-lg transition-all shrink-0 font-bold text-xs flex items-center gap-2"
               >
                 <span>▶️ Lancer dans le lecteur</span>
               </button>
             </div>
 
             <!-- TOGGLE SCRIPT TRANSCRIPTION -->
-            <div class="pt-2 border-t border-gray-800 flex justify-between items-center">
+            <div class="pt-2 border-t border-border flex justify-between items-center">
               <button 
                 on:click={() => showScript = !showScript}
-                class="text-xs text-purple-400 hover:underline font-bold"
+                class="text-xs text-primary hover:underline font-bold"
               >
                 {showScript ? 'Masquer la transcription script 📜' : 'Afficher le script intégral rédigé 📜'}
               </button>
             </div>
 
             {#if showScript}
-              <div class="p-4 bg-gray-950 rounded-2xl border border-gray-800 text-xs leading-relaxed text-gray-300 whitespace-pre-wrap max-h-80 overflow-y-auto">
+              <div class="p-4 bg-card rounded-2xl border border-border text-xs leading-relaxed text-foreground whitespace-pre-wrap max-h-80 overflow-y-auto">
                 {currentPodcast.script}
               </div>
             {/if}
@@ -889,16 +889,16 @@
         <!-- PODCAST HISTORY LIST -->
         <div class="space-y-3">
           {#each podcastHistory as pod}
-            <div class="p-4 bg-gray-950 border border-gray-800/80 hover:border-purple-800/60 rounded-2xl flex items-center justify-between gap-4 transition-all group">
+            <div class="p-4 bg-background border border-border hover:border-primary/60 rounded-2xl flex items-center justify-between gap-4 transition-all group">
               <div class="flex items-center gap-4 min-w-0">
                 {#if pod.image_url}
-                  <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-gray-800 shadow-sm">
+                  <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-border shadow-sm">
                     <img src={pod.image_url} alt="Cover" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1 / 1;" />
                   </div>
                 {/if}
                 <div class="space-y-1 min-w-0">
-                  <h4 class="font-bold text-sm text-white truncate">{pod.title}</h4>
-                  <p class="text-xs text-gray-400">
+                  <h4 class="font-bold text-sm text-foreground truncate">{pod.title}</h4>
+                  <p class="text-xs text-muted-foreground">
                     {pod.created_at ? new Date(pod.created_at).toLocaleDateString('fr-FR') : ''} • {pod.topics_count || 5} sujets
                   </p>
                 </div>
@@ -907,14 +907,14 @@
               <div class="flex items-center gap-2 shrink-0">
                 <button 
                   on:click={() => playPodcastItem(pod)}
-                  class="px-3 py-1.5 bg-gray-800 hover:bg-purple-600 text-white font-bold text-xs rounded-xl transition-all"
+                  class="px-3 py-1.5 bg-card hover:bg-primary hover:text-primary-foreground text-foreground font-bold text-xs rounded-xl border border-border transition-all"
                 >
                   ▶ Écouter
                 </button>
 
                 <button 
                   on:click={() => deletePodcastItem(pod.id)}
-                  class="p-1.5 text-gray-500 hover:text-rose-400 rounded-lg hover:bg-gray-900 transition-colors"
+                  class="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-card transition-colors"
                   title="Supprimer"
                 >
                   🗑️
@@ -933,52 +933,52 @@
 <!-- PROGRAM MODAL (AJOUTER / MODIFIER UN PROGRAMME) -->
 {#if showProgramModal}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-    <div class="bg-gray-900 border border-gray-800 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
+    <div class="bg-card text-card-foreground border border-border w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
       
       <!-- Header -->
-      <div class="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-950/50">
-        <h3 class="text-lg font-bold text-white">
+      <div class="p-6 border-b border-border flex justify-between items-center bg-background">
+        <h3 class="text-lg font-bold text-foreground">
           {editingProgramId ? '✏️ Modifier la programmation' : '➕ Nouveau programme radio'}
         </h3>
-        <button on:click={() => showProgramModal = false} class="p-2 text-gray-400 hover:text-white rounded-full">
+        <button on:click={() => showProgramModal = false} class="p-2 text-muted-foreground hover:text-foreground rounded-full">
           ✕
         </button>
       </div>
 
       <!-- Body Form -->
-      <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs text-gray-200">
+      <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs text-foreground">
         
         <!-- PROGRAM NAME -->
         <div class="space-y-1.5">
-          <label for="form-prog-name" class="block font-bold text-gray-300 uppercase">Nom du programme</label>
+          <label for="form-prog-name" class="block font-bold text-foreground uppercase">Nom du programme</label>
           <input 
             id="form-prog-name"
             type="text" 
             bind:value={formName}
             placeholder="Ex: Matinale Suisse & Europe, Flash Tech 12h..."
-            class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-3 text-xs text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+            class="w-full bg-background border border-border rounded-xl py-2.5 px-3 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
           />
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <!-- TIME -->
           <div class="space-y-1.5">
-            <label for="form-prog-time" class="block font-bold text-gray-300 uppercase">Heure de diffusion</label>
+            <label for="form-prog-time" class="block font-bold text-foreground uppercase">Heure de diffusion</label>
             <input 
               id="form-prog-time"
               type="time" 
               bind:value={formTime}
-              class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-3 text-xs text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full bg-background border border-border rounded-xl py-2.5 px-3 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
 
           <!-- FREQUENCY -->
           <div class="space-y-1.5">
-            <label for="form-prog-freq" class="block font-bold text-gray-300 uppercase">Fréquence</label>
+            <label for="form-prog-freq" class="block font-bold text-foreground uppercase">Fréquence</label>
             <select 
               id="form-prog-freq"
               bind:value={formFrequency}
-              class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-3 text-xs text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full bg-background border border-border rounded-xl py-2.5 px-3 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             >
               <option value="daily">Tous les jours (Quotidien)</option>
               <option value="weekdays">Du lundi au vendredi</option>
@@ -990,24 +990,24 @@
 
         <!-- THEME FILTER -->
         <div class="space-y-1.5">
-          <label for="form-prog-theme" class="block font-bold text-gray-300 uppercase">Thème / Mot-clé spécifique (Optionnel)</label>
+          <label for="form-prog-theme" class="block font-bold text-foreground uppercase">Thème / Mot-clé spécifique (Optionnel)</label>
           <input 
             id="form-prog-theme"
             type="text" 
             bind:value={formTheme}
             placeholder="Ex: Suisse, Tech, IA, Économie..."
-            class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-3 text-xs text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+            class="w-full bg-background border border-border rounded-xl py-2.5 px-3 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
           />
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <!-- TONE -->
           <div class="space-y-1.5">
-            <label for="form-prog-tone" class="block font-bold text-gray-300 uppercase">Style</label>
+            <label for="form-prog-tone" class="block font-bold text-foreground uppercase">Style</label>
             <select 
               id="form-prog-tone"
               bind:value={formTone}
-              class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-3 text-xs text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full bg-background border border-border rounded-xl py-2.5 px-3 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             >
               <option value="journal_matinal">Matinal Dynamique</option>
               <option value="analyse_profonde">Décryptage Posé</option>
@@ -1018,11 +1018,11 @@
 
           <!-- VOICE -->
           <div class="space-y-1.5">
-            <label for="form-prog-voice" class="block font-bold text-gray-300 uppercase">Voix & Émotion</label>
+            <label for="form-prog-voice" class="block font-bold text-foreground uppercase">Voix & Émotion</label>
             <select 
               id="form-prog-voice"
               bind:value={formVoice}
-              class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-3 text-xs text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full bg-background border border-border rounded-xl py-2.5 px-3 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             >
               <option value="Marie - Dynamic">🎭 Auto (Intonation automatique)</option>
               <option value="Marie - Neutral">🧘 Marie - Neutral</option>
@@ -1038,11 +1038,11 @@
         <div class="grid grid-cols-2 gap-3">
           <!-- TOPICS COUNT -->
           <div class="space-y-1.5">
-            <label for="form-prog-topics" class="block font-bold text-gray-300 uppercase">Sujets</label>
+            <label for="form-prog-topics" class="block font-bold text-foreground uppercase">Sujets</label>
             <select 
               id="form-prog-topics"
               bind:value={formTopicsCount}
-              class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-3 text-xs text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full bg-background border border-border rounded-xl py-2.5 px-3 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             >
               <option value={3}>3 sujets (Flash)</option>
               <option value={5}>5 sujets (Standard)</option>
@@ -1053,11 +1053,11 @@
 
           <!-- MAX DAYS -->
           <div class="space-y-1.5">
-            <label for="form-prog-days" class="block font-bold text-gray-300 uppercase">Ancienneté max</label>
+            <label for="form-prog-days" class="block font-bold text-foreground uppercase">Ancienneté max</label>
             <select 
               id="form-prog-days"
               bind:value={formMaxDays}
-              class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 px-3 text-xs text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full bg-background border border-border rounded-xl py-2.5 px-3 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
             >
               <option value={1}>Dernières 24h</option>
               <option value={3}>3 jours</option>
@@ -1068,25 +1068,25 @@
         </div>
 
         <!-- ONLY VERIFIED -->
-        <div class="flex items-center justify-between p-3 bg-gray-950 rounded-xl border border-gray-800">
-          <span class="font-bold text-xs text-gray-300">Sources vérifiées uniquement (3+ médias)</span>
-          <input type="checkbox" bind:checked={formOnlyVerified} class="w-4 h-4 accent-purple-500 cursor-pointer" />
+        <div class="flex items-center justify-between p-3 bg-background rounded-xl border border-border">
+          <span class="font-bold text-xs text-foreground">Sources vérifiées uniquement (3+ médias)</span>
+          <input type="checkbox" bind:checked={formOnlyVerified} class="w-4 h-4 accent-primary cursor-pointer" />
         </div>
 
       </div>
 
       <!-- Footer Buttons -->
-      <div class="p-4 bg-gray-950/50 border-t border-gray-800 flex justify-end gap-2">
+      <div class="p-4 bg-background border-t border-border flex justify-end gap-2">
         <button 
           on:click={() => showProgramModal = false}
-          class="px-4 py-2 text-xs font-bold text-gray-400 hover:text-white"
+          class="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground"
         >
           Annuler
         </button>
         <button 
           on:click={handleSaveProgram}
           disabled={formSaving}
-          class="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-all disabled:opacity-50"
+          class="px-5 py-2 bg-primary text-primary-foreground font-extrabold text-xs rounded-xl shadow-md transition-all disabled:opacity-50"
         >
           {formSaving ? 'Enregistrement...' : 'Enregistrer le programme'}
         </button>

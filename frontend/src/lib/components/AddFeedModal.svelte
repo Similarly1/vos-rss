@@ -52,12 +52,12 @@
 
 {#if $showAddFeedModal}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-    <div class="bg-white dark:bg-dark-card w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800">
+    <div class="bg-card text-card-foreground w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-border">
       
       <!-- Header -->
-      <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-dark-bg/50">
+      <div class="p-6 border-b border-border flex justify-between items-center bg-gray-50/50 bg-background/50">
         <div class="flex items-center gap-3">
-          <div class="p-2.5 bg-primary-50 dark:bg-primary-900/50 text-primary-500 rounded-2xl">
+          <div class="p-2.5 bg-primary-50 dark:bg-primary-900/50 text-primary rounded-2xl">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
             </svg>
@@ -68,7 +68,7 @@
           </div>
         </div>
 
-        <button on:click={closeModal} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <button on:click={closeModal} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-card transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -87,7 +87,7 @@
             type="url" 
             placeholder="Ex: https://news.ycombinator.com/rss ou https://www.letemps.ch/rss" 
             bind:value={feedUrl}
-            class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            class="w-full bg-background border border-border rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
           />
         </div>
 
@@ -98,7 +98,7 @@
           <select 
             id="feed-category-select"
             bind:value={category}
-            class="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            class="w-full bg-background border border-border rounded-2xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
           >
             <option value="Suisse">🇨🇭 Suisse</option>
             <option value="Europe">🇪🇺 Europe</option>
@@ -118,14 +118,14 @@
             <button 
               type="button"
               on:click={() => { feedUrl = 'https://www.letemps.ch/rss'; category = 'Suisse'; }}
-              class="text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors"
+              class="text-xs bg-gray-100 dark:bg-card hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors"
             >
               Le Temps (Suisse)
             </button>
             <button 
               type="button"
               on:click={() => { feedUrl = 'https://www.lemonde.fr/rss/une.xml'; category = 'Europe'; }}
-              class="text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors"
+              class="text-xs bg-gray-100 dark:bg-card hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors"
             >
               Le Monde
             </button>
@@ -139,7 +139,7 @@
         {/if}
 
         {#if successMsg}
-          <div class="p-3 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 rounded-xl text-xs font-medium">
+          <div class="p-3 bg-primary/10 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 rounded-xl text-xs font-medium">
             {successMsg}
           </div>
         {/if}
@@ -147,7 +147,7 @@
       </div>
 
       <!-- Footer -->
-      <div class="p-4 bg-gray-50/50 dark:bg-dark-bg/50 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-3">
+      <div class="p-4 bg-gray-50/50 bg-background/50 border-t border-border flex justify-end gap-3">
         <button 
           type="button" 
           on:click={closeModal}

@@ -76,8 +76,8 @@
   function renderMarkdownHtml(text) {
     if (!text) return '';
     let clean = cleanTextBoilerplate(text);
-    clean = clean.replace(/\*\*(.*?)\*\*/g, '<strong class="font-black text-cyan-200 bg-cyan-950/50 px-1.5 py-0.5 rounded border border-cyan-800/40">$1</strong>');
-    clean = clean.replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>');
+    clean = clean.replace(/\*\*(.*?)\*\*/g, '<strong class="font-black text-foreground bg-primary/20 px-1.5 py-0.5 rounded border border-primary/40">$1</strong>');
+    clean = clean.replace(/\*(.*?)\*/g, '<em class="italic text-muted-foreground">$1</em>');
     const paragraphs = clean.split(/\n\s*\n/);
     return paragraphs.map(p => `<p class="leading-relaxed mb-3">${p.trim()}</p>`).join('');
   }
@@ -299,24 +299,24 @@
 </script>
 
 <!-- SCROLL CONTAINER WITH MANDATORY CSS SNAP -->
-<div class="flex-1 h-full overflow-y-auto snap-y snap-proximity scroll-smooth bg-gray-950 text-gray-100 p-4 md:p-8">
+<div class="flex-1 h-full overflow-y-auto snap-y snap-proximity scroll-smooth bg-background text-foreground p-4 md:p-8">
   <div class="max-w-3xl mx-auto space-y-6">
     
     <!-- Top Header Bar -->
     <div class="flex items-center justify-between pt-2">
       <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-white text-xs shadow-lg">
+        <div class="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-black text-xs shadow-lg">
           P
         </div>
-        <h1 class="text-xl font-black tracking-tight text-white">Fil Perplexity (Croisement IA)</h1>
+        <h1 class="text-xl font-black tracking-tight text-foreground">Fil Perplexity (Croisement IA)</h1>
       </div>
 
       <button 
         on:click={fetchPerplexityClusters} 
         disabled={isLoading}
-        class="p-2 bg-gray-900 hover:bg-gray-800 text-gray-300 rounded-full border border-gray-800 transition-all text-xs font-bold flex items-center gap-1.5 px-3"
+        class="p-2 bg-card hover:bg-accent text-foreground rounded-full border border-border transition-all text-xs font-bold flex items-center gap-1.5 px-3"
       >
-        <svg class="w-3.5 h-3.5 {isLoading ? 'animate-spin text-cyan-400' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-3.5 h-3.5 {isLoading ? 'animate-spin text-primary' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
         </svg>
         <span>Rafraîchir</span>
@@ -324,17 +324,17 @@
     </div>
 
     <!-- TAB SELECTOR: STRICT EVENTS vs BROAD THEMES -->
-    <div class="bg-gray-900/90 p-1.5 rounded-2xl border border-gray-800 grid grid-cols-2 gap-1.5 shadow-xl">
+    <div class="bg-card p-1.5 rounded-2xl border border-border grid grid-cols-2 gap-1.5 shadow-xl">
       <button 
         on:click={() => setMode('events')}
-        class="py-3 px-4 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 {perplexityMode === 'events' ? 'bg-cyan-500 text-gray-950 shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-800/60'}"
+        class="py-3 px-4 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 {perplexityMode === 'events' ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
       >
         <span>🎯 Événements Précis (Croisement Strict)</span>
       </button>
 
       <button 
         on:click={() => setMode('themes')}
-        class="py-3 px-4 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 {perplexityMode === 'themes' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-800/60'}"
+        class="py-3 px-4 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 {perplexityMode === 'themes' ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
       >
         <span>📰 Revues Thématiques (Regroupement Général)</span>
       </button>
@@ -346,7 +346,7 @@
         {#each filters as filter}
           <button 
             on:click={() => selectedFilter = filter}
-            class="px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all {selectedFilter === filter ? 'bg-white text-gray-950 shadow-md' : 'bg-gray-900/80 text-gray-400 hover:text-white border border-gray-800'}"
+            class="px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all {selectedFilter === filter ? 'bg-primary text-primary-foreground shadow-md' : 'bg-card text-muted-foreground hover:text-foreground border border-border'}"
           >
             {filter}
           </button>
@@ -354,15 +354,15 @@
       </div>
 
       <!-- FILTER ONLY VERIFIED SOURCES TOGGLE -->
-      <div class="flex items-center justify-between p-3.5 bg-gray-900/60 rounded-2xl border border-gray-800/80">
+      <div class="flex items-center justify-between p-3.5 bg-card rounded-2xl border border-border">
         <div class="flex items-center gap-2 text-xs">
-          <span class="text-emerald-400 font-bold">🛡️ Sources vérifiées uniquement</span>
-          <span class="text-gray-500 text-[11px]">(au moins 3 médias distincts)</span>
+          <span class="text-primary font-bold">🛡️ Sources vérifiées uniquement</span>
+          <span class="text-muted-foreground text-[11px]">(au moins 3 médias distincts)</span>
         </div>
         <input 
           type="checkbox" 
           bind:checked={onlyVerified}
-          class="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+          class="w-4 h-4 accent-primary rounded cursor-pointer"
         />
       </div>
     </div>
@@ -370,16 +370,16 @@
     <!-- CLUSTERS FEED LIST (MAGNETIC TILES) -->
     {#if isLoading}
       <div class="text-center py-16 space-y-3">
-        <svg class="w-8 h-8 animate-spin text-cyan-400 mx-auto" fill="none" viewBox="0 0 24 24">
+        <svg class="w-8 h-8 animate-spin text-primary mx-auto" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
         </svg>
-        <p class="text-xs text-gray-400">Chargement instantané des tuiles Perplexity...</p>
+        <p class="text-xs text-muted-foreground">Chargement instantané des tuiles Perplexity...</p>
       </div>
     {:else if filteredClusters.length === 0}
-      <div class="bg-gray-900/40 border border-gray-800 rounded-3xl p-8 text-center text-gray-400 space-y-2">
+      <div class="bg-card border border-border rounded-3xl p-8 text-center text-muted-foreground space-y-2">
         <p class="text-sm font-semibold">Aucun événement ne correspond aux filtres sélectionnés.</p>
-        <p class="text-xs text-gray-500">Essayez de décocher 'Sources vérifiées' ou de changer de catégorie.</p>
+        <p class="text-xs text-muted-foreground">Essayez de décocher 'Sources vérifiées' ou de changer de catégorie.</p>
       </div>
     {:else}
       <div class="space-y-6">
@@ -393,7 +393,7 @@
           <!-- COMPACT TILE CARD (SNAP-START MAGNET) -->
           <div 
             on:click={() => openCluster(cluster)}
-            class="snap-start scroll-mt-4 sm:scroll-mt-6 bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800/80 hover:border-cyan-500/60 rounded-3xl overflow-hidden shadow-2xl transition-all cursor-pointer group space-y-0 relative"
+            class="snap-start scroll-mt-4 sm:scroll-mt-6 bg-card border border-border hover:border-primary/60 rounded-3xl overflow-hidden shadow-2xl transition-all cursor-pointer group space-y-0 relative"
           >
             
             <!-- Cover Image Preview -->
@@ -404,16 +404,16 @@
                 alt={titleText} 
                 imgClass="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent pointer-events-none"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent pointer-events-none"></div>
               
               <!-- Badges on top of Image -->
               <div class="absolute top-4 left-4 flex items-center gap-2">
-                <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-gray-950/90 text-cyan-400 border border-cyan-800/60 backdrop-blur-md">
+                <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-card/90 text-primary border border-primary/60 backdrop-blur-md">
                   {cluster.category || 'Général'}
                 </span>
 
                 {#if isVerified}
-                  <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-950/90 text-emerald-400 border border-emerald-700/80 backdrop-blur-md flex items-center gap-1 shadow-lg">
+                  <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-primary/20 text-primary border border-primary/80 backdrop-blur-md flex items-center gap-1 shadow-lg">
                     <span>🛡️ Vérifié ({distinctFeeds} médias)</span>
                   </span>
                 {/if}
@@ -423,29 +423,29 @@
             <!-- Tile Body: Title + Short Teaser -->
             <div class="p-5 sm:p-6 space-y-3">
               
-              <h2 class="text-xl sm:text-2xl font-black text-white group-hover:text-cyan-400 transition-colors leading-snug">
+              <h2 class="text-xl sm:text-2xl font-black text-foreground group-hover:text-primary transition-colors leading-snug">
                 {titleText}
               </h2>
 
-              <p class="text-sm text-gray-300 font-normal leading-relaxed line-clamp-2">
+              <p class="text-sm text-muted-foreground font-normal leading-relaxed line-clamp-2">
                 {teaserText}
               </p>
 
               <!-- Media badges & Click Prompt -->
-              <div class="pt-2 border-t border-gray-900 flex items-center justify-between gap-2">
+              <div class="pt-2 border-t border-border flex items-center justify-between gap-2">
                 <div class="flex flex-wrap items-center gap-1.5">
-                  <span class="text-[11px] font-bold text-gray-500">Recoupé par :</span>
+                  <span class="text-[11px] font-bold text-muted-foreground">Recoupé par :</span>
                   {#each cluster.articles.slice(0, 3) as art}
-                    <span class="text-[10px] font-bold bg-gray-900 text-purple-300 px-2 py-0.5 rounded-md border border-gray-800">
+                    <span class="text-[10px] font-bold bg-background text-foreground px-2 py-0.5 rounded-md border border-border">
                       {getLanguageFlag(art.language)} {art.feed_title || 'RSS'}
                     </span>
                   {/each}
                   {#if cluster.articles.length > 3}
-                    <span class="text-[10px] text-gray-500 font-bold">+{cluster.articles.length - 3}</span>
+                    <span class="text-[10px] text-muted-foreground font-bold">+{cluster.articles.length - 3}</span>
                   {/if}
                 </div>
 
-                <span class="text-xs font-bold text-cyan-400 group-hover:underline flex items-center gap-1 shrink-0">
+                <span class="text-xs font-bold text-primary group-hover:underline flex items-center gap-1 shrink-0">
                   <span>Tout voir</span>
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                 </span>
@@ -472,4 +472,3 @@
     onRelatedClick={openCluster}
   />
 {/if}
-

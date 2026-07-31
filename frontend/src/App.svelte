@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentView, isMobile, selectedItemId, setupAutoRefresh, showNotifications, showMediaCredentialsModal } from './lib/stores/appState.js';
+  import { fade, fly, slide, scale, blur } from 'svelte/transition';
+  import { currentView, isMobile, selectedItemId, setupAutoRefresh, showNotifications, showMediaCredentialsModal, transitionType, transitionDuration, mainNavDirection } from './lib/stores/appState.js';
   import Sidebar from './lib/components/Sidebar.svelte';
   import ArticleList from './lib/components/ArticleList.svelte';
   import ReaderView from './lib/components/ReaderView.svelte';
@@ -19,7 +20,31 @@
   import MediaCredentialsModal from './lib/components/MediaCredentialsModal.svelte';
   import WebhookManagerView from './lib/components/WebhookManagerView.svelte';
   
-  let showOnboarding = false; // Could be controlled by a store later
+  let showOnboarding = false;
+
+  function customViewTransition(node) {
+    const type = $transitionType;
+    const duration = $transitionDuration;
+    const dir = $mainNavDirection;
+
+    if (type === 'none' || duration <= 0) {
+      return { duration: 0 };
+    }
+    if (type === 'fly') {
+      // Directional vertical slide: dir = 1 (moving down) -> y: 40, dir = -1 (moving up) -> y: -40
+      return fly(node, { y: dir * 40, duration });
+    }
+    if (type === 'slide') {
+      return slide(node, { duration });
+    }
+    if (type === 'scale') {
+      return scale(node, { start: 0.96, duration });
+    }
+    if (type === 'blur') {
+      return blur(node, { amount: 6, duration });
+    }
+    return fade(node, { duration });
+  }
 
   onMount(() => {
     setupAutoRefresh();
@@ -33,61 +58,69 @@
   });
 </script>
 
-<main class="h-screen w-full flex flex-col overflow-hidden bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-dark-text">
+<main class="h-screen w-full flex flex-col overflow-hidden bg-background text-foreground">
   
-  <div class="flex-1 flex overflow-hidden">
+  <div class="flex-1 flex overflow-hidden relative">
     {#if !$isMobile}
       <!-- Desktop Layout: 3 Columns / Views -->
       <Sidebar />
       
-      {#if $currentView === 'podcast'}
-        <PodcastStudioView />
-      {:else if $currentView === 'perplexity'}
-        <ExplorerView />
-      {:else if $currentView === 'webhooks'}
-        <WebhookManagerView />
-      {:else if $currentView === 'discover'}
-        <DiscoverView />
-      {:else if $currentView === 'synthesis'}
-        <SynthesisView />
-      {:else if $currentView === 'settings'}
-        <SettingsView />
-      {:else if $currentView === 'stats'}
-        <StatisticsView />
-      {:else if $currentView === 'feeds'}
-        <FeedManagerView />
-      {:else}
-        <ArticleList />
-        <ReaderView />
-      {/if}
+      {#key $currentView}
+        <div class="flex-1 flex overflow-hidden w-full h-full" in:customViewTransition>
+          {#if $currentView === 'podcast'}
+            <PodcastStudioView />
+          {:else if $currentView === 'perplexity'}
+            <ExplorerView />
+          {:else if $currentView === 'webhooks'}
+            <WebhookManagerView />
+          {:else if $currentView === 'discover'}
+            <DiscoverView />
+          {:else if $currentView === 'synthesis'}
+            <SynthesisView />
+          {:else if $currentView === 'settings'}
+            <SettingsView />
+          {:else if $currentView === 'stats'}
+            <StatisticsView />
+          {:else if $currentView === 'feeds'}
+            <FeedManagerView />
+          {:else}
+            <ArticleList />
+            <ReaderView />
+          {/if}
+        </div>
+      {/key}
       
     {:else}
       <!-- Mobile Layout: Dynamic 1 Column -->
-      {#if $currentView === 'podcast'}
-        <PodcastStudioView />
-      {:else if $currentView === 'perplexity'}
-        <ExplorerView />
-      {:else if $currentView === 'webhooks'}
-        <WebhookManagerView />
-      {:else if $currentView === 'discover'}
-        <DiscoverView />
-      {:else if $currentView === 'synthesis'}
-        <SynthesisView />
-      {:else if $currentView === 'settings'}
-        <SettingsView />
-      {:else if $currentView === 'stats'}
-        <StatisticsView />
-      {:else if $currentView === 'feeds'}
-        <FeedManagerView />
-      {:else}
-        <div class="flex-1 w-full flex flex-col h-full overflow-hidden pb-16">
-          {#if $selectedItemId}
-            <ReaderView />
+      {#key $currentView}
+        <div class="flex-1 w-full flex flex-col h-full overflow-hidden" in:customViewTransition>
+          {#if $currentView === 'podcast'}
+            <PodcastStudioView />
+          {:else if $currentView === 'perplexity'}
+            <ExplorerView />
+          {:else if $currentView === 'webhooks'}
+            <WebhookManagerView />
+          {:else if $currentView === 'discover'}
+            <DiscoverView />
+          {:else if $currentView === 'synthesis'}
+            <SynthesisView />
+          {:else if $currentView === 'settings'}
+            <SettingsView />
+          {:else if $currentView === 'stats'}
+            <StatisticsView />
+          {:else if $currentView === 'feeds'}
+            <FeedManagerView />
           {:else}
-            <ArticleList />
+            <div class="flex-1 w-full flex flex-col h-full overflow-hidden pb-16">
+              {#if $selectedItemId}
+                <ReaderView />
+              {:else}
+                <ArticleList />
+              {/if}
+            </div>
           {/if}
         </div>
-      {/if}
+      {/key}
     {/if}
   </div>
 
@@ -103,7 +136,6 @@
   
   <!-- Modals -->
   <AddFeedModal />
-  
   
   {#if showOnboarding}
     <OnboardingWizardModal />

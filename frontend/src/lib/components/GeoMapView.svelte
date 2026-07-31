@@ -265,19 +265,19 @@
   }
 </script>
 
-<div class="relative w-full h-full min-h-[460px] bg-[#040814] overflow-hidden flex flex-col justify-center items-center select-none" bind:this={containerRef}>
+<div class="relative w-full h-full min-h-[460px] bg-background text-foreground overflow-hidden flex flex-col justify-center items-center select-none" bind:this={containerRef}>
   
   {#if isLoading}
-    <div class="flex items-center justify-center gap-3 text-cyan-400 text-xs font-semibold z-30">
-      <div class="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
-      <span>Analyse géographique des flux en cours...</span>
+    <div class="flex items-center justify-center gap-3 text-primary text-xs font-bold z-30">
+      <div class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <span class="text-muted-foreground">Analyse géographique des flux en cours...</span>
     </div>
   {:else}
     <!-- Status indicator top banner -->
-    <div class="absolute top-4 left-4 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full bg-gray-900/85 border border-white/10 text-xs backdrop-blur-md text-gray-200 shadow-xl">
-      <span class="w-2.5 h-2.5 rounded-full {totalGeolocated > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
-      <span class="font-semibold">{totalGeolocated} événement(s) géolocalisé(s)</span>
-      <span class="text-gray-400 text-[11px]">({markerPositions.length} zones sur la carte)</span>
+    <div class="absolute top-4 left-4 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full bg-card border border-border text-xs text-foreground shadow-md backdrop-blur-md">
+      <span class="w-2.5 h-2.5 rounded-full {totalGeolocated > 0 ? 'bg-primary animate-pulse' : 'bg-amber-400'}"></span>
+      <span class="font-bold">{totalGeolocated} événement(s) géolocalisé(s)</span>
+      <span class="text-muted-foreground text-[11px]">({markerPositions.length} zones sur la carte)</span>
     </div>
 
     <!-- Map SVG -->
@@ -303,17 +303,17 @@
       </defs>
 
       <!-- Graticule -->
-      <path d={graticulePath} fill="none" stroke="rgba(148,163,184,0.05)" stroke-width="0.5" />
+      <path d={graticulePath} fill="none" stroke="var(--border)" stroke-width="0.5" opacity="0.4" />
 
       <!-- Countries -->
       <g>
         {#each geoPaths as d}
           <path
             {d}
-            fill="rgba(15,23,42,0.85)"
-            stroke="rgba(51,65,85,0.4)"
+            fill="var(--card)"
+            stroke="var(--border)"
             stroke-width="0.6"
-            class="transition-colors duration-200 hover:fill-slate-800"
+            class="transition-colors duration-200 hover:fill-primary/20 cursor-pointer"
           />
         {/each}
       </g>
@@ -436,14 +436,14 @@
 {#if groupedClustersList}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
     <div class="bg-gray-900 border border-gray-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] text-white">
-      <div class="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-950">
+      <div class="p-5 border-b border-gray-800 flex justify-between items-center bg-background">
         <div>
           <h3 class="font-bold text-base flex items-center gap-2">
             <span>📍 Événements géolocalisés ({groupedClustersList.count})</span>
           </h3>
           <p class="text-xs text-gray-400">Sélectionnez une actualité à consulter</p>
         </div>
-        <button on:click={() => groupedClustersList = null} class="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-800 transition-colors">
+        <button on:click={() => groupedClustersList = null} class="text-gray-400 hover:text-white p-2 rounded-full hover:bg-card transition-colors">
           ✕
         </button>
       </div>
@@ -455,7 +455,7 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div 
             on:click={() => { selectedCluster = c; groupedClustersList = null; }}
-            class="p-4 bg-gray-950 border border-gray-800/80 hover:border-cyan-500/60 rounded-2xl cursor-pointer transition-all hover:scale-[1.01] space-y-2 group"
+            class="p-4 bg-background border border-gray-800/80 hover:border-cyan-500/60 rounded-2xl cursor-pointer transition-all hover:scale-[1.01] space-y-2 group"
           >
             <div class="flex justify-between items-center text-xs">
               <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style="background-color: {cfg.color}">

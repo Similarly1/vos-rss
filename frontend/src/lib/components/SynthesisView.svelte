@@ -99,28 +99,27 @@
         body: JSON.stringify({
           articles: cluster.articles,
           provider: activeProvider,
-          api_key: activeKey,
+          api_key: activeKey || null,
           model: activeModel
         })
       });
 
       const result = await res.json();
-
       if (res.ok && result.data) {
         syntheses[cId] = result.data;
         syntheses = { ...syntheses };
       } else {
-        alert(result.detail || "Erreur de synthèse Mistral.");
+        error = result.detail || "Échec de la génération de la synthèse.";
       }
     } catch (err) {
-      alert("Erreur de communication avec le serveur.");
+      error = "Erreur de connexion.";
     } finally {
       synthLoading[cId] = false;
       synthLoading = { ...synthLoading };
     }
   }
 
-  async function playSynthesisAudio(clusterId, title, textToRead) {
+  async function playSynthesisAudio(clusterId, title, summaryText) {
     synthAudioLoading[clusterId] = true;
     synthAudioLoading = { ...synthAudioLoading };
 
@@ -129,61 +128,56 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: textToRead,
-          voice: $selectedVoice
+          text: `${title}. ${summaryText}`,
+          voice: $selectedVoice || 'marie',
+          api_key: $mistralApiKey || null
         })
       });
 
       const result = await res.json();
 
       if (res.ok && (result.audio_b64 || result.audio_url)) {
-        playTrack(title, result.audio_b64 || result.audio_url, 'Podcast Synthèse Vos');
+        playTrack(title, result.audio_b64 || result.audio_url, 'Synthèse IA Vos');
       } else {
-        alert(result.detail || "Échec de la génération audio TTS.");
+        error = result.detail || "Échec de la génération audio.";
       }
     } catch (err) {
-      alert("Erreur de connexion audio.");
+      error = "Erreur de connexion audio.";
     } finally {
       synthAudioLoading[clusterId] = false;
       synthAudioLoading = { ...synthAudioLoading };
     }
   }
 
-  onMount(async () => {
-    await fetchStatus();
-    await fetchClusters();
+  onMount(() => {
+    fetchStatus();
+    fetchClusters();
   });
 </script>
 
-<div class="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-dark-bg p-6 md:p-10 space-y-8">
-  
+<div class="p-6 bg-background text-foreground min-h-full font-sans overflow-y-auto">
   <div class="max-w-4xl mx-auto space-y-8">
     
-    <!-- Title & Header -->
+    <!-- Top Banner -->
     <div class="space-y-2">
-      <div class="flex items-center gap-2">
-        <span class="text-xs bg-primary-100 dark:bg-primary-900/50 text-primary-600 font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider">
-          Moteur Vectoriel & Recoupement
-        </span>
-      </div>
-      <h1 class="text-3xl font-extrabold">Synthèses Croisées & Clustering IA</h1>
-      <p class="text-sm text-gray-500">
+      <h2 class="text-3xl font-black text-foreground tracking-tight">Regroupement Vectoriel & Synthèses IA</h2>
+      <p class="text-sm text-muted-foreground">
         Grâce aux embeddings et au calcul de distance cosinus, l'application identifie automatiquement les articles qui traitent du même sujet afin de générer des synthèses croisées uniques pour le podcast.
       </p>
     </div>
 
     <!-- Vector Dashboard Card -->
-    <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-6">
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-6">
+    <div class="bg-card text-card-foreground border border-border rounded-3xl p-6 shadow-sm space-y-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
           <h3 class="text-lg font-bold">État de la Base Vectorielle</h3>
-          <p class="text-xs text-gray-400">Progression des embeddings Mistral AI</p>
+          <p class="text-xs text-muted-foreground">Progression des embeddings Mistral AI</p>
         </div>
 
         <div class="flex flex-wrap gap-2">
           <button 
             on:click={fetchClusters}
-            class="px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-semibold text-xs rounded-2xl transition-all flex items-center gap-1.5"
+            class="px-4 py-2.5 bg-background hover:bg-accent text-foreground font-semibold text-xs rounded-2xl border border-border transition-all flex items-center gap-1.5"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             <span>Recalculer</span>
@@ -192,7 +186,7 @@
           <button 
             on:click={() => startVectorization(true)}
             disabled={isVectorizing}
-            class="px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 font-semibold text-xs rounded-2xl transition-all flex items-center gap-1.5"
+            class="px-4 py-2.5 bg-primary/20 hover:bg-primary/30 text-primary font-semibold text-xs rounded-2xl border border-primary/40 transition-all flex items-center gap-1.5"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
             <span>Ré-analyser proprement</span>
@@ -202,7 +196,7 @@
             <button 
               on:click={() => startVectorization(false)}
               disabled={isVectorizing}
-              class="px-5 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-xs rounded-2xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2"
+              class="px-5 py-2.5 bg-primary text-primary-foreground font-semibold text-xs rounded-2xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2"
             >
               {#if isVectorizing}
                 <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -221,29 +215,29 @@
 
       <!-- Stats Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="p-4 bg-gray-50 dark:bg-dark-bg rounded-2xl">
-          <span class="text-xs font-semibold text-gray-400 block mb-1">Total Articles</span>
+        <div class="p-4 bg-background rounded-2xl border border-border">
+          <span class="text-xs font-semibold text-muted-foreground block mb-1">Total Articles</span>
           <span class="text-2xl font-black">{status.total_articles}</span>
         </div>
 
-        <div class="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl">
-          <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 block mb-1">Vectorisés</span>
-          <span class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{status.vectorized_articles}</span>
+        <div class="p-4 bg-primary/20 rounded-2xl border border-primary/30">
+          <span class="text-xs font-semibold text-primary block mb-1">Vectorisés</span>
+          <span class="text-2xl font-black text-primary">{status.vectorized_articles}</span>
         </div>
 
-        <div class="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-2xl">
-          <span class="text-xs font-semibold text-purple-600 dark:text-purple-400 block mb-1">Grappes Détectées</span>
-          <span class="text-2xl font-black text-purple-600 dark:text-purple-400">{clusters.length}</span>
+        <div class="p-4 bg-primary/10 rounded-2xl border border-primary/20">
+          <span class="text-xs font-semibold text-primary block mb-1">Grappes Détectées</span>
+          <span class="text-2xl font-black text-primary">{clusters.length}</span>
         </div>
       </div>
 
       <!-- Threshold Sensitivity Controller -->
-      <div class="pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <label for="threshold-slider" class="text-xs font-bold text-gray-700 dark:text-gray-300 block">
+          <label for="threshold-slider" class="text-xs font-bold text-foreground block">
             Sensibilité de recoupement (Seuil : {$similarityThreshold})
           </label>
-          <p class="text-[11px] text-gray-400">Un seuil élevé (0.90) exige un sujet très spécifique pour former un groupe.</p>
+          <p class="text-[11px] text-muted-foreground">Un seuil élevé (0.90) exige un sujet très spécifique pour former un groupe.</p>
         </div>
 
         <div class="flex items-center gap-3">
@@ -255,11 +249,11 @@
             step="0.01" 
             bind:value={$similarityThreshold}
             on:change={fetchClusters}
-            class="w-36 accent-primary-500 cursor-pointer"
+            class="w-36 accent-primary cursor-pointer"
           />
           <button 
             on:click={fetchClusters}
-            class="text-xs font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-all"
+            class="text-xs font-semibold bg-background hover:bg-accent border border-border px-3 py-1.5 rounded-xl transition-all"
           >
             Appliquer
           </button>
@@ -267,13 +261,13 @@
       </div>
 
       {#if message}
-        <div class="p-3 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 rounded-xl text-xs font-medium">
+        <div class="p-3 bg-primary/20 text-primary rounded-xl text-xs font-medium border border-primary/30">
           {message}
         </div>
       {/if}
 
       {#if error}
-        <div class="p-3 bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 rounded-xl text-xs font-medium flex justify-between items-center">
+        <div class="p-3 bg-destructive/10 text-destructive rounded-xl text-xs font-medium border border-destructive/30 flex justify-between items-center">
           <span>{error}</span>
           {#if error.includes("Paramètres")}
             <button on:click={() => $currentView = 'settings'} class="underline font-bold">Paramètres</button>
@@ -286,44 +280,44 @@
     <div class="space-y-6">
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-bold">Grappes d'Actualités ({clusters.length})</h3>
-        <span class="text-xs text-gray-400">Seuil : {$similarityThreshold}</span>
+        <span class="text-xs text-muted-foreground">Seuil : {$similarityThreshold}</span>
       </div>
 
       {#if isClustering}
-        <div class="p-12 text-center text-gray-400 space-y-3">
-          <div class="w-8 h-8 border-2 border-primary-500 border-t-transparent animate-spin rounded-full mx-auto"></div>
+        <div class="p-12 text-center text-muted-foreground space-y-3">
+          <div class="w-8 h-8 border-2 border-primary border-t-transparent animate-spin rounded-full mx-auto"></div>
           <p class="text-xs font-medium">Calcul des distances vectorielles et regroupement des sujets...</p>
         </div>
       {:else if clusters.length === 0}
-        <div class="p-8 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-3xl text-center space-y-2 text-gray-400">
+        <div class="p-8 border-2 border-dashed border-border rounded-3xl text-center space-y-2 text-muted-foreground">
           <p class="text-sm">Aucune grappe trouvée avec ce seuil.</p>
         </div>
       {:else}
         <div class="space-y-6">
           {#each clusters as cluster}
-            <div class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <div class="bg-card text-card-foreground border border-border rounded-3xl p-6 shadow-sm space-y-4">
               
               <!-- Cluster Header -->
-              <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+              <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-4">
                 <div class="space-y-1">
                   <div class="flex items-center gap-2">
                     {#if cluster.article_count > 1}
-                      <span class="text-[10px] bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                      <span class="text-[10px] bg-primary/20 text-primary font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-primary/40">
                         🔥 Sujet Croisé ({cluster.article_count} sources)
                       </span>
                     {:else}
-                      <span class="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-500 font-medium px-2 py-0.5 rounded-full">
+                      <span class="text-[10px] bg-background text-muted-foreground font-medium px-2 py-0.5 rounded-full border border-border">
                         Sujet individuel
                       </span>
                     {/if}
                   </div>
-                  <h4 class="font-extrabold text-base md:text-lg">{cluster.topic_title}</h4>
+                  <h4 class="font-extrabold text-base md:text-lg text-foreground">{cluster.topic_title}</h4>
                 </div>
 
                 <button 
                   on:click={() => generateClusterSynthesis(cluster)}
                   disabled={synthLoading[cluster.cluster_id]}
-                  class="px-4 py-2 bg-gradient-to-r from-primary-500 to-indigo-600 hover:from-primary-600 hover:to-indigo-700 text-white font-medium text-xs rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+                  class="px-4 py-2 bg-primary text-primary-foreground font-medium text-xs rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5 shrink-0"
                 >
                   {#if synthLoading[cluster.cluster_id]}
                     <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -340,15 +334,15 @@
 
               <!-- AI SYNTHESIS RESULT CARD IF GENERATED -->
               {#if syntheses[cluster.cluster_id]}
-                <div class="p-5 rounded-2xl bg-gradient-to-br from-primary-500/10 to-purple-500/10 border border-primary-500/30 space-y-4">
+                <div class="p-5 rounded-2xl bg-primary/10 border border-primary/30 space-y-4">
                   <div class="flex items-center justify-between flex-wrap gap-2">
-                    <span class="text-xs font-bold text-primary-500">✨ Synthèse Croisée Sans Doublons</span>
+                    <span class="text-xs font-bold text-primary">✨ Synthèse Croisée Sans Doublons</span>
 
                     <!-- LISTEN BUTTON FOR SYNTHESIS -->
                     <button 
                       on:click={() => playSynthesisAudio(cluster.cluster_id, syntheses[cluster.cluster_id].synthesis_title || cluster.topic_title, syntheses[cluster.cluster_id].summary)}
                       disabled={synthAudioLoading[cluster.cluster_id]}
-                      class="text-xs bg-primary-500 hover:bg-primary-600 text-white font-semibold px-3 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      class="text-xs bg-primary text-primary-foreground font-semibold px-3 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
                     >
                       {#if synthAudioLoading[cluster.cluster_id]}
                         <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -363,20 +357,20 @@
                     </button>
                   </div>
 
-                  <h5 class="font-extrabold text-base text-gray-900 dark:text-gray-100">
+                  <h5 class="font-extrabold text-base text-foreground">
                     {syntheses[cluster.cluster_id].synthesis_title || cluster.topic_title}
                   </h5>
-                  <p class="text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+                  <p class="text-sm leading-relaxed text-foreground">
                     {syntheses[cluster.cluster_id].summary}
                   </p>
                   
                   {#if syntheses[cluster.cluster_id].key_takeaways}
-                    <div class="pt-2 border-t border-gray-200/50 dark:border-gray-700/50">
-                      <span class="text-xs font-bold text-gray-400 block mb-1">Points clés :</span>
+                    <div class="pt-2 border-t border-border">
+                      <span class="text-xs font-bold text-muted-foreground block mb-1">Points clés :</span>
                       <ul class="space-y-1">
                         {#each syntheses[cluster.cluster_id].key_takeaways as point}
-                          <li class="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-1.5">
-                            <span class="text-primary-500">•</span>
+                          <li class="text-xs text-foreground flex items-start gap-1.5">
+                            <span class="text-primary">•</span>
                             <span>{point}</span>
                           </li>
                         {/each}
@@ -388,15 +382,15 @@
 
               <!-- Articles in cluster -->
               <div class="space-y-2">
-                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Articles ({cluster.articles.length}) :</span>
+                <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Articles ({cluster.articles.length}) :</span>
                 <div class="grid grid-cols-1 gap-2">
                   {#each cluster.articles as art}
-                    <div class="p-3 bg-gray-50 dark:bg-dark-bg rounded-xl flex items-center justify-between text-xs gap-3">
+                    <div class="p-3 bg-background rounded-xl border border-border flex items-center justify-between text-xs gap-3">
                       <div class="flex items-center gap-2 truncate">
-                        <span class="font-bold text-primary-500 shrink-0">{art.feed_title || 'RSS'}</span>
-                        <span class="truncate text-gray-700 dark:text-gray-300">{art.title}</span>
+                        <span class="font-bold text-primary shrink-0">{art.feed_title || 'RSS'}</span>
+                        <span class="truncate text-foreground">{art.title}</span>
                       </div>
-                      <a href={art.url} target="_blank" rel="noreferrer" class="text-gray-400 hover:text-primary-500 shrink-0">
+                      <a href={art.url} target="_blank" rel="noreferrer" class="text-muted-foreground hover:text-primary shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                       </a>
                     </div>

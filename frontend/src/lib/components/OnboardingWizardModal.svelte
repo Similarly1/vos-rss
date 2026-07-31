@@ -27,8 +27,8 @@
 </script>
 
 {#if isVisible}
-<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" transition:fade>
-    <div class="bg-slate-900 rounded-3xl shadow-2xl border border-slate-700/60 w-full max-w-xl overflow-hidden" 
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" transition:fade>
+    <div class="bg-background rounded-3xl shadow-2xl border border-slate-700/60 w-full max-w-xl overflow-hidden" 
          transition:fly="{{ y: 20, duration: 300 }}">
         
         <!-- Header -->
@@ -50,7 +50,7 @@
                         <div>
                             <label for="rssUrl" class="block text-sm font-medium text-slate-300 mb-1">URL du flux RSS</label>
                             <input type="url" id="rssUrl" bind:value={rssUrl} placeholder="https://example.com/feed.xml"
-                                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"/>
+                                class="w-full bg-background border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"/>
                         </div>
                         
                         <div class="relative flex items-center py-2">
@@ -60,7 +60,7 @@
                         </div>
 
                         <div>
-                            <button class="w-full py-4 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-white hover:border-slate-500 hover:bg-slate-800/50 transition-all flex flex-col items-center justify-center">
+                            <button class="w-full py-4 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 hover:text-white hover:border-slate-500 hover:bg-card/50 transition-all flex flex-col items-center justify-center">
                                 <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                                 <span>Importer un fichier OPML</span>
                             </button>
@@ -76,7 +76,7 @@
                         <div class="grid grid-cols-2 gap-4">
                             <label class="cursor-pointer relative">
                                 <input type="radio" bind:group={aiProvider} value="mistral" class="peer sr-only" />
-                                <div class="p-4 rounded-xl border border-slate-700 bg-slate-950 peer-checked:border-orange-500 peer-checked:ring-1 peer-checked:ring-orange-500 transition-all">
+                                <div class="p-4 rounded-xl border border-slate-700 bg-background peer-checked:border-orange-500 peer-checked:ring-1 peer-checked:ring-orange-500 transition-all">
                                     <span class="block text-white font-medium mb-1">Mistral AI</span>
                                     <span class="text-xs text-slate-500">Recommandé</span>
                                 </div>
@@ -84,7 +84,7 @@
                             
                             <label class="cursor-pointer relative">
                                 <input type="radio" bind:group={aiProvider} value="gemini" class="peer sr-only" />
-                                <div class="p-4 rounded-xl border border-slate-700 bg-slate-950 peer-checked:border-blue-500 peer-checked:ring-1 peer-checked:ring-blue-500 transition-all">
+                                <div class="p-4 rounded-xl border border-slate-700 bg-background peer-checked:border-blue-500 peer-checked:ring-1 peer-checked:ring-blue-500 transition-all">
                                     <span class="block text-white font-medium mb-1">Google Gemini</span>
                                     <span class="text-xs text-slate-500">Rapide & efficace</span>
                                 </div>
@@ -94,7 +94,7 @@
                         <div>
                             <label for="apiKey" class="block text-sm font-medium text-slate-300 mb-1">Clé API {aiProvider === 'mistral' ? 'Mistral' : 'Gemini'}</label>
                             <input type="password" id="apiKey" bind:value={apiKey} placeholder="Entrez votre clé API..."
-                                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"/>
+                                class="w-full bg-background border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"/>
                             
                             <p class="mt-2 text-xs text-slate-500">
                                 {#if aiProvider === 'mistral'}
@@ -110,13 +110,13 @@
         </div>
 
         <!-- Footer -->
-        <div class="px-8 py-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
+        <div class="px-8 py-4 bg-background border-t border-slate-800 flex justify-between items-center">
             <button on:click={skip} class="text-sm text-slate-400 hover:text-white transition-colors">
                 Passer cette étape
             </button>
             
             {#if step === 1}
-                <button on:click={nextStep} class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
+                <button on:click={nextStep} class="px-6 py-2 bg-primary text-primary-foreground hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
                     Suivant
                 </button>
             {:else}

@@ -166,12 +166,12 @@
 
 {#if $showFeedManagerModal}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-    <div class="bg-white dark:bg-dark-card w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800">
+    <div class="bg-card text-card-foreground w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-border">
       
       <!-- Header -->
-      <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-dark-bg/50">
+      <div class="p-6 border-b border-border flex justify-between items-center bg-gray-50/50 bg-background/50">
         <div class="flex items-center gap-3">
-          <div class="p-2.5 bg-primary-50 dark:bg-primary-900/50 text-primary-500 rounded-2xl">
+          <div class="p-2.5 bg-primary-50 dark:bg-primary-900/50 text-primary rounded-2xl">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
             </svg>
@@ -182,7 +182,7 @@
           </div>
         </div>
 
-        <button on:click={closeModal} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <button on:click={closeModal} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-card transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -190,17 +190,17 @@
       </div>
 
       <!-- EXPORT & IMPORT ACTION BAR -->
-      <div class="px-6 pt-4 pb-2 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/30 dark:bg-dark-bg/30">
+      <div class="px-6 pt-4 pb-2 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-gray-50/30 bg-background/30">
         <span class="text-xs font-bold text-gray-500">Sauvegarde & Migration OPML :</span>
         
         <div class="flex items-center gap-2">
           <!-- EXPORT BUTTON -->
           <button 
             on:click={exportOpml}
-            class="px-3.5 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5"
+            class="px-3.5 py-1.5 bg-gray-100 dark:bg-card hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5"
             title="Exporter mes abonnements au format universel OPML 2.0"
           >
-            <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             <span>Exporter mes flux (OPML)</span>
           </button>
 
@@ -208,7 +208,7 @@
           <button 
             on:click={triggerImport}
             disabled={isImporting}
-            class="px-3.5 py-1.5 bg-primary-500 hover:bg-primary-600 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+            class="px-3.5 py-1.5 bg-primary hover:opacity-90 text-primary-foreground font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
             title="Importer des flux depuis un fichier OPML ou JSON"
           >
             {#if isImporting}
@@ -225,7 +225,7 @@
       <div class="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
         
         {#if message}
-          <div class="p-3 bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 rounded-xl text-xs font-medium">
+          <div class="p-3 bg-primary/10 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 rounded-xl text-xs font-medium">
             {message}
           </div>
         {/if}
@@ -244,7 +244,7 @@
           {#each Object.entries(groupedFeeds) as [categoryName, categoryFeeds]}
             <div class="space-y-3">
               <div class="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
                 </svg>
                 <span>Dossier : {categoryName} ({categoryFeeds.length})</span>
@@ -252,7 +252,7 @@
 
               <div class="space-y-2">
                 {#each categoryFeeds as feed}
-                  <div class="bg-gray-50 dark:bg-dark-bg p-4 rounded-2xl border border-gray-100 dark:border-gray-800 transition-all">
+                  <div class="bg-background p-4 rounded-2xl border border-border transition-all">
                     
                     {#if editingFeedId === feed.id}
                       <!-- EDIT MODE -->
@@ -262,17 +262,17 @@
                             type="text" 
                             bind:value={editTitle}
                             placeholder="Nom du flux" 
-                            class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-primary-500"
+                            class="bg-card text-card-foreground border border-border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-primary-500"
                           />
                           <input 
                             type="text" 
                             bind:value={editCategory}
                             placeholder="Dossier" 
-                            class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-primary-500"
+                            class="bg-card text-card-foreground border border-border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-primary-500"
                           />
                           <select 
                             bind:value={editLanguage}
-                            class="bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-primary-500"
+                            class="bg-card text-card-foreground border border-border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-primary-500"
                           >
                             <option value="fr">🇫🇷 Français</option>
                             <option value="en">🇬🇧 Anglais</option>
@@ -291,7 +291,7 @@
                           <button 
                             on:click={() => saveEdit(feed.id)}
                             disabled={isLoading}
-                            class="px-4 py-1.5 text-xs bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg shadow-sm"
+                            class="px-4 py-1.5 text-xs bg-primary hover:opacity-90 text-primary-foreground font-semibold rounded-lg shadow-sm"
                           >
                             Enregistrer
                           </button>
@@ -314,7 +314,7 @@
                         <div class="flex items-center gap-2 shrink-0">
                           <button 
                             on:click={() => startEdit(feed)}
-                            class="p-2 text-gray-400 hover:text-primary-500 hover:bg-white dark:hover:bg-dark-card rounded-xl transition-all"
+                            class="p-2 text-gray-400 hover:text-primary hover:bg-white dark:hover:bg-dark-card rounded-xl transition-all"
                             title="Renommer, changer la langue ou de dossier"
                           >
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,7 +345,7 @@
       </div>
 
       <!-- Footer -->
-      <div class="p-4 bg-gray-50/50 dark:bg-dark-bg/50 border-t border-gray-100 dark:border-gray-800 flex justify-end">
+      <div class="p-4 bg-gray-50/50 bg-background/50 border-t border-border flex justify-end">
         <button 
           type="button" 
           on:click={closeModal}

@@ -131,33 +131,33 @@
   }
 </script>
 
-<div class="flex-1 h-full bg-white dark:bg-dark-card overflow-y-auto">
+<div class="flex-1 h-full bg-card text-card-foreground overflow-y-auto">
   {#if selectedArticle}
     <div class="max-w-3xl mx-auto p-4 sm:p-6 md:p-10 space-y-6 md:space-y-8">
       
       <!-- Mobile Back Button -->
       <button 
         on:click={() => $selectedItemId = null}
-        class="lg:hidden px-3.5 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl flex items-center gap-2 border border-gray-200 dark:border-gray-700 shadow-sm"
+        class="lg:hidden px-3.5 py-2 bg-gray-100 dark:bg-card hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl flex items-center gap-2 border border-border shadow-sm"
       >
-        <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
         <span>← Retour à la liste des articles</span>
       </button>
 
       <!-- Article Header -->
-      <div class="border-b border-gray-100 dark:border-gray-800 pb-6">
+      <div class="border-b border-border pb-6">
         <div class="flex items-center gap-2 mb-2">
-          <span class="text-primary-500 font-semibold text-xs uppercase tracking-wider">{selectedArticle.feed_title || 'Flux RSS'}</span>
+          <span class="text-primary font-semibold text-xs uppercase tracking-wider">{selectedArticle.feed_title || 'Flux RSS'}</span>
           <span class="text-gray-300 dark:text-gray-700">•</span>
           {#if selectedArticle.is_paywalled !== undefined}
             {#if selectedArticle.is_paywalled}
               {#if $subscribedMediaCredentialsList.some(cred => selectedArticle.url && selectedArticle.url.includes(cred.domain))}
-                <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] font-bold rounded">🔓 Intégral</span>
+                <span class="px-2 py-0.5 bg-primary/10 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-[10px] font-bold rounded">🔓 Intégral</span>
               {:else}
                 <span class="px-2 py-0.5 bg-amber-50 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 text-[10px] font-bold rounded">🔒 Réservé</span>
               {/if}
             {:else}
-              <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 text-[10px] font-bold rounded">🔓 Gratuit</span>
+              <span class="px-2 py-0.5 bg-primary/10 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 text-[10px] font-bold rounded">🔓 Gratuit</span>
             {/if}
             <span class="text-gray-300 dark:text-gray-700">•</span>
           {/if}
@@ -170,7 +170,7 @@
             href={selectedArticle.url} 
             target="_blank" 
             rel="noreferrer"
-            class="text-xs text-gray-500 hover:text-primary-500 hover:underline flex items-center gap-1 font-medium"
+            class="text-xs text-gray-500 hover:text-primary hover:underline flex items-center gap-1 font-medium"
           >
             <span>Article original sur la source</span>
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -199,11 +199,11 @@
               <div class="flex items-center gap-2">
                 <button 
                   on:click={() => copySummary(summaries[selectedArticle.id])}
-                  class="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800/60 rounded-xl transition-all flex items-center gap-1 border border-gray-200/50 dark:border-gray-700/50"
+                  class="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-card/60 rounded-xl transition-all flex items-center gap-1 border border-gray-200/50 dark:border-gray-700/50"
                   title="Copier le résumé"
                 >
                   {#if copied}
-                    <span class="text-emerald-500 font-bold">Copié !</span>
+                    <span class="text-primary font-bold">Copié !</span>
                   {:else}
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                     <span>Copier</span>
@@ -213,7 +213,7 @@
                 <button 
                   on:click={() => handleListen(selectedArticle.title, summaries[selectedArticle.id].summary, selectedArticle.feed_title)}
                   disabled={audioLoadingState[selectedArticle.id]}
-                  class="px-3.5 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  class="px-3.5 py-1.5 bg-primary hover:opacity-90 text-primary-foreground text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {#if audioLoadingState[selectedArticle.id]}
                     <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
@@ -238,7 +238,7 @@
                 <ul class="space-y-1.5 text-xs text-gray-600 dark:text-gray-300">
                   {#each summaries[selectedArticle.id].key_points as point}
                     <li class="flex items-start gap-2">
-                      <span class="text-primary-500 font-bold mt-0.5">•</span>
+                      <span class="text-primary font-bold mt-0.5">•</span>
                       <span>{point}</span>
                     </li>
                   {/each}

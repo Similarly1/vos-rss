@@ -28,10 +28,10 @@
     <!-- Overlay invisible pour fermer le panel au clic en dehors -->
     <div class="fixed inset-0 z-40" on:click={() => isOpen = false} transition:fade={{duration: 150}}></div>
 
-    <div class="absolute right-0 top-12 mt-2 w-80 z-50 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden origin-top-right"
+    <div class="absolute right-0 top-12 mt-2 w-80 z-50 bg-background border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden origin-top-right"
          transition:fly="{{ y: -10, duration: 200 }}">
         
-        <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-md">
+        <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-background/50 backdrop-blur-md">
             <h3 class="font-semibold text-white">Notifications</h3>
             {#if notifications.some(n => !n.read)}
                 <button on:click={markAllAsRead} class="text-xs text-blue-400 hover:text-blue-300 transition-colors">
@@ -48,7 +48,7 @@
             {:else}
                 {#each notifications as notif (notif.id)}
                     <button 
-                        class="w-full text-left p-4 border-b border-slate-800/50 hover:bg-slate-800 transition-colors flex gap-3 relative {notif.read ? 'opacity-70' : ''}"
+                        class="w-full text-left p-4 border-b border-slate-800/50 hover:bg-card transition-colors flex gap-3 relative {notif.read ? 'opacity-70' : ''}"
                         on:click={() => handleNotificationClick(notif)}
                     >
                         {#if !notif.read}

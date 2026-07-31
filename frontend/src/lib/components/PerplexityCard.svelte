@@ -115,8 +115,8 @@
   function renderMarkdownHtml(text) {
     if (!text) return '';
     let clean = cleanTextBoilerplate(text);
-    clean = clean.replace(/\*\*(.*?)\*\*/g, '<strong class="font-black text-cyan-200 bg-cyan-950/50 px-1.5 py-0.5 rounded border border-cyan-800/40">$1</strong>');
-    clean = clean.replace(/\*(.*?)\*/g, '<em class="italic text-gray-300">$1</em>');
+    clean = clean.replace(/\*\*(.*?)\*\*/g, '<strong class="font-black text-foreground bg-primary/20 px-1.5 py-0.5 rounded border border-primary/40">$1</strong>');
+    clean = clean.replace(/\*(.*?)\*/g, '<em class="italic text-muted-foreground">$1</em>');
     const paragraphs = clean.split(/\n\s*\n/);
     return paragraphs.map(p => `<p class="leading-relaxed mb-3">${p.trim()}</p>`).join('');
   }
@@ -207,36 +207,36 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div 
     on:click|stopPropagation={() => {}} 
-    class="bg-gray-950 w-full max-w-4xl h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl shadow-2xl overflow-y-auto border-0 sm:border border-gray-800 relative flex flex-col pt-12 sm:pt-0 pb-24 sm:pb-8 cursor-default"
+    class="bg-card text-card-foreground w-full max-w-4xl h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl shadow-2xl overflow-y-auto border-0 sm:border border-border relative flex flex-col pt-12 sm:pt-0 pb-24 sm:pb-8 cursor-default"
   >
-    <button on:click={onClose} class="fixed sm:absolute top-3 right-3 sm:top-5 sm:right-5 z-50 p-2.5 sm:p-3 bg-gray-950/90 hover:bg-gray-900 text-white rounded-full border border-gray-700 backdrop-blur-md shadow-2xl transition-all" title="Fermer la vue détaillée">
+    <button on:click={onClose} class="fixed sm:absolute top-3 right-3 sm:top-5 sm:right-5 z-50 p-2.5 sm:p-3 bg-card hover:bg-accent text-foreground rounded-full border border-border backdrop-blur-md shadow-2xl transition-all" title="Fermer la vue détaillée">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
     </button>
 
     <div class="w-full h-64 sm:h-80 relative overflow-hidden shrink-0">
       <ProgressiveImage src={activeImg} fallbackSrc={getCategoryFallbackImage(cluster.category)} alt={activeTitle} imgClass="w-full h-full object-cover scale-105 transform transition-transform duration-700" />
-      <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent pointer-events-none"></div>
+      <div class="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent pointer-events-none"></div>
       <div class="absolute bottom-6 left-6 right-6 space-y-3">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-gray-950/90 text-cyan-400 border border-cyan-800/80 backdrop-blur-md">{cluster.category || 'Général'}</span>
+          <span class="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-card/90 text-primary border border-primary/80 backdrop-blur-md">{cluster.category || 'Général'}</span>
           {#if activeIsVerified}
-            <span class="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-950/90 text-emerald-400 border border-emerald-700/80 backdrop-blur-md">🛡️ Information Vérifiée ({activeFeedsCount} médias)</span>
+            <span class="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-primary/20 text-primary border border-primary/80 backdrop-blur-md">🛡️ Information Vérifiée ({activeFeedsCount} médias)</span>
           {/if}
         </div>
-        <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight drop-shadow-md">{activeTitle}</h1>
+        <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-foreground leading-tight drop-shadow-md">{activeTitle}</h1>
       </div>
     </div>
 
     <div class="p-6 sm:p-8 space-y-8 flex-1">
-      <div class="bg-gray-900/90 border border-gray-800 rounded-3xl p-6 space-y-5 shadow-xl">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-4">
+      <div class="bg-card border border-border rounded-3xl p-6 space-y-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-black uppercase tracking-wider text-cyan-400">✨ Synthèse Croisée Complète</span>
+            <span class="text-xs font-black uppercase tracking-wider text-primary">✨ Synthèse Croisée Complète</span>
           </div>
           {#if displaySynth}
-            <button on:click={handleListenSummary} disabled={localAudioLoading} class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2 disabled:opacity-50">
+            <button on:click={handleListenSummary} disabled={localAudioLoading} class="px-4 py-2 bg-primary text-primary-foreground font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2 disabled:opacity-50">
               {#if localAudioLoading}
-                <svg class="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <svg class="w-4 h-4 animate-spin text-primary-foreground" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                 <span>Génération audio...</span>
               {:else}
                 <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
@@ -246,23 +246,23 @@
           {/if}
         </div>
         {#if isSynthLoading}
-          <div class="flex items-center gap-3 text-xs text-gray-400 py-4 animate-pulse">
-            <svg class="w-5 h-5 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+          <div class="flex items-center gap-3 text-xs text-muted-foreground py-4 animate-pulse">
+            <svg class="w-5 h-5 animate-spin text-primary" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
             <span>Traduction et synthèse des sources par Mistral AI...</span>
           </div>
         {:else if displaySynth}
           <div class="space-y-4">
-            <div class="text-base text-gray-200 leading-relaxed font-sans space-y-3">
+            <div class="text-base text-foreground leading-relaxed font-sans space-y-3">
               {@html renderMarkdownHtml(displaySynth.summary)}
             </div>
             {#if (displaySynth.key_takeaways && displaySynth.key_takeaways.length > 0) || (displaySynth.key_points && displaySynth.key_points.length > 0)}
               {@const takeaways = displaySynth.key_takeaways || displaySynth.key_points}
-              <div class="space-y-2 pt-4 border-t border-gray-800">
-                <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider block mb-2">Points clés à retenir :</span>
-                <ul class="space-y-2.5 text-xs sm:text-sm text-gray-300">
+              <div class="space-y-2 pt-4 border-t border-border">
+                <span class="text-xs font-bold text-primary uppercase tracking-wider block mb-2">Points clés à retenir :</span>
+                <ul class="space-y-2.5 text-xs sm:text-sm text-foreground">
                   {#each takeaways as point}
-                    <li class="flex items-start gap-2.5 bg-gray-950/60 p-2.5 rounded-xl border border-gray-800/80">
-                      <span class="text-cyan-400 font-bold text-base mt-0.5">•</span>
+                    <li class="flex items-start gap-2.5 bg-background p-2.5 rounded-xl border border-border">
+                      <span class="text-primary font-bold text-base mt-0.5">•</span>
                       <span class="leading-snug">{@html renderMarkdownHtml(point)}</span>
                     </li>
                   {/each}
@@ -271,39 +271,39 @@
             {/if}
           </div>
         {:else}
-          <p class="text-sm text-gray-300 leading-relaxed italic">{cleanTextBoilerplate(cluster.articles[0]?.content || cluster.articles[0]?.description || cluster.articles[0]?.title)}</p>
+          <p class="text-sm text-foreground leading-relaxed italic">{cleanTextBoilerplate(cluster.articles[0]?.content || cluster.articles[0]?.description || cluster.articles[0]?.title)}</p>
         {/if}
       </div>
       {#if cluster.articles && cluster.articles.length > 0}
         <div class="space-y-4">
-          <h3 class="text-base font-bold text-white flex items-center gap-2"><span>📰 Sources d'information recoupées ({cluster.articles.length})</span></h3>
+          <h3 class="text-base font-bold text-foreground flex items-center gap-2"><span>📰 Sources d'information recoupées ({cluster.articles.length})</span></h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {#each cluster.articles as art}
-              <a href={art.url} target="_blank" rel="noreferrer" class="p-4 bg-gray-900 hover:bg-gray-850 border border-gray-800 hover:border-purple-500/60 rounded-2xl transition-all space-y-2 group block">
+              <a href={art.url} target="_blank" rel="noreferrer" class="p-4 bg-card hover:bg-accent border border-border hover:border-primary/60 rounded-2xl transition-all space-y-2 group block">
                 <div class="flex items-center justify-between text-xs">
-                  <span class="font-extrabold text-purple-400 flex items-center gap-1"><span>{getLanguageFlag(art.language)}</span><span>{art.feed_title || 'RSS'}</span></span>
-                  <span class="text-[10px] text-gray-500">{art.published_date}</span>
+                  <span class="font-extrabold text-primary flex items-center gap-1"><span>{getLanguageFlag(art.language)}</span><span>{art.feed_title || 'RSS'}</span></span>
+                  <span class="text-[10px] text-muted-foreground">{art.published_date}</span>
                 </div>
-                <h4 class="font-bold text-sm text-gray-200 group-hover:text-cyan-400 transition-colors leading-snug line-clamp-2">{art.title}</h4>
-                <span class="text-[11px] text-cyan-400 hover:underline flex items-center gap-1 font-semibold pt-1"><span>Lire l'article original</span><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></span>
+                <h4 class="font-bold text-sm text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">{art.title}</h4>
+                <span class="text-[11px] text-primary hover:underline flex items-center gap-1 font-semibold pt-1"><span>Lire l'article original</span><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></span>
               </a>
             {/each}
           </div>
         </div>
       {/if}
       {#if relatedClusters && relatedClusters.length > 0}
-        <div class="space-y-4 pt-4 border-t border-gray-900">
-          <h3 class="text-base font-bold text-white flex items-center gap-2"><span>🔗 Actualités en lien sur ce sujet</span></h3>
+        <div class="space-y-4 pt-4 border-t border-border">
+          <h3 class="text-base font-bold text-foreground flex items-center gap-2"><span>🔗 Actualités en lien sur ce sujet</span></h3>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {#each relatedClusters as rel}
               {@const relImg = getClusterImage(rel)}
               {@const relTitle = getClusterTitle(rel)}
-              <div on:click={() => onRelatedClick(rel)} class="bg-gray-900 hover:bg-gray-850 border border-gray-800 hover:border-cyan-500/60 rounded-2xl p-3.5 transition-all cursor-pointer space-y-2 group">
+              <div on:click={() => onRelatedClick(rel)} class="bg-card hover:bg-accent border border-border hover:border-primary/60 rounded-2xl p-3.5 transition-all cursor-pointer space-y-2 group">
                 <div class="w-full h-28 rounded-xl overflow-hidden relative">
                   <ProgressiveImage src={relImg} fallbackSrc={getCategoryFallbackImage(rel.category)} alt={relTitle} imgClass="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
-                <span class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">{rel.category || 'Général'}</span>
-                <h4 class="font-bold text-xs text-white group-hover:text-cyan-400 line-clamp-2 leading-snug">{relTitle}</h4>
+                <span class="text-[10px] font-bold text-primary uppercase tracking-wider block">{rel.category || 'Général'}</span>
+                <h4 class="font-bold text-xs text-foreground group-hover:text-primary line-clamp-2 leading-snug">{relTitle}</h4>
               </div>
             {/each}
           </div>

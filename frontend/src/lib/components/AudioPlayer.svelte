@@ -7,8 +7,6 @@
   let isUserSeeking = false;
   let seekInputValue = 0;
 
-
-
   function togglePlay() {
     if (!audioElement) return;
     if ($isPlaying) {
@@ -160,7 +158,7 @@
 ></audio>
 
 {#if $currentTrack}
-  <div class="bg-gray-900 border-t border-gray-800 p-3 md:p-4 shadow-2xl {$isMobile ? 'fixed bottom-16 left-2 right-2 z-50 rounded-2xl border border-gray-800' : 'w-full z-50 relative'}">
+  <div class="bg-card text-card-foreground border-t border-border p-3 md:p-4 shadow-2xl {$isMobile ? 'fixed bottom-16 left-2 right-2 z-50 rounded-2xl border border-border' : 'w-full z-50 relative'}">
     <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-6">
       
       <!-- Top / Left Track Info -->
@@ -169,7 +167,7 @@
         <div class="flex items-center gap-3 truncate min-w-0">
           <button 
             on:click={togglePlay}
-            class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-tr from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all"
+            class="w-10 h-10 md:w-12 md:h-12 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-all"
             title={$isPlaying ? 'Pause' : 'Lecture'}
           >
             {#if $isPlaying}
@@ -180,14 +178,14 @@
           </button>
 
           {#if $currentTrack.imageUrl}
-            <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden shrink-0 border border-gray-800 shadow-md">
+            <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden shrink-0 border border-border shadow-md">
               <img src={$currentTrack.imageUrl} alt="Cover" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1 / 1;" />
             </div>
           {/if}
 
           <div class="truncate">
-            <h4 class="font-extrabold text-xs md:text-sm truncate leading-snug text-white">{$currentTrack.title}</h4>
-            <p class="text-[11px] text-purple-400 font-semibold truncate flex items-center gap-1">
+            <h4 class="font-extrabold text-xs md:text-sm truncate leading-snug text-foreground">{$currentTrack.title}</h4>
+            <p class="text-[11px] text-primary font-semibold truncate flex items-center gap-1">
               <span>🎙️</span>
               <span>{$currentTrack.feedTitle || 'Revue de presse Vos'}</span>
             </p>
@@ -197,13 +195,13 @@
         <!-- Mobile controls (Skip -15s / +15s / Close) -->
         {#if $isMobile}
           <div class="flex items-center gap-2 shrink-0">
-            <button on:click={() => skipTime(-15)} class="p-1.5 text-gray-400 hover:text-white text-xs font-mono font-bold" title="-15 sec">
+            <button on:click={() => skipTime(-15)} class="p-1.5 text-muted-foreground hover:text-foreground text-xs font-mono font-bold" title="-15 sec">
               -15s
             </button>
-            <button on:click={() => skipTime(15)} class="p-1.5 text-gray-400 hover:text-white text-xs font-mono font-bold" title="+15 sec">
+            <button on:click={() => skipTime(15)} class="p-1.5 text-muted-foreground hover:text-foreground text-xs font-mono font-bold" title="+15 sec">
               +15s
             </button>
-            <button on:click={stopPlay} class="text-xs text-rose-400 font-bold px-2 py-1 bg-rose-950/40 rounded-lg">
+            <button on:click={stopPlay} class="text-xs text-destructive font-bold px-2 py-1 bg-destructive/10 rounded-lg">
               ✕
             </button>
           </div>
@@ -217,13 +215,13 @@
         <!-- Skip Back 15s -->
         <button 
           on:click={() => skipTime(-15)} 
-          class="hidden md:flex items-center justify-center p-2 text-gray-400 hover:text-purple-300 transition-colors text-xs font-mono font-bold"
+          class="hidden md:flex items-center justify-center p-2 text-muted-foreground hover:text-primary transition-colors text-xs font-mono font-bold"
           title="Reculer de 15 secondes"
         >
           -15s
         </button>
 
-        <span class="text-xs font-mono text-gray-400 w-10 text-right shrink-0">{formatTime($playbackTime)}</span>
+        <span class="text-xs font-mono text-muted-foreground w-10 text-right shrink-0">{formatTime($playbackTime)}</span>
         
         <!-- SEEKBAR INPUT -->
         <div class="flex-1 relative flex items-center">
@@ -237,16 +235,16 @@
             on:touchstart={handleSeekStart}
             on:input={handleSeekInput}
             on:change={handleSeekChange}
-            class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400"
+            class="w-full h-2 bg-accent rounded-lg appearance-none cursor-pointer accent-primary"
           />
         </div>
 
-        <span class="text-xs font-mono text-gray-400 w-10 shrink-0">{formatTime($duration)}</span>
+        <span class="text-xs font-mono text-muted-foreground w-10 shrink-0">{formatTime($duration)}</span>
 
         <!-- Skip Forward 15s -->
         <button 
           on:click={() => skipTime(15)} 
-          class="hidden md:flex items-center justify-center p-2 text-gray-400 hover:text-purple-300 transition-colors text-xs font-mono font-bold"
+          class="hidden md:flex items-center justify-center p-2 text-muted-foreground hover:text-primary transition-colors text-xs font-mono font-bold"
           title="Avancer de 15 secondes"
         >
           +15s
@@ -261,7 +259,7 @@
           download="audio_vos.mp3"
           target="_blank"
           rel="noreferrer"
-          class="text-xs text-emerald-400 font-bold px-3 py-1.5 bg-emerald-950/60 border border-emerald-800/50 rounded-xl hover:bg-emerald-900/60 transition-all flex items-center gap-1"
+          class="text-xs text-primary font-bold px-3 py-1.5 bg-primary/20 border border-primary/40 rounded-xl hover:bg-primary/30 transition-all flex items-center gap-1"
           title="Télécharger l'audio"
         >
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
@@ -270,7 +268,7 @@
 
         <button 
           on:click={stopPlay}
-          class="text-xs text-rose-400 hover:text-rose-300 font-bold px-3 py-1.5 rounded-xl bg-rose-950/40 border border-rose-900/40 transition-all"
+          class="text-xs text-destructive hover:underline font-bold px-3 py-1.5 rounded-xl bg-destructive/10 border border-destructive/30 transition-all"
           title="Fermer le lecteur"
         >
           Fermer
@@ -286,7 +284,7 @@
     height: 14px;
     width: 14px;
     border-radius: 50%;
-    background: #a855f7;
+    background: var(--primary);
     cursor: pointer;
     margin-top: -3px;
   }

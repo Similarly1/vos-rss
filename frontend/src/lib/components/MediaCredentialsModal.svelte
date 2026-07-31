@@ -116,12 +116,12 @@
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" transition:fade="{{duration: 200}}" on:click|self={close}>
-  <div class="bg-white dark:bg-dark-card w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+  <div class="bg-card text-card-foreground w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
     
     <!-- Header -->
-    <div class="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-dark-bg/50">
+    <div class="px-6 py-5 border-b border-border flex justify-between items-center bg-gray-50/50 bg-background/50">
       <div class="flex items-center gap-3">
-        <div class="p-2.5 bg-indigo-50 dark:bg-indigo-900/50 text-indigo-500 rounded-2xl">
+        <div class="p-2.5 bg-primary/10 dark:bg-indigo-900/50 text-primary rounded-2xl">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
           </svg>
@@ -131,13 +131,13 @@
           <p class="text-sm text-gray-500">Lisez vos articles réservés aux abonnés en intégralité.</p>
         </div>
       </div>
-      <button on:click={close} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+      <button on:click={close} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-card rounded-full transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
       </button>
     </div>
 
     <!-- Tabs -->
-    <div class="flex border-b border-gray-100 dark:border-gray-800 px-6 pt-4 gap-6 bg-white dark:bg-dark-card">
+    <div class="flex border-b border-border px-6 pt-4 gap-6 bg-card text-card-foreground">
       <button 
         on:click={() => activeTab = 'tutorial'} 
         class="pb-3 text-sm font-bold border-b-2 transition-colors {activeTab === 'tutorial' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}"
@@ -156,7 +156,7 @@
     <div class="flex-1 overflow-y-auto p-6">
       {#if activeTab === 'tutorial'}
         <div in:slide="{{duration: 200}}" class="space-y-6">
-          <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-4 rounded-2xl">
+          <div class="bg-primary/10 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-4 rounded-2xl">
             <h3 class="font-bold text-indigo-800 dark:text-indigo-300 mb-2 text-sm flex items-center gap-2">
               <span class="text-lg">💡</span> Pourquoi ajouter un cookie ?
             </h3>
@@ -170,7 +170,7 @@
             <h3 class="font-bold text-gray-900 dark:text-white">Comment faire en 3 clics ?</h3>
             
             <div class="flex gap-4">
-              <div class="flex-shrink-0 w-8 h-8 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-full flex items-center justify-center font-bold">1</div>
+              <div class="flex-shrink-0 w-8 h-8 bg-gray-100 dark:bg-card text-gray-600 dark:text-gray-300 rounded-full flex items-center justify-center font-bold">1</div>
               <div>
                 <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">Connectez-vous au site du journal</p>
                 <p class="text-xs text-gray-500 mt-1">Ouvrez un nouvel onglet et connectez-vous avec votre compte abonné (ex: lemonde.fr).</p>
@@ -178,7 +178,7 @@
             </div>
 
             <div class="flex gap-4">
-              <div class="flex-shrink-0 w-8 h-8 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-full flex items-center justify-center font-bold">2</div>
+              <div class="flex-shrink-0 w-8 h-8 bg-gray-100 dark:bg-card text-gray-600 dark:text-gray-300 rounded-full flex items-center justify-center font-bold">2</div>
               <div>
                 <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">Ouvrez les Outils de Développement</p>
                 <p class="text-xs text-gray-500 mt-1">Faites un <strong>clic droit > Inspecter</strong> (ou appuyez sur <code>F12</code>). Allez dans l'onglet <strong>Application</strong> (Chrome) ou <strong>Stockage</strong> (Firefox), puis déroulez <strong>Cookies</strong>.</p>
@@ -186,7 +186,7 @@
             </div>
 
             <div class="flex gap-4">
-              <div class="flex-shrink-0 w-8 h-8 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-full flex items-center justify-center font-bold">3</div>
+              <div class="flex-shrink-0 w-8 h-8 bg-gray-100 dark:bg-card text-gray-600 dark:text-gray-300 rounded-full flex items-center justify-center font-bold">3</div>
               <div>
                 <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">Copiez la valeur de la session</p>
                 <p class="text-xs text-gray-500 mt-1">Trouvez le cookie d'authentification (ex: <code>session</code>, <code>lmid</code>, etc.) ou copiez toute la chaîne de cookies, et collez-la ci-dessous.</p>
@@ -194,8 +194,8 @@
             </div>
           </div>
           
-          <div class="pt-4 border-t border-gray-100 dark:border-gray-800">
-            <button on:click={() => activeTab = 'manage'} class="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md transition-all">
+          <div class="pt-4 border-t border-border">
+            <button on:click={() => activeTab = 'manage'} class="w-full py-3 bg-primary hover:opacity-90 text-primary-foreground rounded-xl font-bold text-sm shadow-md transition-all">
               J'ai compris, ajouter un cookie
             </button>
           </div>
@@ -204,13 +204,13 @@
         <div in:slide="{{duration: 200}}" class="space-y-6">
           
           <!-- Add New Form -->
-          <div class="bg-gray-50 dark:bg-dark-bg p-5 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4">
+          <div class="bg-background p-5 rounded-2xl border border-border space-y-4">
             <h3 class="font-bold text-sm text-gray-900 dark:text-gray-100">Ajouter un abonnement</h3>
             
             <div class="space-y-3">
               <div>
                 <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Journal</label>
-                <select bind:value={selectedMediaId} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500">
+                <select bind:value={selectedMediaId} class="w-full bg-card text-card-foreground border border-border rounded-xl py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500">
                   {#each mediaList as media}
                     <option value={media.id}>{media.icon} {media.name}</option>
                   {/each}
@@ -225,12 +225,12 @@
                   bind:value={cookieValue} 
                   rows="3"
                   placeholder="Ex: session_id=abc123def456; other_cookie=xyz..." 
-                  class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-sm font-mono focus:ring-2 focus:ring-indigo-500"
+                  class="w-full bg-card text-card-foreground border border-border rounded-xl py-2 px-3 text-sm font-mono focus:ring-2 focus:ring-indigo-500"
                 ></textarea>
               </div>
               
               {#if saveStatus === 'success'}
-                <div class="p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-xl text-sm text-emerald-800 dark:text-emerald-300 font-medium" transition:slide>
+                <div class="p-3 bg-primary/10 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-xl text-sm text-emerald-800 dark:text-emerald-300 font-medium" transition:slide>
                   ✅ {saveMessage}
                   {#if autoSubscribedFeeds.length > 0}
                     <div class="mt-2 text-xs font-normal">
@@ -247,7 +247,7 @@
               <button 
                 on:click={saveCookie} 
                 disabled={!cookieValue.trim() || isSaving}
-                class="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                class="w-full py-2.5 bg-primary hover:opacity-90 text-primary-foreground rounded-xl font-bold text-sm shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {#if isSaving}
                   <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -264,15 +264,15 @@
             <h3 class="font-bold text-sm text-gray-900 dark:text-gray-100 mb-3">Vos accès configurés</h3>
             
             {#if $subscribedMediaCredentialsList.length === 0}
-              <div class="p-6 text-center border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl text-gray-400 text-sm">
+              <div class="p-6 text-center border-2 border-dashed border-border rounded-2xl text-gray-400 text-sm">
                 Aucun journal configuré pour le moment.
               </div>
             {:else}
               <div class="space-y-2">
                 {#each $subscribedMediaCredentialsList as item}
-                  <div class="flex items-center justify-between p-3 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+                  <div class="flex items-center justify-between p-3 bg-card text-card-foreground border border-border rounded-xl shadow-sm">
                     <div class="flex items-center gap-3">
-                      <div class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center font-bold">
+                      <div class="w-8 h-8 bg-primary/10 text-emerald-600 rounded-lg flex items-center justify-center font-bold">
                         ✓
                       </div>
                       <div>

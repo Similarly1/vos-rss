@@ -271,7 +271,7 @@
     if (!feed) return badges;
 
     if (feed.is_jti_certified) {
-      badges.push({ text: '🛡️ Certifié JTI (RSF)', class: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' });
+      badges.push({ text: '🛡️ Certifié JTI (RSF)', class: 'bg-primary text-primary-foreground/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' });
     }
     if (feed.factuality_rating === 'High' || feed.factuality_rating === 'Very High') {
       badges.push({ text: '⚖️ Factuel', class: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30' });
@@ -285,14 +285,14 @@
     } else if (bias === 'center' || bias === 'centre' || bias === 'least biased') {
       badges.push({ text: '🌐 Centre / Neutre', class: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30' });
     } else if (bias === 'right-center' || bias === 'centre-droit') {
-      badges.push({ text: '🟦 Centre-Droit', class: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' });
+      badges.push({ text: '🟦 Centre-Droit', class: 'bg-primary text-primary-foreground/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' });
     } else if (bias === 'right' || bias === 'droite') {
       badges.push({ text: '🟠 Droite', class: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30' });
     }
 
     const type = feed.media_type || 'Général';
     if (type === 'Agence') {
-      badges.push({ text: '📡 Agence', class: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30' });
+      badges.push({ text: '📡 Agence', class: 'bg-primary text-primary-foreground/15 text-purple-600 dark:text-purple-400 border-purple-500/30' });
     } else if (type === 'Analyse') {
       badges.push({ text: '📖 Analyse', class: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30' });
     } else if (type === 'Régional') {
@@ -309,7 +309,7 @@
   });
 </script>
 
-<div class="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-dark-bg p-6 md:p-10 scroll-smooth">
+<div class="flex-1 h-full overflow-y-auto bg-background p-6 md:p-10 scroll-smooth">
   <div class="max-w-6xl mx-auto space-y-8">
     
     <!-- Header & Action OPML -->
@@ -319,10 +319,10 @@
         <p class="text-gray-500 dark:text-gray-400 mt-1">Gérez votre veille, analysez vos sources et optimisez votre couverture.</p>
       </div>
       <div class="flex items-center gap-3">
-        <button on:click={importOPML} class="px-4 py-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition-colors shadow-sm">
+        <button on:click={importOPML} class="px-4 py-2 bg-card text-card-foreground border border-border rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition-colors shadow-sm">
           📥 Import OPML
         </button>
-        <button on:click={exportOPML} class="px-4 py-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition-colors shadow-sm">
+        <button on:click={exportOPML} class="px-4 py-2 bg-card text-card-foreground border border-border rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition-colors shadow-sm">
           📤 Export OPML
         </button>
       </div>
@@ -332,16 +332,16 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
       <!-- Jauge de Santé -->
-      <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col justify-between relative overflow-hidden">
+      <div class="bg-card text-card-foreground p-6 rounded-3xl border border-border shadow-sm flex flex-col justify-between relative overflow-hidden">
         <div class="absolute -right-10 -top-10 w-40 h-40 bg-gradient-to-br from-primary-400/20 to-purple-500/20 rounded-full blur-3xl"></div>
         <div>
           <h2 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Score d'Hygiène</h2>
           <div class="flex items-end gap-3">
-            <span class="text-6xl font-black {hygieneScore > 80 ? 'text-emerald-500' : hygieneScore > 50 ? 'text-amber-500' : 'text-rose-500'}">{hygieneScore}</span>
+            <span class="text-6xl font-black {hygieneScore > 80 ? 'text-primary' : hygieneScore > 50 ? 'text-amber-500' : 'text-rose-500'}">{hygieneScore}</span>
             <span class="text-xl font-bold text-gray-400 mb-1">/ 100</span>
           </div>
-          <div class="w-full bg-gray-100 dark:bg-gray-800 h-3 rounded-full mt-4 overflow-hidden">
-            <div class="h-full {hygieneScore > 80 ? 'bg-emerald-500' : hygieneScore > 50 ? 'bg-amber-500' : 'bg-rose-500'} transition-all duration-1000" style="width: {hygieneScore}%"></div>
+          <div class="w-full bg-gray-100 dark:bg-card h-3 rounded-full mt-4 overflow-hidden">
+            <div class="h-full {hygieneScore > 80 ? 'bg-primary text-primary-foreground' : hygieneScore > 50 ? 'bg-amber-500' : 'bg-rose-500'} transition-all duration-1000" style="width: {hygieneScore}%"></div>
           </div>
           <div class="mt-3 flex items-center gap-2">
             <span class="px-2.5 py-1 text-xs font-bold rounded-lg {hygieneScore > 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30'}">
@@ -360,7 +360,7 @@
       </div>
 
       <!-- Graphique d'Activité -->
-      <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm lg:col-span-1">
+      <div class="bg-card text-card-foreground p-6 rounded-3xl border border-border shadow-sm lg:col-span-1">
         <h2 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-6">Activité (14j)</h2>
         <div class="flex items-end gap-1.5 h-32 w-full mt-auto">
           {#each mockActivity as val}
@@ -374,7 +374,7 @@
       </div>
 
       <!-- Couverture par Thématiques -->
-      <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm lg:col-span-1">
+      <div class="bg-card text-card-foreground p-6 rounded-3xl border border-border shadow-sm lg:col-span-1">
         <h2 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Couverture</h2>
         <div class="space-y-4">
           {#each categoriesStats.slice(0, 4) as cat}
@@ -383,7 +383,7 @@
                 <span class="text-gray-700 dark:text-gray-300">{cat.name}</span>
                 <span class="text-gray-400">{cat.percent}%</span>
               </div>
-              <div class="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
+              <div class="w-full bg-gray-100 dark:bg-card h-2 rounded-full overflow-hidden">
                 <div class="h-full bg-gradient-to-r from-cyan-400 to-primary-500" style="width: {cat.percent}%"></div>
               </div>
             </div>
@@ -401,7 +401,7 @@
         <p class="text-sm text-gray-600 dark:text-gray-300 flex-1">
           {inactiveFeeds.length > 0 ? `${inactiveFeeds.length} flux n'ont rien publié depuis plus de 60 jours.` : 'Tous vos flux sont actifs et publient régulièrement.'}
         </p>
-        <button on:click={handleCleanInactive} class="w-full py-2 bg-white dark:bg-dark-card border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-bold text-sm rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors">
+        <button on:click={handleCleanInactive} class="w-full py-2 bg-card text-card-foreground border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-bold text-sm rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors">
           Nettoyer ({inactiveFeeds.length})
         </button>
       </div>
@@ -413,7 +413,7 @@
         <p class="text-sm text-gray-600 dark:text-gray-300 flex-1">
           {semanticDuplicates.length > 0 ? `${semanticDuplicates.length} flux reprennent les mêmes dépêches sémantiques.` : 'Aucun doublon sémantique majeur détecté.'}
         </p>
-        <button on:click={handleMergeDuplicates} class="w-full py-2 bg-white dark:bg-dark-card border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 font-bold text-sm rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors">
+        <button on:click={handleMergeDuplicates} class="w-full py-2 bg-card text-card-foreground border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 font-bold text-sm rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors">
           Fusionner ({semanticDuplicates.length})
         </button>
       </div>
@@ -433,7 +433,7 @@
         </p>
         <div class="flex items-center gap-2 pt-1">
           {#if triadAlerts.length > 0}
-            <button on:click={handleCompleteTriad} class="flex-1 py-2 bg-white dark:bg-dark-card border border-cyan-200 dark:border-cyan-800 text-cyan-600 dark:text-cyan-400 font-bold text-xs rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors">
+            <button on:click={handleCompleteTriad} class="flex-1 py-2 bg-card text-card-foreground border border-cyan-200 dark:border-cyan-800 text-cyan-600 dark:text-cyan-400 font-bold text-xs rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-colors">
               + Compléter ({triadAlerts[0].category})
             </button>
           {/if}
@@ -448,7 +448,7 @@
     <div class="bg-gradient-to-r from-slate-900 to-indigo-950 p-6 md:p-8 rounded-3xl border border-indigo-900/60 shadow-xl space-y-5 relative overflow-hidden">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold mb-2">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary text-primary-foreground/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold mb-2">
             ✨ Packs 3 Sources Équilibrées
           </div>
           <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">
@@ -492,15 +492,15 @@
     </div>
 
     <!-- Liste des Flux -->
-    <div class="bg-white dark:bg-dark-card rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-      <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+    <div class="bg-card text-card-foreground rounded-3xl border border-border shadow-sm overflow-hidden">
+      <div class="p-6 border-b border-border flex items-center justify-between">
         <h2 class="text-lg font-bold text-gray-900 dark:text-white">Flux Suivis ({$feedsList.length})</h2>
       </div>
       
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
-            <tr class="bg-gray-50/50 dark:bg-gray-900/20 text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold border-b border-gray-100 dark:border-gray-800">
+            <tr class="bg-gray-50/50 dark:bg-gray-900/20 text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold border-b border-border">
               <th class="p-4 pl-6">Source</th>
               <th class="p-4">Catégorie</th>
               <th class="p-4">Fiabilité</th>
@@ -512,7 +512,7 @@
             {#each $feedsList as feed (feed.id)}
               {@const health = getHealthState(feed)}
               {@const badges = getTrustBadges(feed)}
-              <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors">
+              <tr class="hover:bg-gray-50/50 dark:hover:bg-card/20 transition-colors">
                 <td class="p-4 pl-6">
                   <div class="flex items-center gap-3">
                     <img src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.url}&sz=64`} alt="" class="w-8 h-8 rounded-lg bg-white border border-gray-100 dark:border-gray-700 object-contain p-1" />
@@ -526,7 +526,7 @@
                   <select
                     value={feed.category || 'Général'}
                     on:change={(e) => changeFeedCategory(feed, e.target.value)}
-                    class="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-semibold py-1 px-2 rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                    class="bg-gray-100 dark:bg-card text-gray-800 dark:text-gray-200 text-xs font-semibold py-1 px-2 rounded-lg border border-border focus:ring-2 focus:ring-primary-500 cursor-pointer"
                   >
                     {#each canonicalCategories as catName}
                       <option value={catName}>{catName}</option>
@@ -571,7 +571,7 @@
 <!-- ── Modale interactive Compléter la Triade ── -->
 {#if showTriadModal}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-    <div class="bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-3xl max-w-2xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+    <div class="bg-card text-card-foreground border border-border rounded-3xl max-w-2xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative overflow-hidden">
       
       <div class="flex items-start justify-between">
         <div>
@@ -582,21 +582,21 @@
             Équilibrer votre veille "{triadCategory}"
           </h2>
         </div>
-        <button on:click={() => showTriadModal = false} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <button on:click={() => showTriadModal = false} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-card transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
 
-      <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+      <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-border">
         La Règle des 3 Sources évite la bulle de filtre. Pour la catégorie <strong>{triadCategory}</strong>, nous vous conseillons d'associer un média d'analyse et un média régional pour équilibrer la neutralité.
       </p>
 
       <div class="space-y-4">
         {#each triadFeeds as feed}
           {@const badges = getTrustBadges(feed)}
-          <div class="p-4 rounded-2xl bg-gray-50/50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="p-4 rounded-2xl bg-gray-50/50 dark:bg-gray-900/30 border border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-start gap-3 flex-1 min-w-0">
-              <img src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.site_url || feed.url}&sz=128`} alt="" class="w-10 h-10 rounded-xl object-contain bg-white dark:bg-gray-800 p-1 shrink-0 border border-gray-100 dark:border-gray-700" />
+              <img src={feed.icon_url || `https://www.google.com/s2/favicons?domain=${feed.site_url || feed.url}&sz=128`} alt="" class="w-10 h-10 rounded-xl object-contain bg-white dark:bg-card p-1 shrink-0 border border-gray-100 dark:border-gray-700" />
               <div class="space-y-1">
                 <h3 class="font-bold text-sm text-gray-900 dark:text-white leading-tight">{feed.title}</h3>
                 <div class="flex items-center gap-1.5 flex-wrap">
@@ -609,7 +609,7 @@
             </div>
 
             {#if subscribedTriadMap[feed.url]}
-              <span class="px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0">
+              <span class="px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-primary/10 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 shrink-0">
                 ✓ Ajouté
               </span>
             {:else}
@@ -628,7 +628,7 @@
         {/if}
       </div>
 
-      <div class="pt-2 flex items-center justify-between gap-3 border-t border-gray-100 dark:border-gray-800/80">
+      <div class="pt-2 flex items-center justify-between gap-3 border-t border-border/80">
         {#if triadFeeds.length > 0}
           <button
             on:click={subscribeAllTriadFeeds}
@@ -642,7 +642,7 @@
             {/if}
           </button>
         {/if}
-        <button on:click={() => showTriadModal = false} class="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors ml-auto">
+        <button on:click={() => showTriadModal = false} class="px-5 py-2.5 bg-gray-100 dark:bg-card text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors ml-auto">
           Fermer
         </button>
       </div>
@@ -654,18 +654,18 @@
 <!-- ── Modale Bilan d'Équilibre Éditorial par Catégorie ── -->
 {#if showBalanceModal}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-    <div class="bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 rounded-3xl max-w-3xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative overflow-hidden max-h-[85vh] flex flex-col">
+    <div class="bg-card text-card-foreground border border-border rounded-3xl max-w-3xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative overflow-hidden max-h-[85vh] flex flex-col">
       
       <div class="flex items-start justify-between shrink-0">
         <div>
-          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 text-xs font-bold mb-2">
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-50 dark:bg-primary-950/40 text-primary dark:text-primary-400 text-xs font-bold mb-2">
             📊 Bilan d'Équilibre Éditorial
           </div>
           <h2 class="text-xl md:text-2xl font-black text-gray-900 dark:text-white leading-tight">
             Couverture & Règle des 3 Sources
           </h2>
         </div>
-        <button on:click={() => showBalanceModal = false} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <button on:click={() => showBalanceModal = false} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-card transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
@@ -676,13 +676,13 @@
 
       <div class="overflow-y-auto space-y-3 pr-1 flex-1">
         {#each balanceCategories as cat}
-          <div class="p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 {cat.is_ignored ? 'bg-gray-100/50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800 opacity-60' : 'bg-gray-50/50 dark:bg-gray-900/40 border-gray-100 dark:border-gray-800'}">
+          <div class="p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 {cat.is_ignored ? 'bg-gray-100/50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800 opacity-60' : 'bg-gray-50/50 dark:bg-gray-900/40 border-border'}">
             
             <div class="space-y-1">
               <div class="flex items-center gap-2">
                 <h3 class="font-bold text-sm text-gray-900 dark:text-white">{cat.category}</h3>
                 {#if cat.status === 'balanced'}
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">🟢 Équilibré ({cat.count}/3 sources)</span>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary text-primary-foreground/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">🟢 Équilibré ({cat.count}/3 sources)</span>
                 {:else if cat.status === 'incomplete'}
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">🟡 Incomplet ({cat.count}/3 sources)</span>
                 {:else}
@@ -722,7 +722,7 @@
 
               <button
                 on:click={() => toggleIgnoreCategory(cat.category, cat.is_ignored)}
-                class="px-3 py-1.5 bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+                class="px-3 py-1.5 bg-gray-200 dark:bg-card text-gray-700 dark:text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
               >
                 {cat.is_ignored ? 'Réactiver' : 'Ignorer'}
               </button>
@@ -733,7 +733,7 @@
       </div>
 
       <div class="pt-2 flex justify-end shrink-0">
-        <button on:click={() => showBalanceModal = false} class="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors">
+        <button on:click={() => showBalanceModal = false} class="px-5 py-2.5 bg-gray-100 dark:bg-card text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors">
           Fermer
         </button>
       </div>

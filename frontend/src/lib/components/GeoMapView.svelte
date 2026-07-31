@@ -97,6 +97,8 @@
     return null;
   }
 
+  let groupedClustersList = null;
+
   $: {
     if (topoData && projection) {
       const countries = feature(topoData, topoData.objects.countries);
@@ -105,13 +107,52 @@
       graticulePath = pathGen(d3.geoGraticule()()) || "";
       spherePath = pathGen({ type: "Sphere" }) || "";
 
-      markerPositions = clusters.map(c => {
+      // 1. Calculate raw screen coordinates for each cluster
+      const rawPoints = [];
+      clusters.forEach(c => {
         const coords = getClusterCoordinates(c);
-        if (!coords) return null;
+        if (!coords) return;
         const pos = projection(coords);
-        if (!pos) return null;
-        return { cluster: c, x: pos[0], y: pos[1], coords };
-      }).filter(Boolean);
+        if (!pos) return;
+        rawPoints.push({ cluster: c, x: pos[0], y: pos[1], coords });
+      });
+
+      // 2. Group close markers (within 28px distance) to prevent overlap
+      const grouped = [];
+      const visited = new Set();
+      const DIST_THRESHOLD = 28;
+
+      for (let i = 0; i < rawPoints.length; i++) {
+        if (visited.has(i)) continue;
+        const pt_i = rawPoints[i];
+        visited.add(i);
+        const group = [pt_i.cluster];
+        let sumX = pt_i.x;
+        let sumY = pt_i.y;
+
+        for (let j = i + 1; j < rawPoints.length; j++) {
+          if (visited.has(j)) continue;
+          const pt_j = rawPoints[j];
+          const dist = Math.hypot(pt_i.x - pt_j.x, pt_i.y - pt_j.y);
+          if (dist < DIST_THRESHOLD) {
+            visited.add(j);
+            group.push(pt_j.cluster);
+            sumX += pt_j.x;
+            sumY += pt_j.y;
+          }
+        }
+
+        grouped.push({
+          id: `marker_${pt_i.cluster.cluster_id}`,
+          x: sumX / group.length,
+          y: sumY / group.length,
+          count: group.length,
+          clusters: group,
+          cluster: group[0]
+        });
+      }
+
+      markerPositions = grouped;
     }
   }
 
@@ -153,7 +194,7 @@
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
     const side = cx > dimensions.width * 0.62 ? "left" : "right";
-    hoveredId = item.cluster.cluster_id;
+    hoveredId = item.id;
     tooltip = { item, x: cx, y: cy, side };
   }
 
@@ -179,6 +220,8 @@
     text = text.replace(/<(script|style|header|nav|footer|form|svg|code)[^>]*>[\s\S]*?<\/\1>/gi, ' ');
     text = text.replace(/<[^>]+>/g, ' ');
     text = decodeHtmlEntities(text);
+    text = text.replace(/(?:publish\s*['"][^'"]+['"]|data-sara-[a-zA-Z-]+|swiper\.[a-zA-Z.]+|x-swiper|freeMode|roundLengths|slidesPerView|slideTo|data-area|is-open|setTimeout|keyup\.escape|window\.dispatchEvent|POLYGON\s+DOM|HEADER\s+READY|EILMELDUNG\s+proto|headline|Zur\s+Merkliste|Teilen\s+X\.com|Facebook\s+E-Mail|Link\s+kopieren|Bild\s+vergrößern|Digital-Abo)[^\n.!?]*/gi, ' ');
+    text = text.replace(/(?:publish|data-sara-[a-zA-Z-]+|swiper|freeMode|roundLengths|slidesPerView|slideTo|data-area|is-open|setTimeout|keyup|dispatchEvent|POLYGON|DOM|HEADER|READY|EILMELDUNG|proto|headline|Merkliste|Facebook|WhatsApp|Link\s+kopieren|Optionen|Teilen|Abo|Digital-Abo)/gi, ' ');
     text = text.replace(/(?:lg|md|sm|xl|2xl):[a-zA-Z0-9_-]+/g, ' ');
     text = text.replace(/(?:opacity-none|invisible|flex|grid|absolute|relative|overflow-hidden|hover:|focus:|opacity-none)[a-zA-Z0-9_-]*/gi, ' ');
     text = text.replace(/(?:BBC Homepage|Skip to content|Accessibility Help|Your account|Search BBC|More menu|Close menu|Menü öffnen|watchOverflow|isCollapsed|swiper-init|data-app-hidden|x-lazyload|Menü Startseite|Ausland)/gi, ' ');
@@ -203,8 +246,12 @@
     return clean.slice(0, 180) + (clean.length > 180 ? '...' : '');
   }
 
-  function handleMarkerClick(cluster) {
-    selectedCluster = cluster;
+  function handleMarkerClick(item) {
+    if (item.count > 1) {
+      groupedClustersList = item;
+    } else {
+      selectedCluster = item.cluster;
+    }
   }
 </script>
 
@@ -217,9 +264,10 @@
     </div>
   {:else}
     <!-- Status indicator top banner -->
-    <div class="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-900/80 border border-white/10 text-[11px] backdrop-blur-md text-gray-300">
-      <span class="w-2 h-2 rounded-full {markerPositions.length > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
-      <span>{markerPositions.length} événement(s) géolocalisé(s) sur la carte</span>
+    <div class="absolute top-4 left-4 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full bg-gray-900/85 border border-white/10 text-xs backdrop-blur-md text-gray-200 shadow-xl">
+      <span class="w-2.5 h-2.5 rounded-full {clusters.length > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
+      <span class="font-semibold">{clusters.length} événement(s) géolocalisé(s)</span>
+      <span class="text-gray-400 text-[11px]">({markerPositions.length} zones sur la carte)</span>
     </div>
 
     <!-- Map SVG -->
@@ -267,50 +315,61 @@
       {#each markerPositions as item}
         {@const c = item.cluster}
         {@const cfg = CATEGORY_CONFIG[c.category] || CATEGORY_CONFIG["Général"]}
-        {@const isHovered = hoveredId === c.cluster_id}
+        {@const isHovered = hoveredId === item.id}
+        {@const isGrouped = item.count > 1}
         
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <g
           transform="translate({item.x},{item.y})"
-          class="cursor-pointer"
+          class="cursor-pointer group"
           on:mouseenter={(e) => handleMarkerEnter(item, e)}
           on:mouseleave={handleMarkerLeave}
-          on:click={() => handleMarkerClick(c)}
+          on:click={() => handleMarkerClick(item)}
         >
           <!-- Outer pulse ring -->
-          <circle fill={cfg.color} opacity="0" r="6">
-            <animate attributeName="r" values={isHovered ? "8;28;8" : "6;22;6"} dur={isHovered ? "1.4s" : "2.2s"} repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.35;0;0.35" dur={isHovered ? "1.4s" : "2.2s"} repeatCount="indefinite" />
-          </circle>
-
-          <!-- Mid pulse ring -->
-          <circle fill={cfg.color} opacity="0" r="4">
-            <animate attributeName="r" values={isHovered ? "5;18;5" : "4;14;4"} dur={isHovered ? "1.4s" : "2.2s"} begin="0.4s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.5;0;0.5" dur={isHovered ? "1.4s" : "2.2s"} begin="0.4s" repeatCount="indefinite" />
+          <circle fill={cfg.color} opacity="0" r={isGrouped ? "10" : "6"}>
+            <animate attributeName="r" values={isHovered ? "12;32;12" : "8;24;8"} dur={isHovered ? "1.4s" : "2.2s"} repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.4;0;0.4" dur={isHovered ? "1.4s" : "2.2s"} repeatCount="indefinite" />
           </circle>
 
           {#if isHovered}
-            <circle r="10" fill={cfg.color} opacity="0.25" filter="url(#glow-lg)" />
+            <circle r="12" fill={cfg.color} opacity="0.3" filter="url(#glow-lg)" />
           {/if}
 
+          <!-- Main Marker Circle -->
           <circle
-            r={isHovered ? 8 : 6}
+            r={isGrouped ? (isHovered ? 13 : 11) : (isHovered ? 8 : 6)}
             fill={cfg.color}
-            stroke="rgba(255,255,255,0.85)"
-            stroke-width={isHovered ? 2 : 1.5}
+            stroke="rgba(255,255,255,0.9)"
+            stroke-width={isHovered ? 2.5 : 1.8}
             filter="url(#glow-sm)"
             style="transition: r 0.15s, stroke-width 0.15s"
           />
 
-          <circle r={isHovered ? 3 : 2} fill="white" opacity="0.95" style="transition: r 0.15s" />
+          {#if isGrouped}
+            <!-- Counter text inside cluster marker -->
+            <text
+              y="3.5"
+              text-anchor="middle"
+              fill="white"
+              font-size="10"
+              font-weight="bold"
+              pointer-events="none"
+            >
+              {item.count}
+            </text>
+          {:else}
+            <circle r={isHovered ? 3 : 2} fill="white" opacity="0.95" style="transition: r 0.15s" />
+          {/if}
         </g>
       {/each}
     </svg>
 
     <!-- Tooltip -->
     {#if tooltip}
-      {@const c = tooltip.item.cluster}
+      {@const item = tooltip.item}
+      {@const c = item.cluster}
       {@const cfg = CATEGORY_CONFIG[c.category] || CATEGORY_CONFIG["Général"]}
       
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -327,14 +386,22 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div 
-          on:click={() => handleMarkerClick(c)}
+          on:click={() => handleMarkerClick(item)}
           class="w-72 rounded-2xl overflow-hidden shadow-2xl border border-white/10 text-white cursor-pointer hover:border-cyan-500/60 transition-all" 
           style="background: rgba(8, 16, 32, 0.97); backdrop-filter: blur(16px);"
         >
           <div class="p-3.5 space-y-2">
-            <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style="background-color: {cfg.color}">
-              {cfg.label}
-            </span>
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white" style="background-color: {cfg.color}">
+                {cfg.label}
+              </span>
+              {#if item.count > 1}
+                <span class="text-[10px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded-full font-bold border border-cyan-800/50">
+                  {item.count} événements ici
+                </span>
+              {/if}
+            </div>
+
             <h3 class="font-bold text-white text-xs leading-snug">
               {getClusterTitle(c)}
             </h3>
@@ -342,7 +409,7 @@
               {getClusterTeaser(c)}
             </p>
             <div class="pt-2 text-[10px] text-cyan-400 flex items-center gap-1 font-medium">
-              <span>Cliquez pour lire la synthèse complète ➔</span>
+              <span>{item.count > 1 ? `Voir les ${item.count} événements de cette zone ➔` : 'Cliquez pour lire la synthèse complète ➔'}</span>
             </div>
           </div>
         </div>
@@ -351,6 +418,50 @@
   {/if}
 
 </div>
+
+<!-- Multi-event Location Drawer Modal -->
+{#if groupedClustersList}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+    <div class="bg-gray-900 border border-gray-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] text-white">
+      <div class="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-950">
+        <div>
+          <h3 class="font-bold text-base flex items-center gap-2">
+            <span>📍 Événements géolocalisés ({groupedClustersList.count})</span>
+          </h3>
+          <p class="text-xs text-gray-400">Sélectionnez une actualité à consulter</p>
+        </div>
+        <button on:click={() => groupedClustersList = null} class="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-800 transition-colors">
+          ✕
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto flex-1 space-y-3">
+        {#each groupedClustersList.clusters as c}
+          {@const cfg = CATEGORY_CONFIG[c.category] || CATEGORY_CONFIG["Général"]}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div 
+            on:click={() => { selectedCluster = c; groupedClustersList = null; }}
+            class="p-4 bg-gray-950 border border-gray-800/80 hover:border-cyan-500/60 rounded-2xl cursor-pointer transition-all hover:scale-[1.01] space-y-2 group"
+          >
+            <div class="flex justify-between items-center text-xs">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style="background-color: {cfg.color}">
+                {cfg.label}
+              </span>
+              <span class="text-gray-400 text-[11px]">{c.latest_published_date ? new Date(c.latest_published_date).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit'}) : ''}</span>
+            </div>
+            <h4 class="font-bold text-sm text-gray-100 group-hover:text-cyan-300 transition-colors leading-snug">
+              {getClusterTitle(c)}
+            </h4>
+            <p class="text-xs text-gray-400 line-clamp-2 leading-relaxed">
+              {getClusterTeaser(c)}
+            </p>
+          </div>
+        {/each}
+      </div>
+    </div>
+  </div>
+{/if}
 
 <!-- Drawer / Card detail modal -->
 {#if selectedCluster}

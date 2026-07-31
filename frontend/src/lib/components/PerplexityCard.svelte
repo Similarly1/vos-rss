@@ -28,10 +28,28 @@
   $: displaySynth = activeSynth || fetchedSynth || cluster?.precomputed_synthesis;
   $: isSynthLoading = synthLoading || localSynthLoading;
 
+  function isLowQualityOrEnglish(synth, c) {
+    if (!synth) return true;
+    const text = (synth.synthesis_title || '') + ' ' + (synth.summary || '');
+    if (!text || text.length < 35) return true;
+    // Check if raw JS code leaked into synthesis
+    if (/publish\s*['"]|swiper\.|freeMode|slidesPerView|data-sara-|data-area|is-open|POLYGON|EILMELDUNG/i.test(text)) return true;
+    
+    // Check if title/summary is German or English when target language should be French
+    const title = synth.synthesis_title || c?.topic_title || '';
+    const deWords = /\b(der|die|das|und|ist|nicht|welche|forderungen|diskutiert|werden|anschlag|auf|den|eilmeldung|stadt|um|im|mit|zur|nach|vom|über|aus)\b/i;
+    const enWords = /\b(the|and|is|in|at|which|were|that|from|with|this|have|been|will|today|yesterday|says|said)\b/i;
+    const frWords = /\b(le|la|les|des|du|dans|un|une|est|sur|qui|par|pour|avec|sont|aux)\b/i;
+
+    const isGerman = deWords.test(title) && !frWords.test(title);
+    const isEnglish = enWords.test(title) && !frWords.test(title);
+    return isGerman || isEnglish;
+  }
+
   async function checkAndFetchSynthesis(c) {
     if (!c || activeSynth) return;
     const current = fetchedSynth || c.precomputed_synthesis;
-    if (current && !isLowQualityOrEnglish(current)) return;
+    if (current && !isLowQualityOrEnglish(current, c)) return;
     if (!c.articles || c.articles.length === 0) return;
 
     localSynthLoading = true;
@@ -62,28 +80,6 @@
     }
   }
 
-  $: {
-    if (cluster) {
-      checkAndFetchSynthesis(cluster);
-    }
-  }
-
-  function getLanguageFlag(lang) {
-    if (!lang) return "🇫🇷";
-    const l = lang.toLowerCase();
-    if (l === "en") return "🇬🇧";
-    if (l === "de") return "🇩🇪";
-    if (l === "es") return "🇪🇸";
-    return "🇫🇷";
-  }
-
-  function getDistinctFeedCount(c) {
-    if (c.distinct_feed_count) return c.distinct_feed_count;
-    if (!c.articles) return 0;
-    const feeds = new Set(c.articles.map(a => a.feed_title || 'RSS'));
-    return feeds.size;
-  }
-
   function decodeHtmlEntities(str) {
     if (!str) return '';
     let text = str;
@@ -101,7 +97,9 @@
     // Strip all HTML tags cleanly FIRST to avoid attribute leakage
     text = text.replace(/<[^>]+>/g, ' ');
     text = decodeHtmlEntities(text);
-    // Remove leftover CSS class names, tailwind utilities or JS fragments
+    // Remove Javascript/Swiper/UI boilerplate leakage
+    text = text.replace(/(?:publish\s*['"][^'"]+['"]|data-sara-[a-zA-Z-]+|swiper\.[a-zA-Z.]+|x-swiper|freeMode|roundLengths|slidesPerView|slideTo|data-area|is-open|setTimeout|keyup\.escape|window\.dispatchEvent|POLYGON\s+DOM|HEADER\s+READY|EILMELDUNG\s+proto|headline|Zur\s+Merkliste|Teilen\s+X\.com|Facebook\s+E-Mail|Link\s+kopieren|Bild\s+vergrößern|Digital-Abo)[^\n.!?]*/gi, ' ');
+    text = text.replace(/(?:publish|data-sara-[a-zA-Z-]+|swiper|freeMode|roundLengths|slidesPerView|slideTo|data-area|is-open|setTimeout|keyup|dispatchEvent|POLYGON|DOM|HEADER|READY|EILMELDUNG|proto|headline|Merkliste|Facebook|WhatsApp|Link\s+kopieren|Optionen|Teilen|Abo|Digital-Abo)/gi, ' ');
     text = text.replace(/(?:lg|md|sm|xl|2xl):[a-zA-Z0-9_-]+/g, ' ');
     text = text.replace(/(?:opacity-none|invisible|flex|grid|absolute|relative|overflow-hidden|hover:|focus:|opacity-none)[a-zA-Z0-9_-]*/gi, ' ');
     text = text.replace(/(?:BBC Homepage|Skip to content|Accessibility Help|Your account|Search BBC|More menu|Close menu|Menü öffnen|watchOverflow|isCollapsed|swiper-init|data-app-hidden|x-lazyload|Menü Startseite|Ausland)/gi, ' ');

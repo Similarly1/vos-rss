@@ -231,11 +231,16 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
 def clean_html_tags(raw_html: str) -> str:
     if not raw_html:
         return ""
-    text = re.sub(r'<(script|style|header|nav|footer|form|svg|img)[^>]*>[\s\S]*?<\/\1>', ' ', raw_html, flags=re.IGNORECASE)
+    text = str(raw_html)
+    # Strip script, style, svg, header, nav, footer tags
+    text = re.sub(r'<(script|style|header|nav|footer|form|svg|img|code)[^>]*>[\s\S]*?<\/\1>', ' ', text, flags=re.IGNORECASE)
+    # Strip HTML tags
     text = re.sub(r'<[^>]+>', ' ', text)
+    # Strip Javascript/Swiper/UI boilerplate leakage
+    text = re.sub(r'(?:publish\s*[\'"][^\'"]+[\'"]|data-sara-[a-zA-Z-]+|swiper\.[a-zA-Z.]+|x-swiper|freeMode|roundLengths|slidesPerView|slideTo|data-area|is-open|setTimeout|keyup\.escape|window\.dispatchEvent|POLYGON\s+DOM|HEADER\s+READY|EILMELDUNG\s+proto|headline|Zur\s+Merkliste|Teilen\s+X\.com|Facebook\s+E-Mail|Link\s+kopieren|Bild\s+vergrößern|Digital-Abo)[^\n.!?]*', ' ', text, flags=re.IGNORECASE)
+    text = re.sub(r'(?:publish|data-sara-[a-zA-Z-]+|swiper|freeMode|roundLengths|slidesPerView|slideTo|data-area|is-open|setTimeout|keyup|dispatchEvent|POLYGON|DOM|HEADER|READY|EILMELDUNG|proto|headline|Merkliste|Facebook|WhatsApp|Link\s+kopieren|Optionen|Teilen|Abo|Digital-Abo)', ' ', text, flags=re.IGNORECASE)
     text = re.sub(r'\$[a-zA-Z0-9_.]+\([^)]*\)', ' ', text)
     text = re.sub(r'(?:data-[a-zA-Z0-9_-]+|:[a-zA-Z0-9_-]+|x-[a-zA-Z0-9_-]+|@[a-zA-Z0-9_-]+)=["\'][^"\']*["\']', ' ', text)
-    text = re.sub(r'(?:Menü öffnen|watchOverflow|isCollapsed|swiper-init|data-app-hidden|x-lazyload)', ' ', text, flags=re.IGNORECASE)
     text = re.sub(r'&#\d+;', ' ', text)
     text = re.sub(r'&[a-zA-Z]+;', ' ', text)
     text = re.sub(r'[^a-zA-Z0-9àâáäãåçéèêëìíîïñòóôöõøùúûüýÿÀÂÁÄÃÅÇÉÈÊËÌÍÎÏÑÒÓÔÖÕØÙÚÛÜÝŸæÆœŒ\s.,!?\'"–-]', ' ', text)

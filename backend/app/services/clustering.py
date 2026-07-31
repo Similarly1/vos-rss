@@ -178,9 +178,8 @@ def compute_article_clusters(similarity_threshold: float = 0.86, max_time_diff_h
             if time_diff_hours > max_allowed_hours:
                 continue
 
-            # Cap maximum cluster size to prevent mega-clusters
-            if len(cluster_items) >= 15:
-                break
+            # Temporal decay factor: articles closer in time retain full similarity score
+            decay_factor = max(0.85, 1.0 - (0.15 * (time_diff_hours / max_allowed_hours)))
 
             # Dual Similarity Check: Compare against initial seed article AND current centroid
             # to prevent centroid drift (snowballing unrelated news into one cluster)

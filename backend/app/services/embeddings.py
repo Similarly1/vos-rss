@@ -214,25 +214,20 @@ async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", pro
 
     results = []
     errors = []
-    semaphore = asyncio.Semaphore(10)
 
-    async def sem_vectorize(art):
-        async with semaphore:
-            try:
-                res = await vectorize_article(art["id"], mistral_key, gemini_key, provider, fallback_provider, mistral_model, gemini_model)
-                return ("ok", res)
-            except Exception as e:
-                print(f"Erreur vectorisation article {art['id']}: {e}")
-                return ("err", str(e))
-
-    tasks = [sem_vectorize(art) for art in pending_articles]
-    outcomes = await asyncio.gather(*tasks)
-
-    for status, data in outcomes:
-        if status == "ok":
-            results.append(data)
-        else:
-            errors.append(data)
+    for art in pending_articles:
+        try:
+            res = await vectorize_article(art["id"], mistral_key, gemini_key, provider, fallback_provider, mistral_model, gemini_model)
+            results.append(res)
+            # Respect Mistral rate limit quota (1.00 req/sec max)
+            await asyncio.sleep(1.05)
+        except Exception as e:
+            err_msg = str(e)
+            print(f"Erreur vectorisation article {art['id']}: {err_msg}")
+            errors.append(err_msg)
+            if "429" in err_msg or "rate limit" in err_msg.lower():
+                # Pause longer if rate limited
+                await asyncio.sleep(3.0)
 
     return {
         "processed_count": len(results),

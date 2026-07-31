@@ -124,6 +124,11 @@ class AppSettingsRequest(BaseModel):
     default_landing_tab: Optional[str] = None
     webhook_model: Optional[str] = None
     hide_paywalled_without_cookie: Optional[bool] = None
+    mistral_quota: Optional[int] = None
+    mistral_quota_unit: Optional[str] = None
+    gemini_quota: Optional[int] = None
+    gemini_quota_unit: Optional[str] = None
+    vectorization_batch_limit: Optional[int] = None
 
 @router.get("")
 @router.get("/")
@@ -181,6 +186,11 @@ def get_settings():
             "default_landing_tab": get_app_setting("default_landing_tab", "articles"),
             "webhook_model": get_app_setting("webhook_model", ""),
             "hide_paywalled_without_cookie": get_app_setting("hide_paywalled_without_cookie", "true").lower() == "true",
+            "mistral_quota": int(get_app_setting("mistral_quota", "1")),
+            "mistral_quota_unit": get_app_setting("mistral_quota_unit", "req/sec"),
+            "gemini_quota": int(get_app_setting("gemini_quota", "15")),
+            "gemini_quota_unit": get_app_setting("gemini_quota_unit", "req/min"),
+            "vectorization_batch_limit": int(get_app_setting("vectorization_batch_limit", "200")),
         }
     }
 
@@ -269,6 +279,16 @@ def save_settings(payload: AppSettingsRequest):
         set_app_setting("webhook_model", payload.webhook_model)
     if payload.hide_paywalled_without_cookie is not None:
         set_app_setting("hide_paywalled_without_cookie", "true" if payload.hide_paywalled_without_cookie else "false")
+    if payload.mistral_quota is not None:
+        set_app_setting("mistral_quota", str(payload.mistral_quota))
+    if payload.mistral_quota_unit is not None:
+        set_app_setting("mistral_quota_unit", payload.mistral_quota_unit)
+    if payload.gemini_quota is not None:
+        set_app_setting("gemini_quota", str(payload.gemini_quota))
+    if payload.gemini_quota_unit is not None:
+        set_app_setting("gemini_quota_unit", payload.gemini_quota_unit)
+    if payload.vectorization_batch_limit is not None:
+        set_app_setting("vectorization_batch_limit", str(payload.vectorization_batch_limit))
         
     return {"status": "success", "message": "Paramètres enregistrés dans le fichier .env et en base !"}
 

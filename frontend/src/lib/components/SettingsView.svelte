@@ -12,7 +12,8 @@
     refreshIntervalMinutes, articleLanguageFilter, fullTextOnlyFilter, articleRetentionDays, 
     saveSettings, runArticlesCleanup, fetchVpsSettings,
     userTheme, setAppTheme, visibleNavTabs, webhookModel,
-    showMediaCredentialsModal, subscribedMediaCredentialsList, hidePaywalledWithoutCookie
+    showMediaCredentialsModal, subscribedMediaCredentialsList, hidePaywalledWithoutCookie,
+    mistralQuota, mistralQuotaUnit, geminiQuota, geminiQuotaUnit, vectorizationBatchLimit
   } from '../stores/appState.js';
   import { selectedVoice, saveVoiceSetting } from '../stores/audioStore.js';
 
@@ -46,6 +47,12 @@
   let langInput = $articleLanguageFilter;
   let fullTextInput = $fullTextOnlyFilter;
   let retentionInput = $articleRetentionDays;
+
+  let mistralQuotaInput = $mistralQuota;
+  let mistralQuotaUnitInput = $mistralQuotaUnit;
+  let geminiQuotaInput = $geminiQuota;
+  let geminiQuotaUnitInput = $geminiQuotaUnit;
+  let vectorizationBatchLimitInput = $vectorizationBatchLimit;
 
   let showMistralPassword = false;
   let showGeminiPassword = false;
@@ -138,6 +145,11 @@
       langInput = vpsKeys.article_language || 'fr';
       fullTextInput = vpsKeys.full_text_only || false;
       retentionInput = vpsKeys.article_retention_days || 14;
+      mistralQuotaInput = vpsKeys.mistral_quota || 0;
+      mistralQuotaUnitInput = vpsKeys.mistral_quota_unit || 'req/min';
+      geminiQuotaInput = vpsKeys.gemini_quota || 0;
+      geminiQuotaUnitInput = vpsKeys.gemini_quota_unit || 'req/min';
+      vectorizationBatchLimitInput = vpsKeys.vectorization_batch_limit !== undefined ? vpsKeys.vectorization_batch_limit : 200;
     }
     loadCategoryImages();
   });
@@ -155,7 +167,10 @@
       synthProvInput, vectProvInput, synthFallbackInput, vectFallbackInput,
       mistralEmbedInput, geminiEmbedInput,
       refreshInput, langInput, fullTextInput, retentionInput,
-      langsearchKeyInput
+      langsearchKeyInput,
+      mistralQuotaInput, mistralQuotaUnitInput,
+      geminiQuotaInput, geminiQuotaUnitInput,
+      vectorizationBatchLimitInput
     );
     saveVoiceSetting(voiceInput);
     isSavingEnv = false;
@@ -590,6 +605,43 @@
               {#if testResultLangsearch}
                 <div class="text-xs font-medium mt-1 {testResultLangsearch.success ? 'text-emerald-500' : 'text-rose-500'}">{testResultLangsearch.message}</div>
               {/if}
+            </div>
+          </div>
+        </div>
+        
+        <h3 class="text-lg font-bold mt-10 mb-6 border-b border-gray-100 dark:border-gray-800 pb-4 text-primary-500">⚡ Limites & Cadencement API</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="space-y-4">
+            <h4 class="font-semibold text-gray-800 dark:text-gray-200">Limites Mistral</h4>
+            <div class="space-y-3 bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Quota (0 = illimité)</label>
+              <div class="flex gap-2">
+                <input type="number" bind:value={mistralQuotaInput} class="flex-1 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-sm focus:ring-2 focus:ring-primary-500" min="0" />
+                <select bind:value={mistralQuotaUnitInput} class="w-32 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-sm focus:ring-2 focus:ring-primary-500">
+                  <option value="req/sec">req/sec</option>
+                  <option value="req/min">req/min</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-semibold text-gray-800 dark:text-gray-200">Limites Gemini</h4>
+            <div class="space-y-3 bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Quota (0 = illimité)</label>
+              <div class="flex gap-2">
+                <input type="number" bind:value={geminiQuotaInput} class="flex-1 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-sm focus:ring-2 focus:ring-primary-500" min="0" />
+                <select bind:value={geminiQuotaUnitInput} class="w-32 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-sm focus:ring-2 focus:ring-primary-500">
+                  <option value="req/sec">req/sec</option>
+                  <option value="req/min">req/min</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-4 md:col-span-2">
+            <h4 class="font-semibold text-gray-800 dark:text-gray-200">Vectorisation</h4>
+            <div class="space-y-3 bg-gray-50/70 dark:bg-dark-bg/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+              <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300">Nombre d'articles récents à vectoriser par lot</label>
+              <input type="number" bind:value={vectorizationBatchLimitInput} class="w-full bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-xl py-2 px-3 text-sm focus:ring-2 focus:ring-primary-500" min="1" />
             </div>
           </div>
         </div>

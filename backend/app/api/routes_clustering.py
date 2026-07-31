@@ -104,14 +104,23 @@ async def trigger_precompute(payload: Optional[PrecomputeRequest] = None, backgr
 @router.get("/clusters")
 async def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
     try:
-        # Determine cache key
-        mode_key = "events" if threshold >= 0.86 else "themes"
-        cached = get_cached_clusters(f"threshold_{mode_key}") or get_cached_clusters(f"threshold_{threshold}")
+        # Determine if we can use cache
+        clusters = None
+        source = "live"
+        
+        # We only use cache if the threshold matches exactly the precomputed modes
+        if abs(threshold - 0.86) < 0.001:
+            cached = get_cached_clusters("threshold_events")
+            if cached is not None and len(cached) > 0:
+                clusters = cached
+                source = "cache"
+        elif abs(threshold - 0.78) < 0.001:
+            cached = get_cached_clusters("threshold_themes")
+            if cached is not None and len(cached) > 0:
+                clusters = cached
+                source = "cache"
 
-        if cached is not None and len(cached) > 0:
-            clusters = cached
-            source = "cache"
-        else:
+        if clusters is None:
             clusters = await asyncio.to_thread(compute_article_clusters, similarity_threshold=threshold)
             source = "live"
 

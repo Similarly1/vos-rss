@@ -1,11 +1,10 @@
 <script>
   import { onMount } from 'svelte';
-  import { mistralApiKey, geminiApiKey, synthesisProvider, selectedMistralDiscoverModel, selectedGeminiDiscoverModel, currentView } from '../stores/appState.js';
+  import { mistralApiKey, geminiApiKey, synthesisProvider, selectedMistralDiscoverModel, selectedGeminiDiscoverModel, currentView, similarityThreshold } from '../stores/appState.js';
   import { playTrack, selectedVoice } from '../stores/audioStore.js';
 
   let status = { total_articles: 0, vectorized_articles: 0, pending_articles: 0, sqlite_vec_enabled: true };
   let clusters = [];
-  let similarityThreshold = 0.90;
   let isLoading = false;
   let isVectorizing = false;
   let isClustering = false;
@@ -31,7 +30,7 @@
   async function fetchClusters() {
     isClustering = true;
     try {
-      const res = await fetch(`/api/clustering/clusters?threshold=${similarityThreshold}`);
+      const res = await fetch(`/api/clustering/clusters?threshold=${$similarityThreshold}`);
       if (res.ok) {
         const data = await res.json();
         clusters = data.clusters || [];
@@ -242,7 +241,7 @@
       <div class="pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <label for="threshold-slider" class="text-xs font-bold text-gray-700 dark:text-gray-300 block">
-            Sensibilité de recoupement (Seuil : {similarityThreshold})
+            Sensibilité de recoupement (Seuil : {$similarityThreshold})
           </label>
           <p class="text-[11px] text-gray-400">Un seuil élevé (0.90) exige un sujet très spécifique pour former un groupe.</p>
         </div>
@@ -254,7 +253,7 @@
             min="0.75" 
             max="0.95" 
             step="0.01" 
-            bind:value={similarityThreshold}
+            bind:value={$similarityThreshold}
             on:change={fetchClusters}
             class="w-36 accent-primary-500 cursor-pointer"
           />
@@ -287,7 +286,7 @@
     <div class="space-y-6">
       <div class="flex justify-between items-center">
         <h3 class="text-xl font-bold">Grappes d'Actualités ({clusters.length})</h3>
-        <span class="text-xs text-gray-400">Seuil : {similarityThreshold}</span>
+        <span class="text-xs text-gray-400">Seuil : {$similarityThreshold}</span>
       </div>
 
       {#if isClustering}

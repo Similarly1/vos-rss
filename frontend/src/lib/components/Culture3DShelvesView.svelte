@@ -8,6 +8,21 @@
     { type: 'music', label: 'CD & Vinyles', emoji: '🎵', color: '#4f6ef7' },
     { type: 'book', label: 'Romans & Essais', emoji: '📖', color: '#f59e0b' },
     { type: 'bd', label: 'BD & Comics', emoji: '🎨', color: '#e879f9' },
+    { type: 'cinema', label: 'Cinéma & Séries', emoji: '🎬', color: '#10b981' },
+  ];
+
+  let showFeedManager = false;
+  let cultureFeeds = [
+    { title: "Télérama - Cinéma", url: "https://www.telerama.fr/rss/cinema.xml", active: true },
+    { title: "Allociné - Actualités", url: "https://www.allocine.fr/rss/news.xml", active: true },
+    { title: "SensCritique - Films", url: "https://www.senscritique.com/rss/films", active: true },
+    { title: "Les Inrocks - Musique", url: "https://www.lesinrocks.com/musique/feed/", active: true },
+    { title: "Livres Hebdo", url: "https://www.livreshebdo.fr/rss.xml", active: true },
+    { title: "BD Gest' - Chroniques", url: "https://www.bdgest.com/rss/chroniques.xml", active: true },
+    { title: "Ecran Large", url: "https://www.ecranlarge.com/rss", active: true },
+    { title: "Pitchfork (US)", url: "https://pitchfork.com/rss/reviews/albums/", active: true },
+    { title: "ActuaBD", url: "https://www.actuabd.com/spip.php?page=backend", active: true },
+    { title: "Première", url: "https://www.premiere.fr/rss", active: true }
   ];
 
   let selectedItem = null;
@@ -43,8 +58,18 @@
       type = 'music';
     } else if (/bd|manga|comics|roman graphique|tome|bande dessin[eé]e|illustration|dessinateur/i.test(lower)) {
       type = 'bd';
+    } else if (/film|cin[eé]ma|s[eé]rie|r[eé]alisateur|acteur|actrice|netflix|streaming|saison|[eé]pisode|box-office|salles/i.test(lower)) {
+      type = 'cinema';
     } else if (isCulturalCategory || /livre|roman|essai|auteur|parution|[eé]dition|bouquin|prix litt[eé]raire|polar|fiction/i.test(lower)) {
       type = 'book';
+    }
+
+    const activeFeedUrls = cultureFeeds.filter(f => f.active).map(f => f.url);
+    const isCategoryCulture = cluster.category === "Étagère Culture" || (cluster.articles && cluster.articles.some(a => a.category === "Étagère Culture"));
+    const matchesFeed = cluster.articles && cluster.articles.some(a => activeFeedUrls.includes(a.feed_url));
+
+    if (!isCategoryCulture && !matchesFeed) {
+      return null;
     }
 
     // Strictly exclude general news, accidents, fires, politics, sports, and weather from culture shelves
@@ -108,6 +133,13 @@
   <div class="absolute inset-0 pointer-events-none" style="background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 28px 28px; mask-image: radial-gradient(ellipse 100% 100% at 50% 0%, black 0%, transparent 75%);"></div>
   <div class="absolute inset-0 pointer-events-none rounded-2xl" style="background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(79,110,247,0.05) 0%, transparent 70%);"></div>
 
+  <div class="flex justify-between items-center mb-6 relative z-10">
+    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200"></h2>
+    <button on:click={() => showFeedManager = true} class="px-4 py-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm">
+      ⚙️ Gérer les flux de l'étagère
+    </button>
+  </div>
+
   {#if isLoading}
     <div class="flex items-center justify-center h-64 text-gray-400 gap-3">
       <div class="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
@@ -167,6 +199,36 @@
     cluster={selectedItem}
     onClose={() => selectedItem = null}
   />
+{/if}
+
+{#if showFeedManager}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div class="bg-white dark:bg-dark-card rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-dark-bg">
+        <h3 class="font-bold text-lg">⚙️ Flux du Pack Culture</h3>
+        <button on:click={() => showFeedManager = false} class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+          ✕
+        </button>
+      </div>
+      <div class="p-5 overflow-y-auto flex-1 space-y-3">
+        <p class="text-xs text-gray-500 mb-4">Cochez les sources que vous souhaitez afficher sur les étagères 3D.</p>
+        {#each cultureFeeds as feed}
+          <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-gray-800 rounded-xl cursor-pointer hover:border-primary-300 transition-colors">
+            <div class="flex flex-col">
+              <span class="text-sm font-semibold text-gray-900 dark:text-white">{feed.title}</span>
+              <span class="text-xs text-gray-500 truncate max-w-[250px]">{feed.url}</span>
+            </div>
+            <input type="checkbox" bind:checked={feed.active} class="w-5 h-5 accent-primary-500 rounded" />
+          </label>
+        {/each}
+      </div>
+      <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-dark-bg text-right">
+        <button on:click={() => { showFeedManager = false; clusters = [...clusters]; }} class="px-5 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-xl text-sm transition-all shadow-sm">
+          Fermer et Appliquer
+        </button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 <style>

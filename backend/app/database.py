@@ -310,9 +310,36 @@ def init_db():
     # Default setting for hiding paywalled content without cookies
     try:
         cursor.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('hide_paywalled_without_cookie', 'true')")
+        cursor.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('mistral_quota', '1')")
+        cursor.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('mistral_quota_unit', 'req/sec')")
+        cursor.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('gemini_quota', '15')")
+        cursor.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('gemini_quota_unit', 'req/min')")
+        cursor.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('vectorization_batch_limit', '200')")
         cursor.execute("DELETE FROM cluster_cache")
     except Exception as e:
         print(f"[Init DB note] {e}")
+
+    # Inject Culture Pack feeds
+    try:
+        culture_feeds = [
+            ("https://actualitte.com/rss-main.rss", "Actualitté"),
+            ("https://www.livreshebdo.fr/rss.xml", "Livres Hebdo"),
+            ("https://www.citizenjazz.com/spip.php?page=backend", "Citizen Jazz"),
+            ("https://www.francemusique.fr/rss", "France Musique"),
+            ("https://blog.musicbrainz.org/feed/", "MusicBrainz"),
+            ("https://www.planetebd.com/rss/planetebd-rss.xml", "Planète BD"),
+            ("https://www.bdgest.com/rss", "BDGest"),
+            ("https://www.ecranlarge.com/rss", "Ecran Large"),
+            ("https://www.cineserie.com/feed/", "CinéSéries"),
+            ("https://www.allocine.fr/rss/news.xml", "Allociné")
+        ]
+        for url, title in culture_feeds:
+            cursor.execute('''
+                INSERT OR IGNORE INTO feeds (url, title, category, language, is_full_text)
+                VALUES (?, ?, 'Étagère Culture', 'fr', 1)
+            ''', (url, title))
+    except Exception as e:
+        print(f"[Init DB note] Culture feeds: {e}")
 
     conn.commit()
     conn.close()

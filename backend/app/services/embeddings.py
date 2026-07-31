@@ -184,6 +184,23 @@ async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", pro
     Uses asyncio concurrency (Semaphore = 10) to process hundreds of articles in seconds.
     """
     import asyncio
+    from app.services.podcast import get_app_setting
+
+    mistral_quota = int(get_app_setting("mistral_quota", "1"))
+    mistral_quota_unit = get_app_setting("mistral_quota_unit", "req/sec")
+    gemini_quota = int(get_app_setting("gemini_quota", "15"))
+    gemini_quota_unit = get_app_setting("gemini_quota_unit", "req/min")
+    batch_limit = int(get_app_setting("vectorization_batch_limit", "200"))
+
+    quota = mistral_quota if provider == "mistral" else gemini_quota
+    unit = mistral_quota_unit if provider == "mistral" else gemini_quota_unit
+
+    if unit == "req/sec":
+        delay = 1.0 / quota if quota > 0 else 1.0
+    else:
+        delay = 60.0 / quota if quota > 0 else 60.0
+    
+    delay = max(0.05, delay)
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -205,7 +222,9 @@ async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", pro
         FROM articles a 
         LEFT JOIN article_embeddings e ON a.id = e.article_id AND e.provider = ?
         WHERE e.article_id IS NULL
-    """, (provider,))
+        ORDER BY a.published_date DESC
+        LIMIT ?
+    """, (provider, batch_limit))
     pending_articles = cursor.fetchall()
     conn.close()
 
@@ -219,18 +238,19 @@ async def vectorize_all_pending(mistral_key: str = "", gemini_key: str = "", pro
         try:
             res = await vectorize_article(art["id"], mistral_key, gemini_key, provider, fallback_provider, mistral_model, gemini_model)
             results.append(res)
-            # Respect Mistral rate limit quota (1.00 req/sec max)
-            await asyncio.sleep(1.05)
+            # Respect dynamic rate limit
+            await asyncio.sleep(delay)
         except Exception as e:
             err_msg = str(e)
             print(f"Erreur vectorisation article {art['id']}: {err_msg}")
             errors.append(err_msg)
             if "429" in err_msg or "rate limit" in err_msg.lower():
                 # Pause longer if rate limited
-                await asyncio.sleep(3.0)
+                await asyncio.sleep(delay * 3)
 
     return {
         "processed_count": len(results),
         "articles": results,
         "errors": errors
     }
+

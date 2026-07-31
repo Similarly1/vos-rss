@@ -72,6 +72,16 @@ export const geminiEmbedModel = writable('text-embedding-004');
 export const refreshIntervalMinutes = writable(30);
 export const articleRetentionDays = writable(14);
 
+// Limits & Quotas
+export const mistralQuota = writable(0);
+export const mistralQuotaUnit = writable('req/min');
+export const geminiQuota = writable(0);
+export const geminiQuotaUnit = writable('req/min');
+export const vectorizationBatchLimit = writable(200);
+
+// Synthesis
+export const similarityThreshold = writable(0.85);
+
 // Reader Language & Full Text filter preferences
 export const articleLanguageFilter = writable('fr');
 export const fullTextOnlyFilter = writable(false);
@@ -110,6 +120,12 @@ export async function fetchVpsSettings() {
       if (data.article_language) articleLanguageFilter.set(data.article_language);
       if (data.full_text_only !== undefined) fullTextOnlyFilter.set(data.full_text_only);
       if (data.hide_paywalled_without_cookie !== undefined) hidePaywalledWithoutCookie.set(data.hide_paywalled_without_cookie);
+
+      if (data.mistral_quota !== undefined) mistralQuota.set(data.mistral_quota);
+      if (data.mistral_quota_unit) mistralQuotaUnit.set(data.mistral_quota_unit);
+      if (data.gemini_quota !== undefined) geminiQuota.set(data.gemini_quota);
+      if (data.gemini_quota_unit) geminiQuotaUnit.set(data.gemini_quota_unit);
+      if (data.vectorization_batch_limit !== undefined) vectorizationBatchLimit.set(data.vectorization_batch_limit);
       
       if (data.default_landing_tab) {
         defaultLandingTab.set(data.default_landing_tab);
@@ -154,7 +170,10 @@ export async function saveSettings(
   webhookModelVal,
   synthProv, vectProv, synthFallback, vectFallback, mistralEmbed, geminiEmbed, 
   refreshMinutes = 30, langFilter = 'fr', fullTextOnly = false, retentionDays = 14,
-  langsearchKey = ''
+  langsearchKey = '',
+  mistralQuotaVal = 0, mistralQuotaUnitVal = 'req/min',
+  geminiQuotaVal = 0, geminiQuotaUnitVal = 'req/min',
+  vectorizationBatchLimitVal = 200
 ) {
   mistralApiKey.set(mistralKey);
   selectedMistralModel.set(mistralModel);
@@ -180,6 +199,12 @@ export async function saveSettings(
   articleLanguageFilter.set(langFilter);
   fullTextOnlyFilter.set(fullTextOnly);
   articleRetentionDays.set(retentionDays);
+
+  mistralQuota.set(mistralQuotaVal);
+  mistralQuotaUnit.set(mistralQuotaUnitVal);
+  geminiQuota.set(geminiQuotaVal);
+  geminiQuotaUnit.set(geminiQuotaUnitVal);
+  vectorizationBatchLimit.set(vectorizationBatchLimitVal);
 
   try {
     const res = await fetch('/api/feeds/settings', {
@@ -210,7 +235,12 @@ export async function saveSettings(
         full_text_only: fullTextOnly,
         hide_paywalled_without_cookie: get(hidePaywalledWithoutCookie),
         default_landing_tab: get(defaultLandingTab),
-        nav_tabs_order: JSON.stringify(get(navTabsOrder))
+        nav_tabs_order: JSON.stringify(get(navTabsOrder)),
+        mistral_quota: mistralQuotaVal,
+        mistral_quota_unit: mistralQuotaUnitVal,
+        gemini_quota: geminiQuotaVal,
+        gemini_quota_unit: geminiQuotaUnitVal,
+        vectorization_batch_limit: vectorizationBatchLimitVal
       })
     });
     if (!res.ok) {

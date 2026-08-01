@@ -211,6 +211,8 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
         else:
             main_topic = cluster_items[0]["title"]
 
+        most_recent_date = max(a["published_date"] for a in cluster_items)
+
         cluster_image_url = None
         for a in cluster_items:
             if a.get("image_url"):

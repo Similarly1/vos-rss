@@ -1,6 +1,7 @@
 import json
 import math
 import re
+import html
 import httpx
 from datetime import datetime
 from app.database import get_db_connection
@@ -242,6 +243,9 @@ def clean_html_tags(raw_html: str) -> str:
     if not raw_html:
         return ""
     text = str(raw_html)
+    # Decode HTML entities first so &apos;, &rsquo;, &#39; are restored to real apostrophes before stripping
+    text = html.unescape(text)
+    text = text.replace("&apos;", "'").replace("&rsquo;", "’").replace("&#39;", "'")
     # Strip script, style, svg, header, nav, footer tags
     text = re.sub(r'<(script|style|header|nav|footer|form|svg|img|code)[^>]*>[\s\S]*?<\/\1>', ' ', text, flags=re.IGNORECASE)
     # Strip HTML tags
@@ -251,8 +255,6 @@ def clean_html_tags(raw_html: str) -> str:
     text = re.sub(r'(?:publish|data-sara-[a-zA-Z-]+|swiper|freeMode|roundLengths|slidesPerView|slideTo|data-area|is-open|setTimeout|keyup|dispatchEvent|POLYGON|DOM|HEADER|READY|EILMELDUNG|proto|headline|Merkliste|Facebook|WhatsApp|Link\s+kopieren|Optionen|Teilen|Abo|Digital-Abo)', ' ', text, flags=re.IGNORECASE)
     text = re.sub(r'\$[a-zA-Z0-9_.]+\([^)]*\)', ' ', text)
     text = re.sub(r'(?:data-[a-zA-Z0-9_-]+|:[a-zA-Z0-9_-]+|x-[a-zA-Z0-9_-]+|@[a-zA-Z0-9_-]+)=["\'][^"\']*["\']', ' ', text)
-    text = re.sub(r'&#\d+;', ' ', text)
-    text = re.sub(r'&[a-zA-Z]+;', ' ', text)
     text = re.sub(r'[^a-zA-Z0-9àâáäãåçéèêëìíîïñòóôöõøùúûüýÿÀÂÁÄÃÅÇÉÈÊËÌÍÎÏÑÒÓÔÖÕØÙÚÛÜÝŸæÆœŒ\s.,!?\'"’–-]', ' ', text)
     return re.sub(r'\s+', ' ', text).strip()
 

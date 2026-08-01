@@ -237,16 +237,17 @@
               </div>
             {/if}
           </div>
-
-          <!-- Shelf board -->
-          <div style="height: 16px; margin-left: -2px; margin-right: -2px; background: linear-gradient(180deg, #2e2824 0%, #1c1612 50%, #0e0b08 100%); border-top: 1px solid rgba(255,255,255,0.07); box-shadow: 0 6px 30px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.5); position: relative;">
-            <div style="position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent, transparent 120px, rgba(255,255,255,0.015) 120px, rgba(255,255,255,0.015) 121px);"></div>
-          </div>
-          <!-- Shadow -->
-          <div style="height: 12px; margin-left: 12px; margin-right: 12px; background: rgba(0,0,0,0.5); filter: blur(10px); transform: scaleY(0.4); transform-origin: top; margin-top: -4px;"></div>
         </div>
+
+        <!-- Shelf board -->
+        <div style="height: 16px; margin-left: -2px; margin-right: -2px; background: linear-gradient(180deg, #2e2824 0%, #1c1612 50%, #0e0b08 100%); border-top: 1px solid rgba(255,255,255,0.07); box-shadow: 0 6px 30px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.5); position: relative;">
+          <div style="position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent, transparent 120px, rgba(255,255,255,0.015) 120px, rgba(255,255,255,0.015) 121px);"></div>
+        </div>
+        <!-- Shadow -->
+        <div style="height: 12px; margin-left: 12px; margin-right: 12px; background: rgba(0,0,0,0.5); filter: blur(10px); transform: scaleY(0.4); transform-origin: top; margin-top: -4px;"></div>
       </div>
-    {/each}
+    </div>
+  {/each}
   {/if}
 </div>
 

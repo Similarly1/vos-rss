@@ -254,9 +254,12 @@
           {/if}
         </div>
         {#if isSynthLoading}
-          <div class="flex items-center gap-3 text-xs text-muted-foreground py-4 animate-pulse">
-            <svg class="w-5 h-5 animate-spin text-primary" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-            <span>Traduction et synthèse des sources par Mistral AI...</span>
+          <div class="space-y-4">
+            <div class="flex items-center gap-2.5 text-xs text-primary bg-primary/10 border border-primary/20 p-3 rounded-xl animate-pulse font-semibold">
+              <svg class="w-4 h-4 animate-spin text-primary shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              <span>Génération de la synthèse croisée par l'IA en cours...</span>
+            </div>
+            <p class="text-sm text-foreground leading-relaxed italic">{cleanTextBoilerplate(cluster.articles[0]?.content || cluster.articles[0]?.description || cluster.articles[0]?.title)}</p>
           </div>
         {:else if displaySynth}
           <div class="space-y-4">

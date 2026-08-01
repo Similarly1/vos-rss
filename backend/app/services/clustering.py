@@ -438,9 +438,9 @@ async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str =
     # 1. Event Mode (0.86 with Centroid Matching & 48h Window)
     event_clusters = compute_article_clusters(similarity_threshold=0.86, max_time_diff_hours=48.0)
 
-    # Pre-synthesize top 8 event clusters if API keys available
+    # Pre-synthesize top 16 event clusters if API keys available
     if (m_key or g_key) and event_clusters:
-        for c in event_clusters[:8]:
+        for c in event_clusters[:16]:
             try:
                 synth = await synthesize_cluster(
                     c["articles"], 

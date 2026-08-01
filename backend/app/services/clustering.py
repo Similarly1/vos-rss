@@ -450,12 +450,15 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
         if not g_key:
             raise ValueError("Clé API Gemini manquante dans la configuration.")
         
-        target_model = g_model if (g_model and "gemini" in g_model.lower()) else "gemini-1.5-flash"
+        target_model = g_model if (g_model and "gemini" in g_model.lower()) else "gemini-2.5-flash"
         
         # Test endpoints and multiple models in case of 404 (model restricted/unavailable for this key)
         api_urls = [
             f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={g_key}",
             f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={g_key}",
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={g_key}",
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={g_key}",
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={g_key}",
             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={g_key}",
             f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={g_key}"
         ]

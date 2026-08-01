@@ -115,195 +115,227 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
     """
     Reads all embeddings from DB, computes pairwise cosine similarities across all languages (FR, EN, DE, ES),
     and groups articles into clusters of related news with Centroid Matching & strict temporal proximity.
-    
-    Proximity & Centroid Rules:
-    - Event Mode (similarity_threshold >= 0.84): max time gap = 48h (2 days). Uses Centroid Vector.
-    - Thematic Mode (similarity_threshold < 0.84): max time gap = 72h (3 days).
-    - Applies a temporal decay factor so closer articles match with higher confidence.
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    where_clause = "WHERE 1=1"
-    if exclude_culture:
-        where_clause += " AND f.category != 'Étagère Culture'"
-
-    cursor.execute(f"""
-        SELECT e.article_id, e.embedding_json, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.url as feed_url, f.category
-        FROM article_embeddings e
-        JOIN articles a ON e.article_id = a.id
-        JOIN feeds f ON a.feed_id = f.id
-        {where_clause}
-        ORDER BY a.published_date DESC
-        LIMIT 350
-    """)
-    rows = cursor.fetchall()
-    conn.close()
-
-    articles = []
-    if rows:
-        for row in rows:
-            try:
-                raw_emb = row["embedding_json"]
-                if isinstance(raw_emb, bytes):
-                    raw_emb = raw_emb.decode('utf-8')
-                vector = json.loads(raw_emb) if isinstance(raw_emb, str) else raw_emb
-                if not isinstance(vector, list) or len(vector) == 0:
-                    continue
-                pub_dt = parse_article_date(row["published_date"])
-                articles.append({
-                    "id": row["article_id"],
-                    "title": row["title"] or "",
-                    "content": row["content"] or "",
-                    "url": row["url"] or "",
-                    "feed_title": row["feed_title"] or "RSS",
-                    "feed_url": row["feed_url"] or "",
-                    "category": row["category"] or "Général",
-                    "published_date": row["published_date"],
-                    "published_dt": pub_dt,
-                    "image_url": row["image_url"],
-                    "language": row["language"] or "fr",
-                    "is_full_text": bool(row["is_full_text"]),
-                    "vector": vector
-                })
-            except Exception as err:
-                pass
-
-    if not articles:
-        # Fallback: if no valid embeddings exist yet in DB, fetch recent raw articles as basic clusters
+    try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        raw_where = "WHERE f.category != 'Étagère Culture'" if exclude_culture else ""
+        
+        where_clause = "WHERE 1=1"
+        if exclude_culture:
+            where_clause += " AND (f.category IS NULL OR f.category != 'Étagère Culture')"
+
         cursor.execute(f"""
-            SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.url as feed_url, f.category
-            FROM articles a
-            JOIN feeds f ON a.feed_id = f.id
-            {raw_where}
+            SELECT e.article_id, e.embedding_json, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.url as feed_url, f.category
+            FROM article_embeddings e
+            JOIN articles a ON e.article_id = a.id
+            LEFT JOIN feeds f ON a.feed_id = f.id
+            {where_clause}
             ORDER BY a.published_date DESC
-            LIMIT 100
+            LIMIT 350
         """)
-        raw_rows = cursor.fetchall()
+        rows = cursor.fetchall()
         conn.close()
 
-        fallback_clusters = []
-        for r in raw_rows:
-            pub_date = r["published_date"] or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            fallback_clusters.append({
-                "cluster_id": f"cluster_raw_{r['id']}",
-                "topic_title": r["title"] or "Événement d'actualité",
-                "category": r["category"] or "Général",
-                "article_count": 1,
-                "distinct_feed_count": 1,
-                "distinct_feeds": [r["feed_title"] or "RSS"],
-                "latest_published_date": pub_date,
-                "articles": [{
-                    "id": r["id"],
-                    "title": r["title"] or "",
-                    "content": r["content"] or "",
-                    "feed_title": r["feed_title"] or "RSS",
-                    "feed_url": r["feed_url"] or "",
-                    "url": r["url"] or "",
-                    "published_date": pub_date,
-                    "image_url": r["image_url"],
-                    "language": r["language"] or "fr",
-                    "is_full_text": bool(r["is_full_text"])
-                }]
-            })
-        return fallback_clusters
+        articles = []
+        if rows:
+            for row in rows:
+                try:
+                    raw_emb = row["embedding_json"]
+                    if isinstance(raw_emb, bytes):
+                        raw_emb = raw_emb.decode('utf-8')
+                    vector = json.loads(raw_emb) if isinstance(raw_emb, str) else raw_emb
+                    if not isinstance(vector, list) or len(vector) == 0:
+                        continue
+                    pub_dt = parse_article_date(row["published_date"])
+                    articles.append({
+                        "id": row["article_id"],
+                        "title": row["title"] or "",
+                        "content": row["content"] or "",
+                        "url": row["url"] or "",
+                        "feed_title": row["feed_title"] or "RSS",
+                        "feed_url": row["feed_url"] or "",
+                        "category": row["category"] or "Général",
+                        "published_date": row["published_date"],
+                        "published_dt": pub_dt,
+                        "image_url": row["image_url"],
+                        "language": row["language"] or "fr",
+                        "is_full_text": bool(row["is_full_text"]),
+                        "vector": vector
+                    })
+                except Exception:
+                    pass
 
-    clusters = []
-    visited = set()
-    is_strict_mode = similarity_threshold >= 0.84
+        if not articles:
+            # Fallback: fetch recent raw articles as basic clusters
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            raw_where = "WHERE (f.category IS NULL OR f.category != 'Étagère Culture')" if exclude_culture else ""
+            cursor.execute(f"""
+                SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.url as feed_url, f.category
+                FROM articles a
+                LEFT JOIN feeds f ON a.feed_id = f.id
+                {raw_where}
+                ORDER BY a.id DESC
+                LIMIT 100
+            """)
+            raw_rows = cursor.fetchall()
+            conn.close()
 
-    # Determine maximum time gap between articles in the same cluster
-    if max_time_diff_hours is None:
-        max_allowed_hours = 48.0 if is_strict_mode else 72.0
-    else:
-        max_allowed_hours = float(max_time_diff_hours)
+            fallback_clusters = []
+            for r in raw_rows:
+                pub_date = r["published_date"] or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                fallback_clusters.append({
+                    "cluster_id": f"cluster_raw_{r['id']}",
+                    "topic_title": r["title"] or "Événement d'actualité",
+                    "category": r["category"] or "Général",
+                    "article_count": 1,
+                    "distinct_feed_count": 1,
+                    "distinct_feeds": [r["feed_title"] or "RSS"],
+                    "latest_published_date": pub_date,
+                    "articles": [{
+                        "id": r["id"],
+                        "title": r["title"] or "",
+                        "content": r["content"] or "",
+                        "feed_title": r["feed_title"] or "RSS",
+                        "feed_url": r["feed_url"] or "",
+                        "url": r["url"] or "",
+                        "published_date": pub_date,
+                        "image_url": r["image_url"],
+                        "language": r["language"] or "fr",
+                        "is_full_text": bool(r["is_full_text"])
+                    }]
+                })
+            return fallback_clusters
 
-    for i in range(len(articles)):
-        art_i = articles[i]
-        if art_i["id"] in visited:
-            continue
+        clusters = []
+        visited = set()
+        is_strict_mode = similarity_threshold >= 0.84
 
-        cluster_items = [art_i]
-        visited.add(art_i["id"])
-        current_centroid = art_i["vector"]
-
-        for j in range(i + 1, len(articles)):
-            art_j = articles[j]
-            if art_j["id"] in visited:
-                continue
-
-            # Check temporal gap between art_j and art_i
-            time_diff_hours = abs((art_i["published_dt"] - art_j["published_dt"]).total_seconds()) / 3600.0
-            if time_diff_hours > max_allowed_hours:
-                continue
-
-            # Temporal decay factor: articles closer in time retain full similarity score
-            decay_factor = max(0.85, 1.0 - (0.15 * (time_diff_hours / max_allowed_hours)))
-
-            # Dual Similarity Check: Compare against initial seed article AND current centroid
-            # to prevent centroid drift (snowballing unrelated news into one cluster)
-            sim_seed = cosine_similarity(art_j["vector"], art_i["vector"]) * decay_factor
-            sim_centroid = cosine_similarity(art_j["vector"], current_centroid) * decay_factor
-
-            # Both seed similarity and centroid similarity must meet threshold
-            if sim_seed >= similarity_threshold and sim_centroid >= similarity_threshold:
-                cluster_items.append(art_j)
-                visited.add(art_j["id"])
-                current_centroid = compute_centroid([item["vector"] for item in cluster_items])
-
-            # Cap cluster size at 20 articles to prevent mega-cluster snowballing
-            if len(cluster_items) >= 20:
-                break
-
-        distinct_feeds = list(set(a["feed_title"] for a in cluster_items if a.get("feed_title")))
-        if not distinct_feeds:
-            distinct_feeds = ["RSS"]
-
-        # Prioritize a French article title if present in the cluster
-        french_arts = [a for a in cluster_items if (a.get("language") or "fr").lower() == "fr"]
-        if french_arts and french_arts[0].get("title"):
-            main_topic = french_arts[0]["title"]
+        if max_time_diff_hours is None:
+            max_allowed_hours = 48.0 if is_strict_mode else 72.0
         else:
-            main_topic = cluster_items[0].get("title") or "Événement d'actualité"
+            max_allowed_hours = float(max_time_diff_hours)
 
-        valid_dates = [a["published_date"] for a in cluster_items if a.get("published_date")]
-        most_recent_date = max(valid_dates) if valid_dates else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        for i in range(len(articles)):
+            art_i = articles[i]
+            if art_i["id"] in visited:
+                continue
 
-        cluster_image_url = None
-        for a in cluster_items:
-            if a.get("image_url"):
-                cluster_image_url = a["image_url"]
-                break
+            cluster_items = [art_i]
+            visited.add(art_i["id"])
+            current_centroid = art_i["vector"]
 
-        clusters.append({
-            "cluster_id": f"cluster_{art_i['id']}",
-            "topic_title": main_topic,
-            "category": cluster_items[0].get("category") or "Général",
-            "image_url": cluster_image_url,
-            "article_count": len(cluster_items),
-            "distinct_feed_count": len(distinct_feeds),
-            "distinct_feeds": distinct_feeds,
-            "latest_published_date": most_recent_date,
-            "articles": [{
-                "id": a["id"],
-                "title": a.get("title") or "",
-                "content": a.get("content") or "",
-                "feed_title": a.get("feed_title") or "RSS",
-                "feed_url": a.get("feed_url") or "",
-                "url": a.get("url") or "",
-                "published_date": a.get("published_date") or most_recent_date,
-                "image_url": a.get("image_url"),
-                "language": a.get("language") or "fr",
-                "is_full_text": bool(a.get("is_full_text"))
-            } for a in cluster_items]
-        })
+            for j in range(i + 1, len(articles)):
+                art_j = articles[j]
+                if art_j["id"] in visited:
+                    continue
 
-    # Sort clusters: multi-source events first, then by latest publication date
-    clusters.sort(key=lambda c: (c.get("distinct_feed_count", 1) > 1, c.get("latest_published_date") or "", c.get("distinct_feed_count", 1), c.get("article_count", 1)), reverse=True)
-    return clusters
+                time_diff_hours = abs((art_i["published_dt"] - art_j["published_dt"]).total_seconds()) / 3600.0
+                if time_diff_hours > max_allowed_hours:
+                    continue
+
+                decay_factor = max(0.85, 1.0 - (0.15 * (time_diff_hours / max_allowed_hours)))
+
+                sim_seed = cosine_similarity(art_j["vector"], art_i["vector"]) * decay_factor
+                sim_centroid = cosine_similarity(art_j["vector"], current_centroid) * decay_factor
+
+                if sim_seed >= similarity_threshold and sim_centroid >= similarity_threshold:
+                    cluster_items.append(art_j)
+                    visited.add(art_j["id"])
+                    current_centroid = compute_centroid([item["vector"] for item in cluster_items])
+
+                if len(cluster_items) >= 20:
+                    break
+
+            distinct_feeds = list(set(a["feed_title"] for a in cluster_items if a.get("feed_title")))
+            if not distinct_feeds:
+                distinct_feeds = ["RSS"]
+
+            french_arts = [a for a in cluster_items if (a.get("language") or "fr").lower() == "fr"]
+            if french_arts and french_arts[0].get("title"):
+                main_topic = french_arts[0]["title"]
+            else:
+                main_topic = cluster_items[0].get("title") or "Événement d'actualité"
+
+            valid_dates = [a["published_date"] for a in cluster_items if a.get("published_date")]
+            most_recent_date = max(valid_dates) if valid_dates else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            cluster_image_url = None
+            for a in cluster_items:
+                if a.get("image_url"):
+                    cluster_image_url = a["image_url"]
+                    break
+
+            clusters.append({
+                "cluster_id": f"cluster_{art_i['id']}",
+                "topic_title": main_topic,
+                "category": cluster_items[0].get("category") or "Général",
+                "image_url": cluster_image_url,
+                "article_count": len(cluster_items),
+                "distinct_feed_count": len(distinct_feeds),
+                "distinct_feeds": distinct_feeds,
+                "latest_published_date": most_recent_date,
+                "articles": [{
+                    "id": a["id"],
+                    "title": a.get("title") or "",
+                    "content": a.get("content") or "",
+                    "feed_title": a.get("feed_title") or "RSS",
+                    "feed_url": a.get("feed_url") or "",
+                    "url": a.get("url") or "",
+                    "published_date": a.get("published_date") or most_recent_date,
+                    "image_url": a.get("image_url"),
+                    "language": a.get("language") or "fr",
+                    "is_full_text": bool(a.get("is_full_text"))
+                } for a in cluster_items]
+            })
+
+        clusters.sort(key=lambda c: (c.get("distinct_feed_count", 1) > 1, c.get("latest_published_date") or "", c.get("distinct_feed_count", 1), c.get("article_count", 1)), reverse=True)
+        return clusters
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Erreur compute_article_clusters: {e}")
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT a.id, a.title, a.content, a.url, a.published_date, a.image_url, a.language, a.is_full_text, f.title as feed_title, f.url as feed_url, f.category
+                FROM articles a
+                LEFT JOIN feeds f ON a.feed_id = f.id
+                ORDER BY a.id DESC
+                LIMIT 60
+            """)
+            raw_rows = cursor.fetchall()
+            conn.close()
+            fallback_clusters = []
+            for r in raw_rows:
+                pub_date = r["published_date"] or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                fallback_clusters.append({
+                    "cluster_id": f"cluster_raw_{r['id']}",
+                    "topic_title": r["title"] or "Événement d'actualité",
+                    "category": r["category"] or "Général",
+                    "article_count": 1,
+                    "distinct_feed_count": 1,
+                    "distinct_feeds": [r["feed_title"] or "RSS"],
+                    "latest_published_date": pub_date,
+                    "articles": [{
+                        "id": r["id"],
+                        "title": r["title"] or "",
+                        "content": r["content"] or "",
+                        "feed_title": r["feed_title"] or "RSS",
+                        "feed_url": r["feed_url"] or "",
+                        "url": r["url"] or "",
+                        "published_date": pub_date,
+                        "image_url": r["image_url"],
+                        "language": r["language"] or "fr",
+                        "is_full_text": bool(r["is_full_text"])
+                    }]
+                })
+            return fallback_clusters
+        except Exception as e2:
+            print(f"Erreur fallback compute_article_clusters: {e2}")
+            return []
 
 def clean_html_tags(raw_html: str) -> str:
     if not raw_html:

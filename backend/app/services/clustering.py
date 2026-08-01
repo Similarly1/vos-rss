@@ -452,7 +452,7 @@ async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str =
                     mistral_model=settings.mistral_discover_model,
                     gemini_model=settings.gemini_discover_model
                 )
-                if synth and not synth.get("is_fallback") and len(synth.get("summary", "")) >= 180:
+                if synth and not synth.get("is_fallback") and synth.get("status") != "pending" and len(synth.get("summary", "")) >= 120 and "Synthèse IA en cours" not in synth.get("summary", ""):
                     c["precomputed_synthesis"] = synth
             except Exception as e:
                 print(f"[Pre-synthesis note for {c['cluster_id']}]: {e}")

@@ -144,7 +144,16 @@ async def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
             "clusters": clusters
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        traceback.print_exc()
+        print(f"Erreur GET /clusters: {e}")
+        return {
+            "status": "error",
+            "source": "fallback",
+            "error_detail": str(e),
+            "clusters_count": 0,
+            "clusters": []
+        }
 
 @router.post("/synthesize")
 async def create_synthesis(payload: SynthesizeRequest):

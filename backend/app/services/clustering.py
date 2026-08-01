@@ -249,16 +249,19 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
             if len(cluster_items) >= 20:
                 break
 
-        distinct_feeds = list(set(a["feed_title"] for a in cluster_items))
+        distinct_feeds = list(set(a["feed_title"] for a in cluster_items if a.get("feed_title")))
+        if not distinct_feeds:
+            distinct_feeds = ["RSS"]
 
         # Prioritize a French article title if present in the cluster
-        french_arts = [a for a in cluster_items if a.get("language", "fr").lower() == "fr"]
-        if french_arts:
+        french_arts = [a for a in cluster_items if (a.get("language") or "fr").lower() == "fr"]
+        if french_arts and french_arts[0].get("title"):
             main_topic = french_arts[0]["title"]
         else:
-            main_topic = cluster_items[0]["title"]
+            main_topic = cluster_items[0].get("title") or "Événement d'actualité"
 
-        most_recent_date = max(a["published_date"] for a in cluster_items)
+        valid_dates = [a["published_date"] for a in cluster_items if a.get("published_date")]
+        most_recent_date = max(valid_dates) if valid_dates else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         cluster_image_url = None
         for a in cluster_items:
@@ -277,20 +280,20 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
             "latest_published_date": most_recent_date,
             "articles": [{
                 "id": a["id"],
-                "title": a["title"],
-                "content": a["content"],
-                "feed_title": a["feed_title"],
-                "feed_url": a.get("feed_url"),
-                "url": a["url"],
-                "published_date": a["published_date"],
-                "image_url": a["image_url"],
-                "language": a["language"],
-                "is_full_text": a["is_full_text"]
+                "title": a.get("title") or "",
+                "content": a.get("content") or "",
+                "feed_title": a.get("feed_title") or "RSS",
+                "feed_url": a.get("feed_url") or "",
+                "url": a.get("url") or "",
+                "published_date": a.get("published_date") or most_recent_date,
+                "image_url": a.get("image_url"),
+                "language": a.get("language") or "fr",
+                "is_full_text": bool(a.get("is_full_text"))
             } for a in cluster_items]
         })
 
     # Sort clusters: multi-source events first, then by latest publication date
-    clusters.sort(key=lambda c: (c["distinct_feed_count"] > 1, c["latest_published_date"], c["distinct_feed_count"], c["article_count"]), reverse=True)
+    clusters.sort(key=lambda c: (c.get("distinct_feed_count", 1) > 1, c.get("latest_published_date") or "", c.get("distinct_feed_count", 1), c.get("article_count", 1)), reverse=True)
     return clusters
 
 def clean_html_tags(raw_html: str) -> str:

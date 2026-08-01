@@ -182,8 +182,9 @@ async def create_synthesis(payload: SynthesizeRequest):
         )
 
     prov = (payload.provider or settings.synthesis_provider or ("gemini" if not m_key and g_key else "mistral")).lower()
-    m_model = payload.model if (payload.model and payload.model != "mistral-small-latest") else settings.mistral_discover_model
-    g_model = payload.model if (payload.model and payload.model != "mistral-small-latest") else settings.gemini_discover_model
+    req_model = payload.model or ""
+    m_model = req_model if "mistral" in req_model.lower() else settings.mistral_discover_model
+    g_model = req_model if "gemini" in req_model.lower() else settings.gemini_discover_model
 
     try:
         synthesis = await synthesize_cluster(

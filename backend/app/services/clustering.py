@@ -49,7 +49,9 @@ def get_cached_clusters(threshold_key: str) -> list:
 
     if row and row["clusters_json"]:
         try:
-            return json.loads(row["clusters_json"])
+            res = json.loads(row["clusters_json"])
+            if isinstance(res, list) and len(res) > 0:
+                return res
         except Exception:
             pass
     return None

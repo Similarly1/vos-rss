@@ -137,6 +137,7 @@ async def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
                     filtered_clusters.append(c)
             clusters = filtered_clusters
 
+        print(f"[CLUSTERING SERVER LOG] GET /clusters (threshold={threshold}, type={cluster_type}) -> source={source}, count={len(clusters)}")
         return {
             "status": "success", 
             "source": source, 

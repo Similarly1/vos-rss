@@ -364,26 +364,37 @@ def rescrape_short_articles_in_db(limit: int = 60):
     try:
         cursor.execute("SELECT id, title, url, content FROM articles WHERE LENGTH(content) < 400 AND url LIKE 'http%' LIMIT ?", (limit,))
         rows = cursor.fetchall()
-        updated_count = 0
-        for r in rows:
-            try:
-                res_ex = extract_full_article_content(r["url"], r["content"] or "")
-                full_text, is_pw, is_ft = res_ex[0], res_ex[1], res_ex[2]
-                if full_text and len(full_text) > len(r["content"] or ""):
-                    cursor.execute(
+        articles_to_process = [{"id": r["id"], "url": r["url"], "content": r["content"]} for r in rows]
+    except Exception as e:
+        print(f"[Auto-Rescraper note] {e}")
+        return
+    finally:
+        conn.close()
+
+    if not articles_to_process:
+        return
+
+    updated_count = 0
+    for r in articles_to_process:
+        try:
+            res_ex = extract_full_article_content(r["url"], r["content"] or "")
+            full_text, is_pw, is_ft = res_ex[0], res_ex[1], res_ex[2]
+            if full_text and len(full_text) > len(r["content"] or ""):
+                conn_update = get_db_connection()
+                try:
+                    conn_update.execute(
                         "UPDATE articles SET content = ?, is_paywalled = ?, is_full_text_available = ? WHERE id = ?",
                         (full_text, 1 if is_pw else 0, 1 if is_ft else 0, r["id"])
                     )
+                    conn_update.commit()
                     updated_count += 1
-            except Exception:
-                pass
-        conn.commit()
-        if updated_count > 0:
-            print(f"[Auto-Rescraper] {updated_count} articles ré-enrichis en texte intégral.")
-    except Exception as e:
-        print(f"[Auto-Rescraper note] {e}")
-    finally:
-        conn.close()
+                finally:
+                    conn_update.close()
+        except Exception:
+            pass
+
+    if updated_count > 0:
+        print(f"[Auto-Rescraper] {updated_count} articles ré-enrichis en texte intégral.")
 
 def enrich_missing_article_images(limit: int = 60):
     """
@@ -394,24 +405,37 @@ def enrich_missing_article_images(limit: int = 60):
     try:
         cursor.execute("SELECT id, url, content FROM articles WHERE (image_url IS NULL OR image_url = '') AND url LIKE 'http%' LIMIT ?", (limit,))
         rows = cursor.fetchall()
-        updated_count = 0
-        for r in rows:
-            try:
-                res_ex = extract_full_article_content(r["url"], r["content"] or "")
-                html_text = res_ex[3] if len(res_ex) > 3 else ""
-                img = extract_meta_image_from_html(html_text, r["url"])
-                if img:
-                    cursor.execute("UPDATE articles SET image_url = ? WHERE id = ?", (img, r["id"]))
-                    updated_count += 1
-            except Exception:
-                pass
-        conn.commit()
-        if updated_count > 0:
-            print(f"[Auto-Image-Enricher] {updated_count} articles enrichis avec une image de couverture.")
+        
+        # Convert sqlite3.Row to dict so we can safely close the connection
+        articles_to_process = [{"id": r["id"], "url": r["url"], "content": r["content"]} for r in rows]
     except Exception as e:
         print(f"[Auto-Image-Enricher note] {e}")
+        return
     finally:
         conn.close()
+
+    if not articles_to_process:
+        return
+
+    updated_count = 0
+    for r in articles_to_process:
+        try:
+            res_ex = extract_full_article_content(r["url"], r["content"] or "")
+            html_text = res_ex[3] if len(res_ex) > 3 else ""
+            img = extract_meta_image_from_html(html_text, r["url"])
+            if img:
+                conn_update = get_db_connection()
+                try:
+                    conn_update.execute("UPDATE articles SET image_url = ? WHERE id = ?", (img, r["id"]))
+                    conn_update.commit()
+                    updated_count += 1
+                finally:
+                    conn_update.close()
+        except Exception:
+            pass
+
+    if updated_count > 0:
+        print(f"[Auto-Image-Enricher] {updated_count} articles enrichis avec une image de couverture.")
 
 def clean_old_articles(retention_days: int = 14) -> dict:
     """
@@ -472,9 +496,9 @@ def parse_and_save_feed(url: str, category: str = "Général", language: str = N
             if is_full_text is None:
                 is_full_text = True
 
+    # 1. Mise à jour de la table feeds rapidement (sans bloquer la BDD)
     conn = get_db_connection()
     cursor = conn.cursor()
-
     try:
         cursor.execute(
             "INSERT INTO feeds (url, title, category, language, is_full_text) VALUES (?, ?, ?, ?, ?)",
@@ -493,7 +517,10 @@ def parse_and_save_feed(url: str, category: str = "Général", language: str = N
         else:
             conn.close()
             raise ValueError("Erreur lors de l'enregistrement du flux.")
+    conn.commit()
+    conn.close()
 
+    # 2. Scraping HTTP et insertion article par article sans bloquer la base globalement
     articles_added = 0
     for entry in feed_data.entries[:20]:
         article_title = entry.get("title", "Sans titre")
@@ -518,20 +545,21 @@ def parse_and_save_feed(url: str, category: str = "Général", language: str = N
 
         art_lang = language or detect_language_from_text(article_title + " " + (full_content[:200] if full_content else ""))
 
+        conn_art = get_db_connection()
         try:
-            cursor.execute(
+            conn_art.execute(
                 """
                 INSERT INTO articles (feed_id, title, content, url, published_date, image_url, language, is_full_text, is_paywalled, is_full_text_available)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (feed_id, article_title, full_content, article_url, pub_date, image_url, art_lang, 1, 1 if is_paywalled else 0, 1 if is_full_text_available else 0)
             )
+            conn_art.commit()
             articles_added += 1
         except Exception:
             pass
-
-    conn.commit()
-    conn.close()
+        finally:
+            conn_art.close()
 
     return {
         "feed_id": feed_id,

@@ -132,10 +132,17 @@
   }
 
   function getClusterImage(c) {
-    if (c.articles && c.articles[0] && c.articles[0].image_url) {
-      return c.articles[0].image_url;
+    if (c) {
+      if (c.image_url) return c.image_url;
+      if (c.articles && Array.isArray(c.articles)) {
+        for (const art of c.articles) {
+          if (art && art.image_url && typeof art.image_url === 'string' && art.image_url.trim().length > 0) {
+            return art.image_url;
+          }
+        }
+      }
     }
-    return getCategoryFallbackImage(c.category);
+    return getCategoryFallbackImage(c ? c.category : null);
   }
 
   async function handleListenSummary() {

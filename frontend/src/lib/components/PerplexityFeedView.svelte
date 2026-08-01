@@ -188,10 +188,17 @@
   }
 
   function getClusterImage(cluster) {
-    if (cluster.articles[0] && cluster.articles[0].image_url) {
-      return cluster.articles[0].image_url;
+    if (cluster) {
+      if (cluster.image_url) return cluster.image_url;
+      if (cluster.articles && Array.isArray(cluster.articles)) {
+        for (const art of cluster.articles) {
+          if (art && art.image_url && typeof art.image_url === 'string' && art.image_url.trim().length > 0) {
+            return art.image_url;
+          }
+        }
+      }
     }
-    return getCategoryFallbackImage(cluster.category);
+    return getCategoryFallbackImage(cluster ? cluster.category : null);
   }
 
   async function fetchPerplexityClusters() {

@@ -211,12 +211,17 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
         else:
             main_topic = cluster_items[0]["title"]
 
-        most_recent_date = max(a["published_date"] for a in cluster_items)
+        cluster_image_url = None
+        for a in cluster_items:
+            if a.get("image_url"):
+                cluster_image_url = a["image_url"]
+                break
 
         clusters.append({
             "cluster_id": f"cluster_{art_i['id']}",
             "topic_title": main_topic,
             "category": cluster_items[0].get("category") or "Général",
+            "image_url": cluster_image_url,
             "article_count": len(cluster_items),
             "distinct_feed_count": len(distinct_feeds),
             "distinct_feeds": distinct_feeds,

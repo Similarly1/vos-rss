@@ -139,8 +139,8 @@
 
     if (!type) type = 'book';
 
+    const coverUrl = cluster.image_url || cluster.articles?.find(a => a?.image_url)?.image_url || "";
     const firstArt = cluster.articles?.[0] || {};
-    const coverUrl = firstArt.image_url || cluster.image_url || "";
     const artist = firstArt.feed_title || cluster.distinct_feeds?.[0] || "Média RSS";
     const releaseDate = firstArt.published_date ? new Date(firstArt.published_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "Récents";
 

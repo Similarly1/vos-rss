@@ -113,21 +113,74 @@ def robust_parse_feed(url: str):
     parsed = feedparser.parse(clean_url)
     return parsed, clean_url
 
-def extract_main_image_url(entry, content: str) -> str:
-    if "media_content" in entry and len(entry.media_content) > 0:
-        for media in entry.media_content:
-            if media.get("url"):
-                return media["url"]
+def extract_meta_image_from_html(html_text: str, base_url: str = None) -> str:
+    if not html_text:
+        return None
+    # 1. og:image or twitter:image
+    match = re.search(r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)["\']', html_text, re.IGNORECASE)
+    if not match:
+        match = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']', html_text, re.IGNORECASE)
+    
+    if match:
+        img_url = match.group(1).strip()
+        if img_url:
+            if img_url.startswith("//"):
+                return "https:" + img_url
+            if img_url.startswith("http"):
+                return img_url
+            if base_url and img_url.startswith("/"):
+                parsed = urlparse(base_url)
+                return f"{parsed.scheme}://{parsed.netloc}{img_url}"
+            return img_url
 
-    if "media_thumbnail" in entry and len(entry.media_thumbnail) > 0:
-        for media in entry.media_thumbnail:
-            if media.get("url"):
-                return media["url"]
+    # 2. link rel="image_src"
+    match_link = re.search(r'<link[^>]+rel=["\']image_src["\'][^>]+href=["\']([^"\']+)["\']', html_text, re.IGNORECASE)
+    if match_link:
+        img_url = match_link.group(1).strip()
+        if img_url:
+            if img_url.startswith("//"):
+                return "https:" + img_url
+            if img_url.startswith("http"):
+                return img_url
+            if base_url and img_url.startswith("/"):
+                parsed = urlparse(base_url)
+                return f"{parsed.scheme}://{parsed.netloc}{img_url}"
+            return img_url
 
-    if "enclosures" in entry and len(entry.enclosures) > 0:
-        for enc in entry.enclosures:
-            if enc.get("type", "").startswith("image/") and enc.get("href"):
-                return enc["href"]
+    # 3. img tag in article/body
+    match_img = re.search(r'<article[^>]*>.*?<img[^>]+src=["\']([^"\']+)["\']', html_text, re.IGNORECASE | re.DOTALL)
+    if not match_img:
+        match_img = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', html_text, re.IGNORECASE)
+    if match_img:
+        img_url = match_img.group(1).strip()
+        if img_url and not any(skip in img_url.lower() for skip in ['logo', 'icon', 'pixel', 'avatar', 'banner', 'ad-']):
+            if img_url.startswith("//"):
+                return "https:" + img_url
+            if img_url.startswith("http"):
+                return img_url
+            if base_url and img_url.startswith("/"):
+                parsed = urlparse(base_url)
+                return f"{parsed.scheme}://{parsed.netloc}{img_url}"
+            return img_url
+
+    return None
+
+def extract_main_image_url(entry, content: str = "", html_page: str = None, article_url: str = None) -> str:
+    if entry:
+        if "media_content" in entry and len(entry.media_content) > 0:
+            for media in entry.media_content:
+                if media.get("url"):
+                    return media["url"]
+
+        if "media_thumbnail" in entry and len(entry.media_thumbnail) > 0:
+            for media in entry.media_thumbnail:
+                if media.get("url"):
+                    return media["url"]
+
+        if "enclosures" in entry and len(entry.enclosures) > 0:
+            for enc in entry.enclosures:
+                if enc.get("type", "").startswith("image/") and enc.get("href"):
+                    return enc["href"]
 
     if content:
         match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content, re.IGNORECASE)
@@ -135,6 +188,11 @@ def extract_main_image_url(entry, content: str) -> str:
             img_src = match.group(1)
             if img_src.startswith("http"):
                 return img_src
+
+    if html_page:
+        meta_img = extract_meta_image_from_html(html_page, article_url)
+        if meta_img:
+            return meta_img
 
     return None
 
@@ -287,19 +345,15 @@ def extract_full_article_content(article_url: str, fallback_content: str) -> tup
                 
             is_paywalled = detect_paywall(html_text, scraped_text)
             
+            final_text = scraped_text if len(scraped_text) > len(clean_fallback) else fallback_content
             if is_paywalled:
                 is_full_text_available = False
-                if len(scraped_text) > len(clean_fallback):
-                     return scraped_text, is_paywalled, is_full_text_available
-                return fallback_content, is_paywalled, is_full_text_available
-
-            if len(scraped_text) > len(clean_fallback):
-                return scraped_text, is_paywalled, is_full_text_available
+            return final_text, is_paywalled, is_full_text_available, html_text
     except Exception as e:
         print(f"[Scraper Fallback Note] Could not fetch full page for {article_url}: {e}")
 
     # If we didn't scrape anything better, use fallback content
-    return fallback_content, is_paywalled, is_full_text_available
+    return fallback_content, is_paywalled, is_full_text_available, ""
 
 def rescrape_short_articles_in_db(limit: int = 60):
     """
@@ -313,7 +367,8 @@ def rescrape_short_articles_in_db(limit: int = 60):
         updated_count = 0
         for r in rows:
             try:
-                full_text, is_pw, is_ft = extract_full_article_content(r["url"], r["content"] or "")
+                res_ex = extract_full_article_content(r["url"], r["content"] or "")
+                full_text, is_pw, is_ft = res_ex[0], res_ex[1], res_ex[2]
                 if full_text and len(full_text) > len(r["content"] or ""):
                     cursor.execute(
                         "UPDATE articles SET content = ?, is_paywalled = ?, is_full_text_available = ? WHERE id = ?",
@@ -327,6 +382,34 @@ def rescrape_short_articles_in_db(limit: int = 60):
             print(f"[Auto-Rescraper] {updated_count} articles ré-enrichis en texte intégral.")
     except Exception as e:
         print(f"[Auto-Rescraper note] {e}")
+    finally:
+        conn.close()
+
+def enrich_missing_article_images(limit: int = 60):
+    """
+    Background worker function that fetches OpenGraph/meta images for database articles missing image_url.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, url, content FROM articles WHERE (image_url IS NULL OR image_url = '') AND url LIKE 'http%' LIMIT ?", (limit,))
+        rows = cursor.fetchall()
+        updated_count = 0
+        for r in rows:
+            try:
+                res_ex = extract_full_article_content(r["url"], r["content"] or "")
+                html_text = res_ex[3] if len(res_ex) > 3 else ""
+                img = extract_meta_image_from_html(html_text, r["url"])
+                if img:
+                    cursor.execute("UPDATE articles SET image_url = ? WHERE id = ?", (img, r["id"]))
+                    updated_count += 1
+            except Exception:
+                pass
+        conn.commit()
+        if updated_count > 0:
+            print(f"[Auto-Image-Enricher] {updated_count} articles enrichis avec une image de couverture.")
+    except Exception as e:
+        print(f"[Auto-Image-Enricher note] {e}")
     finally:
         conn.close()
 
@@ -422,8 +505,10 @@ def parse_and_save_feed(url: str, category: str = "Général", language: str = N
         if "content" in entry and len(entry.content) > 0:
             raw_content = entry.content[0].get("value", raw_content)
 
-        full_content, is_paywalled, is_full_text_available = extract_full_article_content(article_url, raw_content)
-        image_url = extract_main_image_url(entry, full_content)
+        res_extract = extract_full_article_content(article_url, raw_content)
+        full_content, is_paywalled, is_full_text_available = res_extract[0], res_extract[1], res_extract[2]
+        html_page = res_extract[3] if len(res_extract) > 3 else ""
+        image_url = extract_main_image_url(entry, full_content, html_page=html_page, article_url=article_url)
 
         pub_date_struct = entry.get("published_parsed") or entry.get("updated_parsed")
         if pub_date_struct:
@@ -644,6 +729,11 @@ async def refresh_all_feeds_and_vectorize(api_key: str = None):
             results.append(res)
         except Exception as e:
             print(f"Erreur rafraîchissement flux {f['url']}: {e}")
+
+    try:
+        await asyncio.to_thread(enrich_missing_article_images)
+    except Exception as e:
+        print(f"Erreur enrichissement des images: {e}")
 
     # Use mistral key for retrocompatibility, but we should rely on settings
     m_key = api_key or settings.mistral_api_key

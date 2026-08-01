@@ -108,17 +108,19 @@ async def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
         clusters = None
         source = "live"
         
-        # We only use cache if the threshold matches exactly the precomputed modes
-        if abs(threshold - 0.86) < 0.001:
-            cached = get_cached_clusters("threshold_events")
+        # Try exact threshold cache keys first, then mode fallbacks
+        keys_to_try = [f"threshold_{threshold:.2f}", f"threshold_{threshold}"]
+        if threshold >= 0.84:
+            keys_to_try.extend(["threshold_events", "threshold_0.91", "threshold_0.86", "threshold_0.85"])
+        else:
+            keys_to_try.extend(["threshold_themes", "threshold_0.78"])
+
+        for key in keys_to_try:
+            cached = get_cached_clusters(key)
             if cached is not None and len(cached) > 0:
                 clusters = cached
                 source = "cache"
-        elif abs(threshold - 0.78) < 0.001:
-            cached = get_cached_clusters("threshold_themes")
-            if cached is not None and len(cached) > 0:
-                clusters = cached
-                source = "cache"
+                break
 
         if clusters is None:
             clusters = await asyncio.to_thread(compute_article_clusters, similarity_threshold=threshold)

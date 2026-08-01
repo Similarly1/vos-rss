@@ -118,8 +118,9 @@
     const feedTitleUrl = ((cluster.articles?.[0]?.feed_title || '') + ' ' + (cluster.articles?.[0]?.feed_url || '')).toLowerCase();
 
     const activeFeedUrls = cultureFeeds.filter(f => f.active).map(f => f.url);
-    const isCategoryCulture = cluster.category === "Étagère Culture" || (cluster.articles && cluster.articles.some(a => a.category === "Étagère Culture"));
-    const matchesFeed = cluster.articles && cluster.articles.some(a => activeFeedUrls.includes(a.feed_url));
+    const firstArt = cluster.articles?.[0] || {};
+    const isCategoryCulture = cluster.category === "Étagère Culture" || firstArt.category === "Étagère Culture";
+    const matchesFeed = activeFeedUrls.includes(firstArt.feed_url) || (cluster.articles && cluster.articles.filter(a => activeFeedUrls.includes(a.feed_url)).length >= Math.ceil((cluster.articles.length || 1) / 2));
 
     if (!isCategoryCulture && !matchesFeed) {
       return null;
@@ -140,7 +141,6 @@
     if (!type) type = 'book';
 
     const coverUrl = cluster.image_url || cluster.articles?.find(a => a?.image_url)?.image_url || "";
-    const firstArt = cluster.articles?.[0] || {};
     const artist = firstArt.feed_title || cluster.distinct_feeds?.[0] || "Média RSS";
     const releaseDate = firstArt.published_date ? new Date(firstArt.published_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "Récents";
 

@@ -198,9 +198,13 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
             sim_centroid = cosine_similarity(art_j["vector"], centroid) * decay_factor
 
             # Both seed similarity and centroid similarity must meet threshold
-            if sim_seed >= similarity_threshold and sim_centroid >= (similarity_threshold * 0.95):
+            if sim_seed >= similarity_threshold and sim_centroid >= similarity_threshold:
                 cluster_items.append(art_j)
                 visited.add(art_j["id"])
+
+            # Cap cluster size at 20 articles to prevent mega-cluster snowballing
+            if len(cluster_items) >= 20:
+                break
 
         distinct_feeds = list(set(a["feed_title"] for a in cluster_items))
 
@@ -252,7 +256,7 @@ def clean_html_tags(raw_html: str) -> str:
     text = str(raw_html)
     # Decode HTML entities first so &apos;, &rsquo;, &#39; are restored to real apostrophes before stripping
     text = html.unescape(text)
-    text = text.replace("&apos;", "'").replace("&rsquo;", "’").replace("&#39;", "'")
+    text = text.replace("&apos;", "'").replace("&rsquo;", "'").replace("&#39;", "'").replace("’", "'")
     # Strip script, style, svg, header, nav, footer tags
     text = re.sub(r'<(script|style|header|nav|footer|form|svg|img|code)[^>]*>[\s\S]*?<\/\1>', ' ', text, flags=re.IGNORECASE)
     # Strip HTML tags
@@ -455,6 +459,7 @@ async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str =
     save_clusters_to_cache("threshold_events", event_clusters)
     save_clusters_to_cache("threshold_0.91", event_clusters)
     save_clusters_to_cache("threshold_0.86", event_clusters)
+    save_clusters_to_cache("threshold_0.85", event_clusters)
 
     # 2. Digest Mode (0.78)
     digest_clusters = compute_article_clusters(similarity_threshold=0.78, max_time_diff_hours=72.0)

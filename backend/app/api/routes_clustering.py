@@ -102,39 +102,53 @@ async def trigger_precompute(payload: Optional[PrecomputeRequest] = None, backgr
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/clusters")
-async def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
+async def get_clusters(threshold: float = 0.85, cluster_type: str = "all"):
     try:
-        # Determine if we can use cache
         clusters = None
         source = "live"
         
-        # Try exact threshold cache keys first, then mode fallbacks
         keys_to_try = [f"threshold_{threshold:.2f}", f"threshold_{threshold}"]
-        if threshold >= 0.84:
-            keys_to_try.extend(["threshold_events", "threshold_0.91", "threshold_0.86", "threshold_0.85"])
+        if threshold >= 0.80:
+            keys_to_try.extend(["threshold_events", "threshold_0.91", "threshold_0.86", "threshold_0.85", "threshold_0.78"])
         else:
-            keys_to_try.extend(["threshold_themes", "threshold_0.78"])
+            keys_to_try.extend(["threshold_themes", "threshold_0.78", "threshold_events"])
 
         for key in keys_to_try:
-            cached = get_cached_clusters(key)
-            if cached is not None and len(cached) > 0:
-                clusters = cached
-                source = "cache"
-                break
+            try:
+                cached = get_cached_clusters(key)
+                if cached and isinstance(cached, list) and len(cached) > 0:
+                    valid_cached = [c for c in cached if isinstance(c, dict)]
+                    if valid_cached:
+                        clusters = valid_cached
+                        source = f"cache ({key})"
+                        break
+            except Exception as e_cache:
+                print(f"[CLUSTERING] Error reading cache key {key}: {e_cache}")
 
-        if clusters is None:
-            clusters = await asyncio.to_thread(compute_article_clusters, similarity_threshold=threshold)
-            source = "live"
-            if clusters:
-                save_clusters_to_cache(f"threshold_{threshold:.2f}", clusters)
+        if not clusters:
+            try:
+                raw_clusters = await asyncio.to_thread(compute_article_clusters, similarity_threshold=threshold)
+                if raw_clusters and isinstance(raw_clusters, list):
+                    clusters = [c for c in raw_clusters if isinstance(c, dict)]
+                    source = "live"
+                    if clusters:
+                        save_clusters_to_cache(f"threshold_{threshold:.2f}", clusters)
+            except Exception as e_live:
+                print(f"[CLUSTERING] Error in compute_article_clusters live: {e_live}")
+                import traceback
+                traceback.print_exc()
 
-        # Apply cluster_type filtering
+        if not clusters:
+            clusters = []
+
+        # Apply cluster_type filtering safely
         if cluster_type == "events":
             filtered_clusters = []
             for c in clusters:
-                cat = (c.get("category") or "").lower()
-                if "bilan" not in cat and "revue" not in cat:
-                    filtered_clusters.append(c)
+                if isinstance(c, dict):
+                    cat = (c.get("category") or "").lower()
+                    if "bilan" not in cat and "revue" not in cat:
+                        filtered_clusters.append(c)
             clusters = filtered_clusters
 
         print(f"[CLUSTERING SERVER LOG] GET /clusters (threshold={threshold}, type={cluster_type}) -> source={source}, count={len(clusters)}")
@@ -147,11 +161,12 @@ async def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"Erreur GET /clusters: {e}")
+        err_msg = str(e)
+        print(f"Erreur GET /clusters: {err_msg}")
         return {
             "status": "error",
             "source": "fallback",
-            "error_detail": str(e),
+            "error_detail": err_msg,
             "clusters_count": 0,
             "clusters": []
         }

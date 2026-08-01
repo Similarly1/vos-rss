@@ -210,7 +210,7 @@
       if (res.ok) {
         const data = await res.json();
         const allC = data.clusters || [];
-        console.log("[PerplexityFeedView Debug]", { source: data.source, count: data.clusters_count, clusters: allC });
+        console.log("[PerplexityFeedView Debug]", { source: data.source, count: data.clusters_count, error: data.error_detail, clusters: allC });
         clusters = allC;
         clusters.forEach(c => {
           if (c.precomputed_synthesis && !isLowQualityOrEnglish(c.precomputed_synthesis)) {

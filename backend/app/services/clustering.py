@@ -122,7 +122,7 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    where_clause = "WHERE e.provider = ?"
+    where_clause = "WHERE 1=1"
     if exclude_culture:
         where_clause += " AND f.category != 'Étagère Culture'"
 
@@ -134,12 +134,41 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
         {where_clause}
         ORDER BY a.published_date DESC
         LIMIT 350
-    """, (settings.vectorization_provider,))
+    """)
     rows = cursor.fetchall()
     conn.close()
 
-    if not rows:
-        # Fallback: if no embeddings exist yet in DB, fetch recent raw articles as basic clusters
+    articles = []
+    if rows:
+        for row in rows:
+            try:
+                raw_emb = row["embedding_json"]
+                if isinstance(raw_emb, bytes):
+                    raw_emb = raw_emb.decode('utf-8')
+                vector = json.loads(raw_emb) if isinstance(raw_emb, str) else raw_emb
+                if not isinstance(vector, list) or len(vector) == 0:
+                    continue
+                pub_dt = parse_article_date(row["published_date"])
+                articles.append({
+                    "id": row["article_id"],
+                    "title": row["title"] or "",
+                    "content": row["content"] or "",
+                    "url": row["url"] or "",
+                    "feed_title": row["feed_title"] or "RSS",
+                    "feed_url": row["feed_url"] or "",
+                    "category": row["category"] or "Général",
+                    "published_date": row["published_date"],
+                    "published_dt": pub_dt,
+                    "image_url": row["image_url"],
+                    "language": row["language"] or "fr",
+                    "is_full_text": bool(row["is_full_text"]),
+                    "vector": vector
+                })
+            except Exception as err:
+                pass
+
+    if not articles:
+        # Fallback: if no valid embeddings exist yet in DB, fetch recent raw articles as basic clusters
         conn = get_db_connection()
         cursor = conn.cursor()
         raw_where = "WHERE f.category != 'Étagère Culture'" if exclude_culture else ""
@@ -156,51 +185,29 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
 
         fallback_clusters = []
         for r in raw_rows:
+            pub_date = r["published_date"] or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             fallback_clusters.append({
                 "cluster_id": f"cluster_raw_{r['id']}",
-                "topic_title": r["title"],
+                "topic_title": r["title"] or "Événement d'actualité",
                 "category": r["category"] or "Général",
                 "article_count": 1,
                 "distinct_feed_count": 1,
-                "distinct_feeds": [r["feed_title"]],
-                "latest_published_date": r["published_date"],
+                "distinct_feeds": [r["feed_title"] or "RSS"],
+                "latest_published_date": pub_date,
                 "articles": [{
                     "id": r["id"],
-                    "title": r["title"],
-                    "content": r["content"],
-                    "feed_title": r["feed_title"],
-                    "feed_url": r["feed_url"],
-                    "url": r["url"],
-                    "published_date": r["published_date"],
+                    "title": r["title"] or "",
+                    "content": r["content"] or "",
+                    "feed_title": r["feed_title"] or "RSS",
+                    "feed_url": r["feed_url"] or "",
+                    "url": r["url"] or "",
+                    "published_date": pub_date,
                     "image_url": r["image_url"],
                     "language": r["language"] or "fr",
                     "is_full_text": bool(r["is_full_text"])
                 }]
             })
         return fallback_clusters
-
-    articles = []
-    for row in rows:
-        try:
-            vector = json.loads(row["embedding_json"])
-            pub_dt = parse_article_date(row["published_date"])
-            articles.append({
-                "id": row["article_id"],
-                "title": row["title"],
-                "content": row["content"],
-                "url": row["url"],
-                "feed_title": row["feed_title"],
-                "feed_url": row["feed_url"],
-                "category": row["category"],
-                "published_date": row["published_date"],
-                "published_dt": pub_dt,
-                "image_url": row["image_url"],
-                "language": row["language"] or "fr",
-                "is_full_text": bool(row["is_full_text"]),
-                "vector": vector
-            })
-        except Exception:
-            pass
 
     clusters = []
     visited = set()

@@ -270,11 +270,11 @@ async def start_rss_scheduler_loop():
     while True:
         try:
             print("[RSS Background Scheduler] Lancement de l'actualisation RSS & pré-calcul...")
-            from app.services.rss import refresh_all_feeds
+            from app.services.rss import refresh_all_feeds_and_vectorize
             from app.api.routes_feeds import get_vps_api_key
             key = get_vps_api_key() or settings.mistral_api_key
-            res = await refresh_all_feeds(api_key=key)
-            print(f"[RSS Background Scheduler] Cycle terminé. Articles traités: {res.get('processed_articles_count', 0)}")
+            res = await refresh_all_feeds_and_vectorize(api_key=key)
+            print(f"[RSS Background Scheduler] Cycle terminé. Flux traités: {res.get('feeds_processed', 0)}, Vectorisés: {res.get('vectorized_count', 0)}")
         except Exception as e:
             print(f"[RSS Background Scheduler Error]: {e}")
 

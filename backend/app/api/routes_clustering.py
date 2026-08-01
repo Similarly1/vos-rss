@@ -6,7 +6,7 @@ from app.database import get_db_connection, HAS_SQLITE_VEC, init_db
 from app.config import settings
 from app.api.routes_feeds import get_vps_api_key
 from app.services.embeddings import vectorize_all_pending
-from app.services.clustering import compute_article_clusters, synthesize_cluster, get_cached_clusters, precompute_and_cache_clusters, clear_cluster_cache
+from app.services.clustering import compute_article_clusters, synthesize_cluster, get_cached_clusters, precompute_and_cache_clusters, clear_cluster_cache, save_clusters_to_cache
 
 router = APIRouter(prefix="/api/clustering", tags=["Clustering"])
 

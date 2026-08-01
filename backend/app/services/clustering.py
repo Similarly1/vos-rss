@@ -449,29 +449,42 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
     async def call_gemini():
         if not g_key:
             raise ValueError("Clé API Gemini manquante dans la configuration.")
+        
+        target_model = g_model if (g_model and "gemini" in g_model.lower()) else "gemini-1.5-flash"
+        api_urls = [
+            f"https://generativelanguage.googleapis.com/v1/models/{target_model}:generateContent?key={g_key}",
+            f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={g_key}"
+        ]
+        
+        last_err = ""
         async with httpx.AsyncClient() as client:
-            res = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={g_key}",
-                headers={"Content-Type": "application/json"},
-                json={
-                    "system_instruction": {
-                        "parts": [{"text": system_prompt}]
-                    },
-                    "contents": [{
-                        "parts": [{"text": user_prompt}]
-                    }],
-                    "generationConfig": {
-                        "responseMimeType": "application/json"
-                    }
-                },
-                timeout=55.0
-            )
-            if res.status_code != 200:
-                raise ValueError(f"Erreur API Gemini ({res.status_code}): {res.text}")
-            raw_data = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-            cleaned = re.sub(r"^```json\s*", "", raw_data.strip(), flags=re.IGNORECASE)
-            cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
-            return json.loads(cleaned)
+            for url in api_urls:
+                try:
+                    res = await client.post(
+                        url,
+                        headers={"Content-Type": "application/json"},
+                        json={
+                            "system_instruction": {
+                                "parts": [{"text": system_prompt}]
+                            },
+                            "contents": [{
+                                "parts": [{"text": user_prompt}]
+                            }],
+                            "generationConfig": {
+                                "responseMimeType": "application/json"
+                            }
+                        },
+                        timeout=55.0
+                    )
+                    if res.status_code == 200:
+                        raw_data = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                        cleaned = re.sub(r"^```json\s*", "", raw_data.strip(), flags=re.IGNORECASE)
+                        cleaned = re.sub(r"```$", "", cleaned.strip()).strip()
+                        return json.loads(cleaned)
+                    last_err = f"Erreur API Gemini ({res.status_code}): {res.text}"
+                except Exception as ex:
+                    last_err = str(ex)
+            raise ValueError(last_err)
 
     async def try_provider(p_name: str):
         if p_name == "mistral":

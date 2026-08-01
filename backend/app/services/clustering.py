@@ -3,6 +3,7 @@ import math
 import re
 import html
 import httpx
+import asyncio
 from datetime import datetime
 from app.database import get_db_connection
 from app.config import settings
@@ -438,9 +439,9 @@ async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str =
     # 1. Event Mode (0.86 with Centroid Matching & 48h Window)
     event_clusters = compute_article_clusters(similarity_threshold=0.86, max_time_diff_hours=48.0)
 
-    # Pre-synthesize top 16 event clusters if API keys available
+    # Pre-synthesize ALL event clusters in batches if API keys available
     if (m_key or g_key) and event_clusters:
-        for c in event_clusters[:16]:
+        async def synth_worker(c):
             try:
                 synth = await synthesize_cluster(
                     c["articles"], 
@@ -455,6 +456,11 @@ async def precompute_and_cache_clusters(mistral_key: str = "", gemini_key: str =
                     c["precomputed_synthesis"] = synth
             except Exception as e:
                 print(f"[Pre-synthesis note for {c['cluster_id']}]: {e}")
+
+        batch_size = 5
+        for b in range(0, len(event_clusters), batch_size):
+            batch = event_clusters[b:b+batch_size]
+            await asyncio.gather(*(synth_worker(c) for c in batch))
 
     save_clusters_to_cache("threshold_events", event_clusters)
     save_clusters_to_cache("threshold_0.91", event_clusters)

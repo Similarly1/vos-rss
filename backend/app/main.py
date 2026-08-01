@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from app.database import init_db, get_db_connection
 from app.config import settings
 from app.api import routes_feeds, routes_articles, routes_clustering, routes_audio, routes_podcast, routes_catalog, routes_stats, routes_audio_stream, routes_subscriptions, routes_audit, routes_podcast_settings, routes_settings, routes_webhooks
-from app.services.scheduler import start_podcast_scheduler_loop
+from app.services.scheduler import start_podcast_scheduler_loop, start_rss_scheduler_loop
 from seed_massive_catalog import seed_massive_catalog_async
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,10 +27,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Auto-seed background note] {e}")
 
-    # Start background podcast scheduler loop
-    scheduler_task = asyncio.create_task(start_podcast_scheduler_loop())
+    # Start background scheduler loops (Podcast & RSS Refresh + Pre-clustering)
+    podcast_task = asyncio.create_task(start_podcast_scheduler_loop())
+    rss_task = asyncio.create_task(start_rss_scheduler_loop())
     yield
-    scheduler_task.cancel()
+    podcast_task.cancel()
+    rss_task.cancel()
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 

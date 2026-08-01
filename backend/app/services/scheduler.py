@@ -258,3 +258,25 @@ async def start_podcast_scheduler_loop():
             print(f"[Podcast Scheduler Loop Error]: {e}")
 
         await asyncio.sleep(30)
+
+async def start_rss_scheduler_loop():
+    """
+    Background loop that periodically (every 15-30 mins) refreshes RSS feeds,
+    vectorizes new articles, and pre-computes clusters + AI syntheses in background.
+    """
+    print("[RSS Background Scheduler] Boucle d'ingestion et de pré-calcul démarrée.")
+    await asyncio.sleep(10)
+    
+    while True:
+        try:
+            print("[RSS Background Scheduler] Lancement de l'actualisation RSS & pré-calcul...")
+            from app.services.rss import refresh_all_feeds
+            from app.api.routes_feeds import get_vps_api_key
+            key = get_vps_api_key() or settings.mistral_api_key
+            res = await refresh_all_feeds(api_key=key)
+            print(f"[RSS Background Scheduler] Cycle terminé. Articles traités: {res.get('processed_articles_count', 0)}")
+        except Exception as e:
+            print(f"[RSS Background Scheduler Error]: {e}")
+
+        interval_secs = max(300, settings.refresh_interval_minutes * 60)
+        await asyncio.sleep(interval_secs)

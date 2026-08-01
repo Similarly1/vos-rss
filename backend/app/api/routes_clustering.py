@@ -125,6 +125,8 @@ async def get_clusters(threshold: float = 0.91, cluster_type: str = "all"):
         if clusters is None:
             clusters = await asyncio.to_thread(compute_article_clusters, similarity_threshold=threshold)
             source = "live"
+            if clusters:
+                save_clusters_to_cache(f"threshold_{threshold:.2f}", clusters)
 
         # Apply cluster_type filtering
         if cluster_type == "events":
@@ -167,6 +169,8 @@ async def create_synthesis(payload: SynthesizeRequest):
             mistral_model=m_model,
             gemini_model=g_model
         )
+        if synthesis and not synthesis.get("is_fallback"):
+            update_cached_cluster_synthesis(payload.articles, synthesis)
         return {"status": "success", "data": synthesis}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

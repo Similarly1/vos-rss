@@ -204,7 +204,7 @@
 
   async function fetchPerplexityClusters() {
     isLoading = true;
-    const threshold = perplexityMode === 'events' ? 0.91 : 0.78;
+    const threshold = perplexityMode === 'events' ? 0.85 : 0.78;
     try {
       const res = await fetch(`/api/clustering/clusters?threshold=${threshold}&cluster_type=${perplexityMode}`);
       if (res.ok) {
@@ -240,7 +240,7 @@
   }
 
   async function autoSynthesizeClusters(clustersList) {
-    const toSynthesize = clustersList.slice(0, 6).filter(cluster => {
+    const toSynthesize = clustersList.slice(0, 12).filter(cluster => {
       const cId = cluster.cluster_id;
       const existing = syntheses[cId] || cluster.precomputed_synthesis;
       return !(existing && !isLowQualityOrEnglish(existing)) && !synthLoading[cId];

@@ -68,6 +68,47 @@ def save_clusters_to_cache(threshold_key: str, clusters: list):
     conn.commit()
     conn.close()
 
+def update_cached_cluster_synthesis(articles: list, synthesis: dict):
+    """
+    Persists newly generated synthesis into existing cached clusters in SQLite cluster_cache.
+    """
+    if not articles or not synthesis or synthesis.get("is_fallback") or synthesis.get("status") == "pending":
+        return
+    first_url = articles[0].get("url")
+    if not first_url:
+        return
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT threshold_key, clusters_json FROM cluster_cache")
+        rows = cursor.fetchall()
+        
+        for row in rows:
+            t_key = row["threshold_key"]
+            if not row["clusters_json"]:
+                continue
+            try:
+                clusters = json.loads(row["clusters_json"])
+                updated = False
+                for c in clusters:
+                    c_urls = [a.get("url") for a in c.get("articles", []) if a.get("url")]
+                    if first_url in c_urls:
+                        c["precomputed_synthesis"] = synthesis
+                        updated = True
+                        break
+                if updated:
+                    cursor.execute(
+                        "UPDATE cluster_cache SET clusters_json = ?, updated_at = ? WHERE threshold_key = ?",
+                        (json.dumps(clusters), datetime.now().strftime('%Y-%m-%d %H:%M:%S'), t_key)
+                    )
+            except Exception:
+                pass
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Erreur update_cached_cluster_synthesis: {e}")
+
 def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_hours: float = None, exclude_culture: bool = False) -> list[dict]:
     """
     Reads all embeddings from DB, computes pairwise cosine similarities across all languages (FR, EN, DE, ES),

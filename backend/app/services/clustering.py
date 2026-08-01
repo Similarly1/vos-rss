@@ -219,6 +219,7 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
 
         cluster_items = [art_i]
         visited.add(art_i["id"])
+        current_centroid = art_i["vector"]
 
         for j in range(i + 1, len(articles)):
             art_j = articles[j]
@@ -236,13 +237,13 @@ def compute_article_clusters(similarity_threshold: float = 0.85, max_time_diff_h
             # Dual Similarity Check: Compare against initial seed article AND current centroid
             # to prevent centroid drift (snowballing unrelated news into one cluster)
             sim_seed = cosine_similarity(art_j["vector"], art_i["vector"]) * decay_factor
-            centroid = compute_centroid([item["vector"] for item in cluster_items])
-            sim_centroid = cosine_similarity(art_j["vector"], centroid) * decay_factor
+            sim_centroid = cosine_similarity(art_j["vector"], current_centroid) * decay_factor
 
             # Both seed similarity and centroid similarity must meet threshold
             if sim_seed >= similarity_threshold and sim_centroid >= similarity_threshold:
                 cluster_items.append(art_j)
                 visited.add(art_j["id"])
+                current_centroid = compute_centroid([item["vector"] for item in cluster_items])
 
             # Cap cluster size at 20 articles to prevent mega-cluster snowballing
             if len(cluster_items) >= 20:

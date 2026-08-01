@@ -365,6 +365,8 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
     g_key = (gemini_key or settings.gemini_api_key or "").strip()
 
     m_model = mistral_model or settings.mistral_discover_model or settings.mistral_model or "mistral-small-latest"
+    if not m_model or "medium" in m_model or "tiny" in m_model:
+        m_model = "mistral-small-latest"
     g_model = gemini_model or settings.gemini_discover_model or settings.gemini_model or "gemini-1.5-flash"
 
     articles_text_parts = []

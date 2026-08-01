@@ -49,13 +49,17 @@
     return matches >= 3;
   }
 
-  async function checkAndFetchSynthesis(c) {
-    if (!c || activeSynth) return;
+  let synthErrorMessage = null;
+
+  async function checkAndFetchSynthesis(c, force = false) {
+    if (!c) return;
+    if (!force && activeSynth) return;
     const current = fetchedSynth || c.precomputed_synthesis;
-    if (current && !isLowQualityOrEnglish(current, c)) return;
+    if (!force && current && !isLowQualityOrEnglish(current, c)) return;
     if (!c.articles || c.articles.length === 0) return;
 
     localSynthLoading = true;
+    synthErrorMessage = null;
     try {
       const activeProvider = $synthesisProvider || ($mistralApiKey ? 'mistral' : 'gemini');
       const activeKey = activeProvider === 'gemini' ? $geminiApiKey : $mistralApiKey;
@@ -73,11 +77,16 @@
       });
 
       const result = await res.json();
-      if (res.ok && result.data) {
+      if (res.ok && result.data && !result.data.is_fallback) {
         fetchedSynth = result.data;
+      } else if (result.detail) {
+        synthErrorMessage = result.detail;
+      } else if (result.data && result.data.is_fallback) {
+        synthErrorMessage = "Impossible d'accéder à l'API IA. Vérifiez votre clé API dans les Paramètres.";
       }
     } catch (err) {
       console.error("Erreur auto-synthèse PerplexityCard:", err);
+      synthErrorMessage = "Erreur de connexion au serveur.";
     } finally {
       localSynthLoading = false;
     }
@@ -281,7 +290,22 @@
             {/if}
           </div>
         {:else}
-          <p class="text-sm text-foreground leading-relaxed italic">{cleanTextBoilerplate(cluster.articles[0]?.content || cluster.articles[0]?.description || cluster.articles[0]?.title)}</p>
+          <div class="space-y-4">
+            {#if synthErrorMessage}
+              <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-500 font-semibold flex items-center justify-between gap-2">
+                <span>⚠️ {synthErrorMessage}</span>
+                <button on:click={() => checkAndFetchSynthesis(cluster, true)} class="px-3 py-1 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 text-xs shrink-0">Réessayer</button>
+              </div>
+            {:else}
+              <div class="flex items-center justify-between bg-primary/5 p-3 rounded-2xl border border-primary/20">
+                <span class="text-xs text-muted-foreground font-medium">Extrait de l'article source</span>
+                <button on:click={() => checkAndFetchSynthesis(cluster, true)} class="px-3 rounded-xl py-1.5 bg-primary text-primary-foreground font-extrabold text-xs shadow hover:bg-primary/90 transition-all flex items-center gap-1.5 shrink-0">
+                  <span>✨ Générer la synthèse IA</span>
+                </button>
+              </div>
+            {/if}
+            <p class="text-sm text-foreground leading-relaxed italic">{cleanTextBoilerplate(cluster.articles[0]?.content || cluster.articles[0]?.description || cluster.articles[0]?.title)}</p>
+          </div>
         {/if}
       </div>
       {#if cluster.articles && cluster.articles.length > 0}

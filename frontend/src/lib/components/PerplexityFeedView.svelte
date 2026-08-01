@@ -101,17 +101,17 @@
 
   function isLowQualityOrEnglish(synth) {
     if (!synth) return true;
-    if (synth.is_fallback) return true;
+    if (synth.is_fallback || synth.status === 'pending') return true;
     const text = synth.summary || '';
-    if (isErrorSummary(text) || text.length < 220 || text.includes('Synthèse IA en cours') || text.includes('<img') || text.includes('<p>')) return true;
+    if (isErrorSummary(text) || text.length < 40 || text.includes('Synthèse IA en cours')) return true;
 
-    const enWords = [' the ', ' this ', ' after ', ' said ', ' with ', ' from ', ' reported ', ' market ', ' profit ', ' beat ', ' strikes ', ' island ', ' people ', ' killed ', ' live: ', ' quarterly '];
+    const enWords = [' the ', ' with ', ' from ', ' reported ', ' which ', ' after '];
     const lower = text.toLowerCase();
     let matches = 0;
     for (const w of enWords) {
       if (lower.includes(w)) matches++;
     }
-    return matches >= 2;
+    return matches >= 3;
   }
 
   function openCluster(cluster) {

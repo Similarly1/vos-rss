@@ -34,20 +34,18 @@
 
   function isLowQualityOrEnglish(synth, c) {
     if (!synth) return true;
-    const text = (synth.synthesis_title || '') + ' ' + (synth.summary || '');
-    if (!text || text.length < 35) return true;
-    // Check if raw JS code leaked into synthesis
-    if (/publish\s*['"]|swiper\.|freeMode|slidesPerView|data-sara-|data-area|is-open|POLYGON|EILMELDUNG/i.test(text)) return true;
+    if (synth.is_fallback || synth.status === 'pending') return true;
+    const text = synth.summary || '';
+    if (!text || text.length < 35 || text.includes('Synthèse IA en cours')) return true;
     
-    // Check if title/summary is German or English when target language should be French
-    const title = synth.synthesis_title || c?.topic_title || '';
-    const deWords = /\b(der|die|das|und|ist|nicht|welche|forderungen|diskutiert|werden|anschlag|auf|den|eilmeldung|stadt|um|im|mit|zur|nach|vom|über|aus)\b/i;
-    const enWords = /\b(the|and|is|in|at|which|were|that|from|with|this|have|been|will|today|yesterday|says|said)\b/i;
-    const frWords = /\b(le|la|les|des|du|dans|un|une|est|sur|qui|par|pour|avec|sont|aux)\b/i;
-
-    const isGerman = deWords.test(title) && !frWords.test(title);
-    const isEnglish = enWords.test(title) && !frWords.test(title);
-    return isGerman || isEnglish;
+    // Only reject if text is overwhelmingly English (>= 3 distinct English indicators)
+    const enWords = [' the ', ' with ', ' from ', ' reported ', ' which ', ' after '];
+    const lower = text.toLowerCase();
+    let matches = 0;
+    for (const w of enWords) {
+      if (lower.includes(w)) matches++;
+    }
+    return matches >= 3;
   }
 
   async function checkAndFetchSynthesis(c) {

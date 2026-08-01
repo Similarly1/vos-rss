@@ -319,6 +319,17 @@ def init_db():
     except Exception as e:
         print(f"[Init DB note] {e}")
 
+    # Create requested indexes (category, published_at / published_date, view_type, created_at)
+    try:
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_feeds_category ON feeds(category)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_feeds_created_at ON feeds(created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_published_date ON articles(published_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_podcasts_created_at ON podcasts(created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_catalog_feeds_category ON catalog_feeds(category)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_catalog_feeds_created_at ON catalog_feeds(created_at)")
+    except Exception as e:
+        print(f"[Init DB Indexes note] {e}")
+
     # Inject Culture Pack feeds
     try:
         culture_feeds = [

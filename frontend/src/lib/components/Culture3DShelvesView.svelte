@@ -213,18 +213,21 @@
 
         <div style="perspective: 1400px; perspective-origin: 50% 60%;">
           <!-- Back wall -->
-          <div style="background: linear-gradient(180deg, rgba(8,8,12,0.6) 0%, rgba(14,14,20,0.8) 100%); border-radius: 8px 8px 0 0; padding: 16px 20px 0 20px; position: relative; overflow: hidden; min-height: 170px;">
-            <div style="position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; opacity: 0.5;"></div>
-            <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 32px; background: linear-gradient(to right, rgba(0,0,0,0.3), transparent); pointer-events: none;"></div>
-            <div style="position: absolute; top: 0; right: 0; bottom: 0; width: 32px; background: linear-gradient(to left, rgba(0,0,0,0.3), transparent); pointer-events: none;"></div>
+          <div style="background: linear-gradient(180deg, rgba(8,8,12,0.6) 0%, rgba(14,14,20,0.8) 100%); border-radius: 8px 8px 0 0; position: relative; min-height: 170px;">
+            <div style="position: absolute; inset: 0; border-radius: 8px 8px 0 0; overflow: hidden; pointer-events: none;">
+              <div style="position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; opacity: 0.5;"></div>
+              <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 32px; background: linear-gradient(to right, rgba(0,0,0,0.3), transparent); pointer-events: none;"></div>
+              <div style="position: absolute; top: 0; right: 0; bottom: 0; width: 32px; background: linear-gradient(to left, rgba(0,0,0,0.3), transparent); pointer-events: none;"></div>
+            </div>
 
-            {#if items.length > 0}
-              <div class="flex items-end gap-[18px] pb-2 overflow-x-auto relative z-10 no-scrollbar">
-                {#each items as item, i}
-                  <div style="flex-shrink: 0;">
-                    <MediaCard {item} index={i} onClick={() => handleItemClick(item)} />
-                  </div>
-                {/each}
+            <div class="relative z-10 pt-4 px-5">
+              {#if items.length > 0}
+                <div class="flex items-end gap-[18px] pb-2 pt-12 -mt-12 px-2 -mx-2 overflow-x-auto relative z-10 no-scrollbar">
+                  {#each items as item, i}
+                    <div style="flex-shrink: 0;" class="hover:z-50 relative transition-all duration-300">
+                      <MediaCard {item} index={i} onClick={() => handleItemClick(item)} />
+                    </div>
+                  {/each}
                 <div style="width: 20px; flex-shrink: 0;"></div>
               </div>
             {:else}

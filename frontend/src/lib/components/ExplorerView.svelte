@@ -82,20 +82,15 @@
 
   <!-- Views Container -->
   <div class="flex-1 relative bg-background overflow-hidden">
-    {#key activeTab}
-      <div 
-        in:customSubTransition
-        class="absolute inset-0 w-full h-full flex flex-col overflow-hidden"
-      >
-        {#if activeTab === 'flux'}
-          <PerplexityFeedView />
-        {:else if activeTab === 'culture'}
-          <Culture3DShelvesView />
-        {:else if activeTab === 'carte'}
-          <GeoMapView />
-        {/if}
-      </div>
-    {/key}
+    <div class="absolute inset-0 w-full h-full flex flex-col overflow-hidden" class:hidden={activeTab !== 'flux'}>
+      <PerplexityFeedView />
+    </div>
+    <div class="absolute inset-0 w-full h-full flex flex-col overflow-hidden" class:hidden={activeTab !== 'culture'}>
+      <Culture3DShelvesView />
+    </div>
+    <div class="absolute inset-0 w-full h-full flex flex-col overflow-hidden" class:hidden={activeTab !== 'carte'}>
+      <GeoMapView />
+    </div>
   </div>
 
 </div>

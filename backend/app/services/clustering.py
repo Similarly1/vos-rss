@@ -253,7 +253,7 @@ def clean_html_tags(raw_html: str) -> str:
     text = re.sub(r'(?:data-[a-zA-Z0-9_-]+|:[a-zA-Z0-9_-]+|x-[a-zA-Z0-9_-]+|@[a-zA-Z0-9_-]+)=["\'][^"\']*["\']', ' ', text)
     text = re.sub(r'&#\d+;', ' ', text)
     text = re.sub(r'&[a-zA-Z]+;', ' ', text)
-    text = re.sub(r'[^a-zA-Z0-9àâáäãåçéèêëìíîïñòóôöõøùúûüýÿÀÂÁÄÃÅÇÉÈÊËÌÍÎÏÑÒÓÔÖÕØÙÚÛÜÝŸæÆœŒ\s.,!?\'"–-]', ' ', text)
+    text = re.sub(r'[^a-zA-Z0-9àâáäãåçéèêëìíîïñòóôöõøùúûüýÿÀÂÁÄÃÅÇÉÈÊËÌÍÎÏÑÒÓÔÖÕØÙÚÛÜÝŸæÆœŒ\s.,!?\'"’–-]', ' ', text)
     return re.sub(r'\s+', ' ', text).strip()
 
 async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = "", gemini_key: str = "", provider: str = "mistral", fallback_enabled: bool = True, mistral_model: str = None, gemini_model: str = None):
@@ -284,10 +284,11 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
         "Ton objectif est de croiser les informations issues de médias rédigés en n'importe quelle langue (anglais, allemand, espagnol, français, etc.) "
         "qui traitent du MÊME sujet ou événement précis pour rédiger une synthèse globale unifiée, neutre, captivante, complète et sans doublons.\n\n"
         "CONSIGNES STRICTES :\n"
-        "1. TRADUCTION OBLIGATOIRE EN FRANÇAIS : Tu dois TOUJOURS traduire et rédiger IMPÉRATIVEMENT le titre (synthesis_title), le résumé (summary) ET les points clés (key_takeaways) STRICTEMENT ET 100% EN FRANÇAIS, quelle que soit la langue des articles sources (même s'ils sont en anglais).\n"
+        "1. TRADUCTION OBLIGATOIRE EN FRANÇAIS : Tu dois TOUJOURS traduire et rédiger IMPÉRATIVEMENT le titre (synthesis_title), le résumé (summary) ET les points clés (key_takeaways) STRICTEMENT ET 100% EN FRANÇAIS, quelle que soit la langue des articles sources (même s'ils sont en anglais). IL EST STRICTEMENT INTERDIT D'UTILISER UNE AUTRE LANGUE QUE LE FRANÇAIS.\n"
         "2. DÉVELOPPEMENT DU RÉSUMÉ : Le résumé (summary) doit être riche, bien développé et complet (2 à 3 paragraphes détaillés expliquant les faits, les causes et le contexte), et JAMAIS une simple phrase courte.\n"
         "3. TEXTE PUR SANS BALISES HTML : Ne mets aucune balise HTML (pas de <p>, <img>, <div>). Rédige uniquement du texte brut avec des retours à la ligne naturels.\n"
-        "4. GÉOLOCALISATION : Si l'événement possède un ancrage géographique très strict et précis (une ville, un pays précis, une région spécifique, par ex: 'Genève', 'Ukraine', 'Tokyo', 'Paris'), fournis `location_name`, `latitude` et `longitude`. Si l'événement est abstrait ou sans ancrage précis, retourne null pour ces 3 champs."
+        "4. GÉOLOCALISATION : Si l'événement possède un ancrage géographique très strict et précis (une ville, un pays précis, une région spécifique, par ex: 'Genève', 'Ukraine', 'Tokyo', 'Paris'), fournis `location_name`, `latitude` et `longitude`. Si l'événement est abstrait ou sans ancrage précis, retourne null pour ces 3 champs.\n"
+        "5. CATÉGORISATION CINÉMA & SÉRIES : Si le contenu relève de la classification 'Cinéma et séries', restreins cette catégorie STRICTEMENT aux œuvres scénarisées (films, séries fictions). Exclus formellement les sports, les JT, la téléréalité, et les émissions TV classiques."
     )
 
     user_prompt = f"""
@@ -396,6 +397,7 @@ async def synthesize_cluster(cluster_articles: list[dict], mistral_key: str = ""
             "synthesis_title": clean_title,
             "summary": "Synthèse IA en cours de préparation...",
             "key_takeaways": [],
+            "status": "pending",
             "is_fallback": True
         }
 

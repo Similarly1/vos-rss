@@ -167,14 +167,7 @@
       ]);
       topoData = rGeo;
       
-      const allC = rClust.clusters || [];
-      clusters = allC.filter(c => {
-         const text = (c.precomputed_synthesis?.synthesis_title || c.topic_title || "") + " " + (c.precomputed_synthesis?.summary || "");
-         const enDeWords = /\b(the|and|is|in|at|which|were|der|die|das|und|ist|nicht)\b/i;
-         const frWords = /\b(le|la|les|des|du|dans|un|une|est)\b/i;
-         if (enDeWords.test(text) && !frWords.test(text)) return false;
-         return true;
-      });
+      clusters = rClust.clusters || [];
     } catch (e) {
       console.error("Erreur chargement carte/clusters:", e);
     } finally {
@@ -220,7 +213,7 @@
     let text = str;
     text = text.replace(/&#(\d+);/g, (m, dec) => String.fromCharCode(dec));
     text = text.replace(/&#x([0-9a-fA-F]+);/g, (m, hex) => String.fromCharCode(parseInt(hex, 16)));
-    text = text.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#039;/g, "'").replace(/&nbsp;/g, ' ');
+    text = text.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#039;/g, "'").replace(/&apos;/g, "'").replace(/&rsquo;/g, "’").replace(/&nbsp;/g, ' ');
     return text;
   }
 
@@ -235,7 +228,7 @@
     text = text.replace(/(?:lg|md|sm|xl|2xl):[a-zA-Z0-9_-]+/g, ' ');
     text = text.replace(/(?:opacity-none|invisible|flex|grid|absolute|relative|overflow-hidden|hover:|focus:|opacity-none)[a-zA-Z0-9_-]*/gi, ' ');
     text = text.replace(/(?:BBC Homepage|Skip to content|Accessibility Help|Your account|Search BBC|More menu|Close menu|Menü öffnen|watchOverflow|isCollapsed|swiper-init|data-app-hidden|x-lazyload|Menü Startseite|Ausland)/gi, ' ');
-    text = text.replace(/[^a-zA-Z0-9àâáäãåçéèêëìíîïñòóôöõøùúûüýÿÀÂÁÄÃÅÇÉÈÊËÌÍÎÏÑÒÓÔÖÕØÙÚÛÜÝŸæÆœŒ\s.,!?'"–-]/g, ' ');
+    text = text.replace(/[^a-zA-Z0-9àâáäãåçéèêëìíîïñòóôöõøùúûüýÿÀÂÁÄÃÅÇÉÈÊËÌÍÎÏÑÒÓÔÖÕØÙÚÛÜÝŸæÆœŒ\s.,!?'"’«»()\[\]\-–—*_+€$@]/g, ' ');
     return text.replace(/\s+/g, ' ').trim();
   }
 

@@ -143,7 +143,8 @@ async def summarize_article(article_id: int, payload: SummarizeRequest):
 
     system_prompt = (
         "Tu es un éditeur et journaliste IA pour l'application de podcast 'Vos'. "
-        "Ton rôle est de créer un résumé structuré et clair d'un article d'actualité en français."
+        "Ton rôle est de créer un résumé structuré et clair d'un article d'actualité en français.\n"
+        "Si le contenu relève de la catégorie 'Cinéma et séries', restreins la classification STRICTEMENT aux œuvres scénarisées (films, fictions). Exclus formellement les sports, les JT, la téléréalité, et les émissions TV classiques."
     )
     user_prompt = f"""
     Titre de l'article : {article['title']}
